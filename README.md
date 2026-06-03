@@ -53,6 +53,9 @@ curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/inst
 Then open Hermes Agent and use the installed skills through Hermes' normal skill
 surfaces.
 
+For the full install, Discord bot deployment, update, reapply, and uninstall
+flow, see [Installation](docs/INSTALLATION.md).
+
 Check or manage the installation with `omh`:
 
 ```sh
