@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .catalog import DESCRIPTIONS, SkillDefinition, builtin_definitions
+from .catalog import DESCRIPTIONS, HarnessDefinition, SkillDefinition, builtin_definitions, builtin_harnesses
 
 
 @dataclass(frozen=True)
@@ -25,8 +25,27 @@ def _trigger_table(definitions: list[SkillDefinition]) -> str:
     return "\n".join(lines)
 
 
+def _harness_summary(harness: HarnessDefinition) -> str:
+    inputs = ", ".join(harness.inputs[:3])
+    outputs = ", ".join(harness.outputs[:3])
+    verification = ", ".join(harness.verification[:2])
+    return (
+        f"- `{harness.name}`: {harness.purpose}\n"
+        f"  - Use when: {harness.use_when}\n"
+        f"  - Inputs: {inputs}\n"
+        f"  - Outputs: {outputs}\n"
+        f"  - Verification: {verification}\n"
+        f"  - Fallback: {harness.fallback}"
+    )
+
+
+def _harness_registry(harnesses: list[HarnessDefinition]) -> str:
+    return "\n".join(_harness_summary(harness) for harness in harnesses)
+
+
 def router_skill() -> SkillTemplate:
     definitions = builtin_definitions()
+    harnesses = builtin_harnesses()
     body = f"""# Oh My Hermes Router
 
 Use this skill when the user mentions oh-my-hermes or a workflow keyword such as `ralph`, `ultragoal`, `deep-interview`, `team`, `ultraqa`, `ralplan`, or `code-review`.
@@ -50,6 +69,21 @@ When Hermes exposes installed skill descriptions to the model, use this registry
 {_trigger_table(definitions)}
 
 Routing is conservative: route only on explicit invocation, strong keyword evidence, or a clear workflow-shaped request. A bare common word such as `team`, `ask`, `wiki`, or `review` is not enough when it could mean normal conversation.
+
+## Representative Harness Registry
+
+Use these harnesses to shape the response before adding new skills. They are quality lanes, not proof that a separate runtime role exists.
+
+{_harness_registry(harnesses)}
+
+Harness priority:
+
+1. Coding requests start with `coding-handling`.
+2. Multi-step durable work adds `goal-execution`.
+3. Unclear work uses `deep-interview` before `planning`.
+4. Risky architecture uses `architect`, then `critic`.
+5. User-visible behavior changes add `qa-specialist`.
+6. Public commands, examples, or limitations add `docs-specialist`.
 
 Recovery:
 
@@ -81,6 +115,12 @@ This is a Hermes-native `{name}` workflow skill.
 {definition.use_when}
 
 Strong routing signals: {triggers}
+
+## Harness Discipline
+
+- Start from the representative harness registry in `oh-my-hermes` when the workflow needs coding, planning, goal execution, architecture, critique, QA, or documentation lanes.
+- Prefer richer evidence and clearer stop conditions over adding more workflow names.
+- Use specialist lanes only when they change the quality of the answer or verification.
 
 ## Hermes Compatibility Contract
 

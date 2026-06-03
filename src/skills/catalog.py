@@ -11,6 +11,18 @@ class SkillDefinition:
     use_when: str
 
 
+@dataclass(frozen=True)
+class HarnessDefinition:
+    name: str
+    purpose: str
+    use_when: str
+    inputs: tuple[str, ...]
+    outputs: tuple[str, ...]
+    stop_conditions: tuple[str, ...]
+    verification: tuple[str, ...]
+    fallback: str
+
+
 _DEFINITIONS = [
     SkillDefinition(
         "oh-my-hermes",
@@ -123,8 +135,96 @@ _DEFINITIONS = [
 ]
 
 
+_HARNESSES = [
+    HarnessDefinition(
+        "coding-handling",
+        "Route implementation requests through scoped context, edit discipline, tests, review, and evidence.",
+        "Use when the user asks Hermes to write, modify, debug, refactor, or review code.",
+        ("task statement", "repo context", "constraints", "target files or discovered touchpoints"),
+        ("changed files", "verification evidence", "remaining risks"),
+        ("requested behavior is implemented", "tests or checks pass", "known gaps are reported"),
+        ("run the smallest relevant tests", "inspect generated skill output when routing changed"),
+        "If the request is underspecified, ask one concise clarification question before editing.",
+    ),
+    HarnessDefinition(
+        "goal-execution",
+        "Keep long-running work tied to explicit goals, checkpoints, and durable evidence.",
+        "Use when the task has multiple milestones, durable state, or finish-until-done pressure.",
+        ("goal statement", "acceptance criteria", "current checkpoint", "blocked or pending stories"),
+        ("goal ledger updates", "checkpoint evidence", "completion or blocker summary"),
+        ("current goal is complete or explicitly blocked", "checkpoint evidence is recorded"),
+        ("compare artifacts against acceptance criteria", "record fresh evidence before completion"),
+        "If Hermes has no goal tool, use a local checklist or file-backed ledger.",
+    ),
+    HarnessDefinition(
+        "planning",
+        "Turn clarified requirements into an execution-ready plan with tradeoffs and tests.",
+        "Use before implementation when architecture, sequencing, or validation shape matters.",
+        ("requirements", "constraints", "known facts", "non-goals"),
+        ("PRD or plan", "test strategy", "handoff guidance"),
+        ("plan has acceptance criteria", "risks and alternatives are explicit"),
+        ("review option consistency", "verify testability before execution"),
+        "If consensus review is unavailable, do a sequential planner -> reviewer pass.",
+    ),
+    HarnessDefinition(
+        "deep-interview",
+        "Clarify intent and boundaries one question at a time before planning or execution.",
+        "Use when intent, scope, non-goals, or decision authority are unclear.",
+        ("initial idea", "current ambiguity", "known repo facts"),
+        ("clarified spec", "non-goals", "decision boundaries", "acceptance criteria"),
+        ("ambiguity is low enough", "non-goals and decision boundaries are explicit"),
+        ("pressure-test assumptions", "capture transcript or summary"),
+        "If structured question UI is unavailable, ask one direct question in the current surface.",
+    ),
+    HarnessDefinition(
+        "architect",
+        "Evaluate system boundaries, integration choices, and long-term maintainability.",
+        "Use when a plan touches architecture, runtime integration, extension boundaries, or shared contracts.",
+        ("plan", "context", "constraints", "existing architecture evidence"),
+        ("architecture verdict", "tradeoff tension", "required changes or clear approval"),
+        ("boundary risks are addressed", "chosen approach fits current architecture"),
+        ("steelman the strongest antithesis", "check integration claims against evidence"),
+        "If delegation is unavailable, run a separate self-review pass before coding.",
+    ),
+    HarnessDefinition(
+        "critic",
+        "Challenge plan consistency, quality criteria, and missing verification.",
+        "Use after planning or before release when a bad assumption would be costly.",
+        ("plan", "test spec", "architect review", "user constraints"),
+        ("approval or requested changes", "critical findings", "residual risks"),
+        ("quality criteria are testable", "risks have mitigations", "alternatives are fair"),
+        ("check principle-option consistency", "reject vague acceptance criteria"),
+        "If no critic role exists, do a bug-first checklist review and cite concrete evidence.",
+    ),
+    HarnessDefinition(
+        "qa-specialist",
+        "Design adversarial scenarios and verify user-visible behavior before completion.",
+        "Use when changes affect workflows, installer behavior, docs examples, or routing claims.",
+        ("acceptance criteria", "changed behavior", "fixtures or runnable commands"),
+        ("test matrix", "hostile scenarios", "pass/fail evidence"),
+        ("critical scenarios pass", "known manual gaps are listed"),
+        ("run targeted tests", "cover failure modes and recovery paths"),
+        "If runtime automation is unavailable, use fixtures and document manual checks.",
+    ),
+    HarnessDefinition(
+        "docs-specialist",
+        "Keep public docs accurate, installable, and aligned with actual behavior.",
+        "Use whenever user-facing commands, routing behavior, examples, or release posture change.",
+        ("changed behavior", "commands", "limitations", "audience"),
+        ("README/docs updates", "examples", "troubleshooting notes"),
+        ("docs match behavior", "claims are conservative", "examples are reproducible"),
+        ("run public-content scans", "verify commands and file references"),
+        "If behavior is not implemented yet, label it as roadmap instead of current capability.",
+    ),
+]
+
+
 def builtin_definitions() -> list[SkillDefinition]:
     return list(_DEFINITIONS)
+
+
+def builtin_harnesses() -> list[HarnessDefinition]:
+    return list(_HARNESSES)
 
 
 CORE_SKILLS = [definition.name for definition in _DEFINITIONS]

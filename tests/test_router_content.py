@@ -6,7 +6,7 @@ import unittest
 from _local_package import load_local_package
 
 load_local_package()
-from omh.skill_pack import builtin_skill_templates
+from omh.skill_pack import builtin_harnesses, builtin_skill_templates
 
 
 class RouterContentTests(unittest.TestCase):
@@ -33,6 +33,38 @@ class RouterContentTests(unittest.TestCase):
             "code-review",
         }:
             self.assertIn(expected, names)
+
+    def test_router_renders_representative_harness_registry(self) -> None:
+        router = next(skill for skill in builtin_skill_templates() if skill.name == "oh-my-hermes")
+        harnesses = {harness.name for harness in builtin_harnesses()}
+
+        self.assertEqual(
+            {
+                "coding-handling",
+                "goal-execution",
+                "planning",
+                "deep-interview",
+                "architect",
+                "critic",
+                "qa-specialist",
+                "docs-specialist",
+            },
+            harnesses,
+        )
+        self.assertIn("Representative Harness Registry", router.content)
+        self.assertIn("quality lanes, not proof that a separate runtime role exists", router.content)
+        for harness in harnesses:
+            self.assertIn(f"`{harness}`", router.content)
+        self.assertIn("Inputs:", router.content)
+        self.assertIn("Outputs:", router.content)
+        self.assertIn("Verification:", router.content)
+        self.assertIn("Fallback:", router.content)
+
+    def test_workflow_skills_refer_to_harness_discipline(self) -> None:
+        skills = {skill.name: skill for skill in builtin_skill_templates()}
+
+        self.assertIn("Harness Discipline", skills["ultragoal"].content)
+        self.assertIn("Prefer richer evidence and clearer stop conditions", skills["code-review"].content)
 
     def test_generated_public_content_avoids_external_runtime_branding(self) -> None:
         forbidden = ("om" + "x", "oh-my-" + "co" + "dex", "co" + "dex")
