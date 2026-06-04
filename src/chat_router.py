@@ -137,6 +137,25 @@ def route_chat_event(
     return route_chat_message(extract_message_text(event), source=source, limit=limit, min_confidence=min_confidence)
 
 
+def public_route_payload(decision: dict[str, object], *, include_message: bool = False) -> dict[str, object]:
+    route = dict(decision)
+    route["recommendations"] = _compact_recommendations(route.get("recommendations", []))
+    route["routing_instruction"] = _routing_instruction(
+        str(route["action"]),
+        str(route["selected_skill"]),
+        str(route["candidate_skill"]),
+    )
+    route["routing_prompt_template"] = _routing_prompt_template(
+        str(route["action"]),
+        str(route["selected_skill"]),
+        str(route["candidate_skill"]),
+        str(route["reason"]),
+    )
+    if not include_message:
+        route.pop("routing_prompt", None)
+    return route
+
+
 def extract_message_text(event: dict[str, Any] | str) -> str:
     if isinstance(event, str):
         return event.strip()
@@ -221,13 +240,19 @@ def _clarification(action: str, candidate_skill: str, candidate_confidence: str,
 
 
 def _routing_prompt(action: str, selected_skill: str, candidate_skill: str, reason: str, message: str) -> str:
+    return _routing_prompt_template(action, selected_skill, candidate_skill, reason).replace("{message}", message)
+
+
+def _routing_prompt_template(action: str, selected_skill: str, candidate_skill: str, reason: str) -> str:
+    return f"{_routing_instruction(action, selected_skill, candidate_skill)}\n\nRouting reason: {reason}\n\nUser message:\n{{message}}"
+
+
+def _routing_instruction(action: str, selected_skill: str, candidate_skill: str) -> str:
     if action == "dispatch":
-        instruction = f"Use the `{selected_skill}` workflow for this chat message."
+        return f"Use the `{selected_skill}` workflow for this chat message."
     elif action == "clarify":
-        instruction = f"Use the `oh-my-hermes` router before dispatching to `{candidate_skill}`."
-    else:
-        instruction = "Use the `oh-my-hermes` router and ask one concise clarification question."
-    return f"{instruction}\n\nRouting reason: {reason}\n\nUser message:\n{message}"
+        return f"Use the `oh-my-hermes` router before dispatching to `{candidate_skill}`."
+    return "Use the `oh-my-hermes` router and ask one concise clarification question."
 
 
 def _compact_recommendations(recommendations: object) -> list[dict[str, object]]:

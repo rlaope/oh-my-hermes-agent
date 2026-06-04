@@ -167,10 +167,11 @@ it could mean normal conversation.
 
 Wrappers for Discord, Slack, or hosted Hermes chats can run `omh chat route`
 before forwarding a plain user message. The command returns a deterministic
-`dispatch`, `clarify`, or `fallback` decision plus a `routing_prompt` that the
-wrapper can send to Hermes. With `--record`, it writes metadata-only
-`routing.json` evidence under `.omh/runtime/` without storing the raw prompt
-body.
+`dispatch`, `clarify`, or `fallback` decision plus a `routing_instruction` and
+`routing_prompt_template`. The default JSON omits the raw prompt body so wrapper
+logs can stay metadata-only; use `--include-message` only when the wrapper needs
+`route.routing_prompt` pre-expanded. With `--record`, it writes metadata-only
+`routing.json` evidence under `.omh/runtime/` without storing the raw prompt.
 
 ## Commands
 

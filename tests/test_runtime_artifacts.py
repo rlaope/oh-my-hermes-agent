@@ -143,6 +143,22 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertEqual(shown["routing"]["action"], "dispatch")
             self.assertIn("routing_decision_recorded", {event["event"] for event in shown["events"]})
 
+    def test_write_routing_decision_sanitizes_full_route_decision(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_run(paths, {"skill": "ai-slop-cleaner", "harness": "coding-handling", "status": "started"})
+            secret_message = "risky refactor with private-token-123"
+
+            routing = write_routing_decision(
+                paths.runtime_runs_dir / run["run_id"],
+                route_chat_message(secret_message, source="discord"),
+            )
+
+            serialized = json.dumps(routing)
+            self.assertNotIn(secret_message, serialized)
+            self.assertNotIn("suggested_prompt", serialized)
+            self.assertEqual(set(routing["recommendations"][0]), {"skill", "score", "confidence", "matched"})
+
     def test_validate_runtime_rejects_missing_and_invalid_artifacts(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")

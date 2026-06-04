@@ -58,7 +58,9 @@ The flow is:
 1. The Discord bot receives a user message.
 2. The bot can run `omh chat route --source discord --record "<message>"` to
    choose `dispatch`, `clarify`, or `fallback` before forwarding the request.
-3. The bot forwards the returned `route.routing_prompt` to Hermes Agent.
+3. The bot forwards `route.routing_prompt_template` with `{message}` replaced by
+   the received message, or runs with `--include-message` and forwards
+   `route.routing_prompt` when stdout is not logged.
 4. Hermes starts with its normal config and reads `skills.external_dirs`.
 5. `omh apply` makes sure `~/.omh/skills` is included in that discovery list.
 6. Hermes sees the managed skills, including the `oh-my-hermes` router skill.
@@ -87,7 +89,7 @@ Optional artifact-backed flow:
 
 ```sh
 message='risky refactor'
-route_json="$(omh chat route --source discord --record "$message")"
+route_json="$(omh chat route --source discord --record --include-message "$message")"
 run_id="$(printf '%s' "$route_json" | python -c 'import json,sys; print(json.load(sys.stdin)["runtime"]["run"]["run_id"])')"
 route_prompt="$(printf '%s' "$route_json" | python -c 'import json,sys; print(json.load(sys.stdin)["route"]["routing_prompt"])')"
 
@@ -131,7 +133,8 @@ Before calling the bot integration ready, verify these points:
 Current limitation: deeper execution still depends on Hermes loading and
 exposing installed skills to the model. `omh chat route` chooses the prompt and
 records metadata before dispatch, but the bot adapter must forward the returned
-`routing_prompt`, and Hermes must still load the managed skills.
+prompt template or opt into `--include-message`, and Hermes must still load the
+managed skills.
 
 ## Update
 

@@ -63,6 +63,16 @@ class CliTests(unittest.TestCase):
         route = json.loads(stdout)["route"]
         self.assertEqual(route["action"], "dispatch")
         self.assertEqual(route["selected_skill"], "ai-slop-cleaner")
+        self.assertIn("routing_prompt_template", route)
+        self.assertIn("{message}", route["routing_prompt_template"])
+        self.assertNotIn("risky refactor", json.dumps(route))
+
+    def test_chat_route_can_emit_complete_prompt_for_non_logging_wrappers(self) -> None:
+        status, stdout, stderr = run_cli(["chat", "route", "--include-message", "--source", "discord", "risky", "refactor"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        route = json.loads(stdout)["route"]
         self.assertIn("User message:\nrisky refactor", route["routing_prompt"])
 
     def test_chat_route_reads_platform_event_json(self) -> None:

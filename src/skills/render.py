@@ -106,9 +106,9 @@ Discord, Slack, or hosted Hermes wrappers can run `omh chat route` before dispat
 omh chat route --source discord --record "risky refactor"
 ```
 
-Use the returned `route.routing_prompt` as the message forwarded to Hermes. A `dispatch` action targets the selected workflow skill; `clarify` and `fallback` target this router so Hermes can ask one concise follow-up instead of guessing.
+Use `route.routing_prompt_template` with `{{message}}` replaced by the received chat message as the prompt forwarded to Hermes. If the wrapper does not log stdout and wants a pre-expanded prompt, pass `--include-message` and forward `route.routing_prompt`. A `dispatch` action targets the selected workflow skill; `clarify` and `fallback` target this router so Hermes can ask one concise follow-up instead of guessing.
 
-This is a deterministic wrapper-side decision layer. It does not patch Hermes core or require platform network access from `omh`.
+This is a deterministic wrapper-side decision layer. By default, stdout and runtime artifacts avoid duplicating the raw prompt body. It does not patch Hermes core or require platform network access from `omh`.
 
 ## Automatic Routing Registry
 

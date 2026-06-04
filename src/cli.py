@@ -10,6 +10,7 @@ from .chat_router import (
     CHAT_SOURCES,
     CONFIDENCE_LEVELS,
     extract_message_text,
+    public_route_payload,
     route_chat_message,
     routing_record_payload,
 )
@@ -182,7 +183,7 @@ def cmd_chat_route(args: argparse.Namespace) -> int:
         decision = route_chat_message(message, source=args.source, limit=args.limit, min_confidence=args.min_confidence)
     except ValueError as exc:
         raise OmhError(str(exc)) from exc
-    payload = {"route": decision}
+    payload = {"route": public_route_payload(decision, include_message=args.include_message)}
     if args.record:
         paths = _paths(args)
         selected_skill = str(decision["selected_skill"])
@@ -534,6 +535,11 @@ def _add_chat_commands(sub) -> None:
         help="Read a Slack/Discord/Hermes-like JSON event from this path, or '-' for stdin.",
     )
     route.add_argument("--record", action="store_true", help="Record a metadata-only routing artifact under .omh/runtime.")
+    route.add_argument(
+        "--include-message",
+        action="store_true",
+        help="Include a complete routing_prompt with the raw message in stdout.",
+    )
     route.add_argument("--source-event-id", default="", help="Optional source message/event id to store as metadata.")
     route.add_argument("--channel-ref", default="", help="Optional channel reference to store as metadata.")
     route.add_argument("--user-ref", default="", help="Optional user reference to store as metadata.")

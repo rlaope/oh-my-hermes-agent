@@ -66,9 +66,10 @@ Routing has two local surfaces:
    forward a plain user message to Hermes.
 
 Both surfaces read from the same catalog metadata. The chat router returns a
-`routing_prompt` for the wrapper to forward and can record metadata-only
-`routing.json` evidence. It does not include a Discord or Slack SDK, open network
-connections, or patch Hermes internals.
+`routing_instruction` and `routing_prompt_template` for the wrapper to forward,
+with raw-message prompt expansion available only through `--include-message`.
+It can record metadata-only `routing.json` evidence. It does not include a
+Discord or Slack SDK, open network connections, or patch Hermes internals.
 
 Future routing work should deepen the catalog first, then render richer skill
 metadata from it.

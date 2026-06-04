@@ -6,7 +6,13 @@ import unittest
 from _local_package import load_local_package
 
 load_local_package()
-from omh.chat_router import extract_message_text, route_chat_event, route_chat_message, routing_record_payload
+from omh.chat_router import (
+    extract_message_text,
+    public_route_payload,
+    route_chat_event,
+    route_chat_message,
+    routing_record_payload,
+)
 
 
 class ChatRouterTests(unittest.TestCase):
@@ -64,6 +70,20 @@ class ChatRouterTests(unittest.TestCase):
         self.assertEqual(record["source_event_id"], "m1")
         self.assertNotIn(message, json.dumps(record))
         self.assertRegex(str(record["message_sha256"]), r"^[a-f0-9]{64}$")
+
+    def test_public_route_payload_omits_raw_message_by_default(self) -> None:
+        message = "risky refactor"
+        decision = route_chat_message(message, source="discord")
+
+        public = public_route_payload(decision)
+
+        self.assertNotIn("routing_prompt", public)
+        self.assertIn("routing_prompt_template", public)
+        self.assertIn("{message}", str(public["routing_prompt_template"]))
+        self.assertNotIn(message, json.dumps(public))
+
+        expanded = public_route_payload(decision, include_message=True)
+        self.assertIn(message, str(expanded["routing_prompt"]))
 
 
 if __name__ == "__main__":

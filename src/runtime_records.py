@@ -15,6 +15,7 @@ EVENT_LEVELS = ("debug", "info", "warning", "error")
 WRAPPER_COMPLETION_STATUSES = ("started", "completed", "blocked", "failed", "unknown")
 ROUTE_ACTIONS = ("dispatch", "clarify", "fallback")
 ROUTE_CONFIDENCES = ("low", "medium", "high")
+ROUTING_RECOMMENDATION_KEYS = ("skill", "score", "confidence", "matched")
 
 
 def build_run_record(metadata: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -127,8 +128,27 @@ def build_routing_record(routing: dict[str, Any]) -> dict[str, Any]:
         "source_event_id": str(routing.get("source_event_id", "")),
         "channel_ref": str(routing.get("channel_ref", "")),
         "user_ref": str(routing.get("user_ref", "")),
-        "recommendations": list(routing.get("recommendations", [])),
+        "recommendations": _compact_routing_recommendations(routing.get("recommendations", [])),
     }
+
+
+def _compact_routing_recommendations(recommendations: Any) -> list[dict[str, Any]]:
+    if not isinstance(recommendations, list):
+        return []
+    compact: list[dict[str, Any]] = []
+    for item in recommendations:
+        if not isinstance(item, dict):
+            continue
+        matched = item.get("matched", [])
+        compact.append(
+            {
+                "skill": str(item.get("skill", "")),
+                "score": int(item.get("score", 0)),
+                "confidence": str(item.get("confidence", "low")),
+                "matched": [str(value) for value in matched] if isinstance(matched, list) else [],
+            }
+        )
+    return compact
 
 
 def _require(condition: bool, errors: list[str], message: str) -> None:
@@ -217,6 +237,16 @@ def validate_routing_record(routing: dict[str, Any]) -> list[str]:
     _require(isinstance(routing.get("explicit"), bool), errors, "routing explicit must be boolean")
     _require(isinstance(routing.get("ambiguous"), bool), errors, "routing ambiguous must be boolean")
     _require(isinstance(routing.get("recommendations"), list), errors, "routing recommendations must be a list")
+    for index, recommendation in enumerate(routing.get("recommendations", [])):
+        _require(isinstance(recommendation, dict), errors, f"routing recommendations[{index}] must be an object")
+        if not isinstance(recommendation, dict):
+            continue
+        extra_keys = sorted(set(recommendation) - set(ROUTING_RECOMMENDATION_KEYS))
+        _require(not extra_keys, errors, f"routing recommendations[{index}] has unsupported keys: {extra_keys}")
+        _require(isinstance(recommendation.get("skill"), str), errors, f"routing recommendations[{index}].skill must be a string")
+        _require(isinstance(recommendation.get("score"), int), errors, f"routing recommendations[{index}].score must be an integer")
+        _require(isinstance(recommendation.get("confidence"), str), errors, f"routing recommendations[{index}].confidence must be a string")
+        _require(isinstance(recommendation.get("matched"), list), errors, f"routing recommendations[{index}].matched must be a list")
     return errors
 
 
