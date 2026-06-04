@@ -95,6 +95,7 @@ omh install --from-skills-dir ./skills
 omh update --from-skills-dir ./skills
 omh apply --dry-run
 omh recommend "risky refactor"
+omh chat route --source discord --record "risky refactor"
 omh runtime record --skill oh-my-hermes --harness coding-handling --status started
 omh runtime validate
 omh runtime export
@@ -164,6 +165,13 @@ Routing priority:
 A bare common word such as `team`, `ask`, `wiki`, or `review` is not enough when
 it could mean normal conversation.
 
+Wrappers for Discord, Slack, or hosted Hermes chats can run `omh chat route`
+before forwarding a plain user message. The command returns a deterministic
+`dispatch`, `clarify`, or `fallback` decision plus a `routing_prompt` that the
+wrapper can send to Hermes. With `--record`, it writes metadata-only
+`routing.json` evidence under `.omh/runtime/` without storing the raw prompt
+body.
+
 ## Commands
 
 | Command | Purpose |
@@ -175,6 +183,7 @@ it could mean normal conversation.
 | `omh list` | Print the installed manifest. |
 | `omh doctor` | Verify managed files and Hermes config registration. |
 | `omh recommend <task>` | Deterministically suggest workflow skills from the local OMHM catalog. |
+| `omh chat route <message>` | Route a plain chat message before a Discord, Slack, or Hermes wrapper dispatches it. |
 | `omh runtime status` | Inspect local runtime artifact state. |
 | `omh runtime record` | Create a metadata-only workflow run artifact. |
 | `omh runtime delegate` | Record observed or unavailable delegation for a run. |
@@ -191,6 +200,7 @@ it could mean normal conversation.
 
 ```text
 src/
+  chat_router.py          deterministic chat pre-dispatch routing
   cli.py                 command-line entrypoint
   config_adapter.py      Hermes config registration adapter
   converter.py           local skill import support

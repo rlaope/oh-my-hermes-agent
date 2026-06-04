@@ -13,6 +13,8 @@ OBSERVED_RESULTS = ("completed", "blocked", "failed")
 UNOBSERVED_RESULTS = ("not_available", "not_observed")
 EVENT_LEVELS = ("debug", "info", "warning", "error")
 WRAPPER_COMPLETION_STATUSES = ("started", "completed", "blocked", "failed", "unknown")
+ROUTE_ACTIONS = ("dispatch", "clarify", "fallback")
+ROUTE_CONFIDENCES = ("low", "medium", "high")
 
 
 def build_run_record(metadata: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -95,6 +97,40 @@ def build_wrapper_record(wrapper: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_routing_record(routing: dict[str, Any]) -> dict[str, Any]:
+    action = routing.get("action", "fallback")
+    if action not in ROUTE_ACTIONS:
+        raise ValueError(f"unsupported routing action: {action}")
+    confidence = routing.get("confidence", "low")
+    if confidence not in ROUTE_CONFIDENCES:
+        raise ValueError(f"unsupported routing confidence: {confidence}")
+    threshold = routing.get("threshold", "high")
+    if threshold not in ROUTE_CONFIDENCES:
+        raise ValueError(f"unsupported routing threshold: {threshold}")
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "updated_at": utc_now(),
+        "source": str(routing.get("source", "generic")),
+        "action": action,
+        "selected_skill": str(routing.get("selected_skill", "oh-my-hermes")),
+        "selected_harness": str(routing.get("selected_harness", "coding-handling")),
+        "candidate_skill": str(routing.get("candidate_skill", "")),
+        "candidate_harness": str(routing.get("candidate_harness", "")),
+        "confidence": confidence,
+        "score": int(routing.get("score", 0)),
+        "threshold": threshold,
+        "explicit": bool(routing.get("explicit", False)),
+        "ambiguous": bool(routing.get("ambiguous", False)),
+        "reason": str(routing.get("reason", "")),
+        "message_sha256": str(routing.get("message_sha256", "")),
+        "message_length": int(routing.get("message_length", 0)),
+        "source_event_id": str(routing.get("source_event_id", "")),
+        "channel_ref": str(routing.get("channel_ref", "")),
+        "user_ref": str(routing.get("user_ref", "")),
+        "recommendations": list(routing.get("recommendations", [])),
+    }
+
+
 def _require(condition: bool, errors: list[str], message: str) -> None:
     if not condition:
         errors.append(message)
@@ -153,7 +189,39 @@ def validate_wrapper_record(wrapper: dict[str, Any]) -> list[str]:
     return errors
 
 
+def validate_routing_record(routing: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    _require(routing.get("schema_version") == SCHEMA_VERSION, errors, "routing schema_version is invalid")
+    for key in (
+        "updated_at",
+        "source",
+        "action",
+        "selected_skill",
+        "selected_harness",
+        "candidate_skill",
+        "candidate_harness",
+        "confidence",
+        "threshold",
+        "reason",
+        "message_sha256",
+        "source_event_id",
+        "channel_ref",
+        "user_ref",
+    ):
+        _require(isinstance(routing.get(key), str), errors, f"routing {key} must be a string")
+    _require(routing.get("action") in ROUTE_ACTIONS, errors, f"routing action is invalid: {routing.get('action')!r}")
+    _require(routing.get("confidence") in ROUTE_CONFIDENCES, errors, f"routing confidence is invalid: {routing.get('confidence')!r}")
+    _require(routing.get("threshold") in ROUTE_CONFIDENCES, errors, f"routing threshold is invalid: {routing.get('threshold')!r}")
+    _require(isinstance(routing.get("score"), int), errors, "routing score must be an integer")
+    _require(isinstance(routing.get("message_length"), int), errors, "routing message_length must be an integer")
+    _require(isinstance(routing.get("explicit"), bool), errors, "routing explicit must be boolean")
+    _require(isinstance(routing.get("ambiguous"), bool), errors, "routing ambiguous must be boolean")
+    _require(isinstance(routing.get("recommendations"), list), errors, "routing recommendations must be a list")
+    return errors
+
+
 OPTIONAL_RECORD_VALIDATORS = (
+    ("routing.json", validate_routing_record),
     ("delegation.json", validate_delegation_record),
     ("wrapper.json", validate_wrapper_record),
 )
