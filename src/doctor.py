@@ -8,6 +8,7 @@ from .manifest import local_modifications, read_manifest
 from .paths import OmhPaths
 from .runtime_artifacts import read_state, read_state_error
 from .skill_pack import CORE_SKILLS
+from .workflow_state import list_workflow_states
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,26 @@ def run_doctor(paths: OmhPaths) -> list[Check]:
     except OSError:
         runtime_writable = False
     checks.append(Check("runtime_artifacts", runtime_writable, f"{paths.runtime_dir} writable"))
+    try:
+        paths.workflow_state_dir.mkdir(parents=True, exist_ok=True)
+        state_probe = paths.workflow_state_dir / ".doctor-write-test"
+        state_probe.write_text("ok", encoding="utf-8")
+        state_probe.unlink()
+        workflow_state_writable = True
+    except OSError:
+        workflow_state_writable = False
+    states, state_errors = list_workflow_states(paths)
+    checks.append(
+        Check(
+            "workflow_state",
+            workflow_state_writable and not state_errors,
+            (
+                f"{paths.workflow_state_dir} writable; {len(states)} workflow state file(s) readable"
+                if workflow_state_writable and not state_errors
+                else f"{paths.workflow_state_dir} has unreadable state: {state_errors}"
+            ),
+        )
+    )
     if state_error:
         checks.append(Check("runtime_state", False, f"runtime state unreadable: {state_error}"))
     if manifest and state:
