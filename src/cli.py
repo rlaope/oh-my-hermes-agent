@@ -24,6 +24,7 @@ from .runtime_artifacts import (
     update_state,
     write_delegation,
 )
+from .skills.render import workflow_reference_markdown
 from .skill_pack import builtin_harnesses, builtin_definitions
 from .snippet import WORKSPACE_SNIPPET
 
@@ -235,6 +236,27 @@ def cmd_snippet(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_docs_workflows(args: argparse.Namespace) -> int:
+    content = workflow_reference_markdown()
+    output = Path(args.output).expanduser().resolve() if args.output else Path("docs/WORKFLOWS.md").resolve()
+    if args.check:
+        try:
+            current = output.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise OmhError(f"workflow docs check failed: {exc}") from exc
+        if current != content:
+            raise OmhError(f"workflow docs are stale: {output}")
+        _print_json({"ok": True, "checked": str(output)})
+        return 0
+    if args.output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(content, encoding="utf-8")
+        _print_json({"written": str(output)})
+        return 0
+    print(content.rstrip())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="omh", description="Install oh-my-hermes skills for Hermes Agent.")
     parser.add_argument("--omh-home", default=None)
@@ -280,6 +302,14 @@ def build_parser() -> argparse.ArgumentParser:
     snippet.add_argument("--dry-run", action="store_true")
     snippet.add_argument("--output", default=None)
     snippet.set_defaults(func=cmd_snippet)
+
+    docs = sub.add_parser("docs")
+    docs_sub = docs.add_subparsers(dest="docs_command", required=True)
+
+    docs_workflows = docs_sub.add_parser("workflows")
+    docs_workflows.add_argument("--output", default=None)
+    docs_workflows.add_argument("--check", action="store_true")
+    docs_workflows.set_defaults(func=cmd_docs_workflows)
 
     runtime = sub.add_parser("runtime")
     runtime_sub = runtime.add_subparsers(dest="runtime_command", required=True)

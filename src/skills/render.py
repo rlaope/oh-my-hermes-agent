@@ -12,7 +12,15 @@ class SkillTemplate:
 
 
 def _frontmatter(name: str, description: str) -> str:
-    return f"---\nname: {name}\ndescription: {description}\nmetadata:\n  hermes:\n    tags: [workflow, oh-my-hermes]\n---\n"
+    definitions = {definition.name: definition for definition in builtin_definitions()}
+    definition = definitions.get(name)
+    category = definition.category if definition else "workflow"
+    phase = definition.phase if definition else "general"
+    return (
+        f"---\nname: {name}\ndescription: {description}\nmetadata:\n"
+        f"  hermes:\n    tags: [workflow, oh-my-hermes, {category}]\n"
+        f"    category: {category}\n    phase: {phase}\n---\n"
+    )
 
 
 def _trigger_table(definitions: list[SkillDefinition]) -> str:
@@ -26,8 +34,8 @@ def _trigger_table(definitions: list[SkillDefinition]) -> str:
 
 
 def _harness_summary(harness: HarnessDefinition) -> str:
-    inputs = ", ".join(harness.inputs[:3])
-    outputs = ", ".join(harness.outputs[:3])
+    inputs = ", ".join(harness.required_inputs[:3])
+    outputs = ", ".join(harness.expected_outputs[:3])
     verification = ", ".join(harness.verification[:2])
     artifact_events = ", ".join(f"`{event}`" for event in harness.artifact_events[:3])
     return (
@@ -67,6 +75,31 @@ def _primary_harness_for_skill(name: str) -> str:
         "doctor": "qa-specialist",
     }
     return mapping.get(name, "coding-handling")
+
+
+def _tuple_list(values: tuple[str, ...]) -> str:
+    return "\n".join(f"- {value}" for value in values)
+
+
+def _skill_metadata_block(definition: SkillDefinition) -> str:
+    return f"""Category: `{definition.category}`
+Phase: `{definition.phase}`
+
+Required inputs:
+
+{_tuple_list(definition.required_inputs)}
+
+Expected outputs:
+
+{_tuple_list(definition.expected_outputs)}
+
+Artifact expectations:
+
+{_tuple_list(definition.artifact_expectations)}
+
+Safety rules:
+
+{_tuple_list(definition.safety_rules)}"""
 
 
 def router_skill() -> SkillTemplate:
@@ -154,7 +187,11 @@ This is a Hermes-native `{name}` workflow skill.
 
 {definition.use_when}
 
-Strong routing signals: {triggers}
+    Strong routing signals: {triggers}
+
+## Catalog Metadata
+
+{_skill_metadata_block(definition)}
 
 ## Harness Discipline
 
@@ -200,3 +237,67 @@ Record observed delegation results when Hermes or the wrapper exposes them. If d
 def builtin_skill_templates() -> list[SkillTemplate]:
     names = [definition.name for definition in builtin_definitions()]
     return [router_skill(), *[workflow_skill(name) for name in names if name != "oh-my-hermes"]]
+
+
+def workflow_reference_markdown() -> str:
+    definitions = builtin_definitions()
+    harnesses = builtin_harnesses()
+    lines = [
+        "# Workflow Reference",
+        "",
+        "This file is generated from `src/skills/catalog.py`. Update the catalog first, then refresh this document.",
+        "",
+        "The reference describes prompt-level Hermes workflow guidance and local evidence expectations. It does not claim hidden Hermes runtime behavior.",
+        "",
+        "## Skills",
+        "",
+    ]
+    for definition in definitions:
+        triggers = ", ".join(f"`{trigger}`" for trigger in definition.triggers)
+        lines.extend(
+            [
+                f"### {definition.name}",
+                "",
+                definition.description,
+                "",
+                f"- Category: `{definition.category}`",
+                f"- Phase: `{definition.phase}`",
+                f"- Use when: {definition.use_when}",
+                f"- Strong routing signals: {triggers}",
+                "- Required inputs:",
+                *[f"  - {item}" for item in definition.required_inputs],
+                "- Expected outputs:",
+                *[f"  - {item}" for item in definition.expected_outputs],
+                "- Artifact expectations:",
+                *[f"  - {item}" for item in definition.artifact_expectations],
+                "- Safety rules:",
+                *[f"  - {item}" for item in definition.safety_rules],
+                "",
+            ]
+        )
+    lines.extend(["## Representative Harnesses", ""])
+    for harness in harnesses:
+        lines.extend(
+            [
+                f"### {harness.name}",
+                "",
+                harness.purpose,
+                "",
+                f"- Use when: {harness.use_when}",
+                "- Inputs:",
+                *[f"  - {item}" for item in harness.required_inputs],
+                "- Outputs:",
+                *[f"  - {item}" for item in harness.expected_outputs],
+                "- Stop conditions:",
+                *[f"  - {item}" for item in harness.stop_conditions],
+                "- Verification:",
+                *[f"  - {item}" for item in harness.verification],
+                "- Artifact events:",
+                *[f"  - `{item}`" for item in harness.artifact_events],
+                f"- Delegation expectation: {harness.delegation_expectation}",
+                f"- Privacy default: `{harness.privacy_default}`",
+                f"- Fallback: {harness.fallback}",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"

@@ -9,6 +9,15 @@ class SkillDefinition:
     description: str
     triggers: tuple[str, ...]
     use_when: str
+    category: str = "workflow"
+    phase: str = "general"
+    required_inputs: tuple[str, ...] = ("task statement", "available Hermes context")
+    expected_outputs: tuple[str, ...] = ("workflow-shaped response", "verification or explicit gap")
+    artifact_expectations: tuple[str, ...] = ("metadata-only runtime record when a wrapper or shell is available",)
+    safety_rules: tuple[str, ...] = (
+        "Do not imply hidden Hermes runtime behavior.",
+        "Use the smallest verification that can prove the claim.",
+    )
 
 
 @dataclass(frozen=True)
@@ -16,8 +25,8 @@ class HarnessDefinition:
     name: str
     purpose: str
     use_when: str
-    inputs: tuple[str, ...]
-    outputs: tuple[str, ...]
+    required_inputs: tuple[str, ...]
+    expected_outputs: tuple[str, ...]
     stop_conditions: tuple[str, ...]
     verification: tuple[str, ...]
     fallback: str
@@ -32,108 +41,233 @@ _DEFINITIONS = [
         "Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.",
         ("oh-my-hermes", "omh", "skill routing", "workflow routing"),
         "Use as the top-level router when a request references oh-my-hermes, installed workflows, or ambiguous workflow routing.",
+        category="router",
+        phase="routing",
+        required_inputs=("user request", "installed skill descriptions", "Hermes skill discovery context"),
+        expected_outputs=("selected workflow guidance", "clarification question when routing is ambiguous"),
+        artifact_expectations=("runtime run record when a wrapper can observe request handling",),
+        safety_rules=(
+            "Prefer explicit skill invocation over weak keyword inference.",
+            "Ask one concise question when routing signals conflict.",
+            "Do not claim to override Hermes core routing.",
+        ),
     ),
     SkillDefinition(
         "ralph",
         "Hermes Ralph workflow: persistent execution with verification and review.",
         ("ralph", "$ralph", "finish until done", "persistent execution", "self-referential loop"),
         "Use after scope is concrete and the user wants one owner to continue through implementation and verification.",
+        category="execution",
+        phase="completion",
+        required_inputs=("concrete scope", "acceptance criteria", "verification commands"),
+        expected_outputs=("completed work summary", "verification evidence", "remaining risks"),
+        artifact_expectations=("goal-execution run record", "checkpoint or final evidence when available"),
     ),
     SkillDefinition(
         "ultragoal",
         "Hermes Ultragoal workflow: file-backed durable goal ledgers.",
         ("ultragoal", "$ultragoal", "durable goal", "multi-goal", "goal ledger"),
         "Use when work needs durable goal artifacts, checkpointed progress, and final quality gates.",
+        category="execution",
+        phase="durable-goals",
+        required_inputs=("goal statement", "acceptance criteria", "current checkpoint"),
+        expected_outputs=("goal ledger updates", "checkpoint evidence", "completion or blocker summary"),
+        artifact_expectations=("goal ledger or checklist", "runtime run record for each major checkpoint"),
     ),
     SkillDefinition(
         "deep-interview",
         "Hermes Deep Interview workflow: one-question-at-a-time clarification.",
         ("deep-interview", "$deep-interview", "interview", "don't assume", "clarify"),
         "Use before planning or execution when requirements are materially ambiguous.",
+        category="clarification",
+        phase="discovery",
+        required_inputs=("initial request", "known repo facts", "current ambiguity"),
+        expected_outputs=("clarified brief", "non-goals", "decision boundaries"),
+        artifact_expectations=("clarity summary or transcript when the wrapper supports it",),
+        safety_rules=(
+            "Ask one question at a time.",
+            "Gather discoverable repo facts before asking the user.",
+            "Stop interviewing once ambiguity is low enough to plan.",
+        ),
     ),
     SkillDefinition(
         "team",
         "Hermes Team workflow: coordinated parallel or sequential work lanes.",
         ("team", "$team", "swarm", "parallel agents", "coordinated workers"),
         "Use when multiple independent lanes materially improve throughput or verification.",
+        category="execution",
+        phase="coordination",
+        required_inputs=("bounded lane definitions", "ownership boundaries", "verification target"),
+        expected_outputs=("lane results", "integration summary", "combined verification evidence"),
+        artifact_expectations=("delegation record only when separate participants are observed",),
+        safety_rules=(
+            "Use parallel lanes only when work is independent.",
+            "Keep shared-file edits under one owner.",
+            "Record unobserved delegation as not_observed.",
+        ),
     ),
     SkillDefinition(
         "ultraqa",
         "Hermes UltraQA workflow: adversarial QA and fix loops.",
         ("ultraqa", "$ultraqa", "adversarial qa", "hostile scenarios", "e2e qa"),
         "Use when the task needs adversarial test scenarios, verification, and fix loops.",
+        category="verification",
+        phase="qa",
+        required_inputs=("changed behavior", "acceptance criteria", "known risk areas"),
+        expected_outputs=("adversarial scenarios", "pass/fail evidence", "fix recommendations"),
+        artifact_expectations=("QA scenario evidence", "runtime verification summary"),
     ),
     SkillDefinition(
         "plan",
         "Hermes Plan workflow: structured planning before execution.",
         ("plan", "$plan", "implementation plan", "strategy", "task breakdown"),
         "Use for structured planning when implementation is not ready to start safely.",
+        category="planning",
+        phase="plan",
+        required_inputs=("requirements", "constraints", "known facts", "non-goals"),
+        expected_outputs=("plan", "acceptance criteria", "verification strategy"),
+        artifact_expectations=("plan artifact when durable execution will follow",),
     ),
     SkillDefinition(
         "ralplan",
         "Hermes Ralplan workflow: consensus planning with review gates.",
         ("ralplan", "$ralplan", "consensus plan", "reviewed plan"),
         "Use when requirements are clear enough for planning but architecture, risks, or tests need review.",
+        category="planning",
+        phase="reviewed-plan",
+        required_inputs=("requirements", "options", "tradeoffs", "test shape"),
+        expected_outputs=("approved plan", "risk review", "handoff guidance"),
+        artifact_expectations=("plan and review artifacts when a wrapper supports file-backed planning",),
+        safety_rules=(
+            "Do not implement directly from the planning lane.",
+            "Make acceptance criteria testable.",
+            "Record unresolved tradeoffs explicitly.",
+        ),
     ),
     SkillDefinition(
         "code-review",
         "Hermes Code Review workflow: bug-first review with evidence.",
         ("code-review", "$code-review", "review", "audit", "find bugs"),
         "Use for review-shaped requests; findings come first and must cite concrete evidence.",
+        category="review",
+        phase="critique",
+        required_inputs=("diff or files", "expected behavior", "test evidence"),
+        expected_outputs=("ranked findings", "open questions", "test gaps"),
+        artifact_expectations=("critic run record when review evidence is captured",),
+        safety_rules=(
+            "Findings come before summaries.",
+            "Cite concrete evidence for every finding.",
+            "Say clearly when no issue is found.",
+        ),
     ),
     SkillDefinition(
         "ai-slop-cleaner",
         "Hermes AI slop cleaner workflow: behavior-preserving cleanup.",
         ("ai-slop-cleaner", "$ai-slop-cleaner", "cleanup", "deslop", "refactor"),
         "Use for behavior-preserving cleanup with tests before and after edits.",
+        category="maintenance",
+        phase="cleanup",
+        required_inputs=("target smell", "current behavior", "regression checks"),
+        expected_outputs=("small cleanup diff", "before/after verification", "residual risk"),
+        artifact_expectations=("cleanup plan and regression evidence for non-trivial work",),
+        safety_rules=(
+            "Lock behavior with tests before risky cleanup.",
+            "Prefer deletion and existing utilities over new layers.",
+            "Do not add dependencies for cleanup unless explicitly requested.",
+        ),
     ),
     SkillDefinition(
         "best-practice-research",
         "Hermes adaptation for bounded official/upstream best-practice research.",
         ("best-practice-research", "best practice", "official docs", "upstream guidance"),
         "Use when correctness depends on current official or upstream guidance.",
+        category="research",
+        phase="evidence",
+        required_inputs=("chosen technology", "question", "version or environment constraints"),
+        expected_outputs=("source-backed guidance", "applicability notes", "residual uncertainty"),
+        artifact_expectations=("research notes or citations when the wrapper captures them",),
     ),
     SkillDefinition(
         "autoresearch-goal",
         "Hermes adaptation for durable research-goal execution.",
         ("autoresearch-goal", "research goal", "durable research", "critic research"),
         "Use for validator-gated research that needs durable artifacts.",
+        category="research",
+        phase="durable-research",
+        required_inputs=("research objective", "validator criteria", "source boundaries"),
+        expected_outputs=("research artifact", "validator result", "next questions"),
+        artifact_expectations=("durable research ledger or checklist",),
     ),
     SkillDefinition(
         "performance-goal",
         "Hermes adaptation for measurable performance-goal execution.",
         ("performance-goal", "performance goal", "latency", "throughput", "benchmark"),
         "Use when the goal is measurable performance improvement with evaluator evidence.",
+        category="optimization",
+        phase="measurement",
+        required_inputs=("metric", "baseline", "budget", "benchmark command"),
+        expected_outputs=("measurement delta", "implementation summary", "benchmark evidence"),
+        artifact_expectations=("baseline and final benchmark evidence",),
     ),
     SkillDefinition(
         "wiki",
         "Hermes adaptation for maintaining a project-local markdown wiki.",
         ("wiki", "project wiki", "memory", "notes"),
         "Use to capture durable project knowledge in markdown artifacts.",
+        category="knowledge",
+        phase="capture",
+        required_inputs=("project fact", "source evidence", "target topic"),
+        expected_outputs=("markdown note", "retrieval hint", "staleness warning when needed"),
+        artifact_expectations=("repo-local markdown knowledge artifact",),
     ),
     SkillDefinition(
         "ask",
         "Hermes adaptation for consulting an external advisor when configured.",
         ("ask", "$ask", "external advisor", "claude", "gemini"),
         "Use only when an external advisor is configured and would materially improve the answer.",
+        category="review",
+        phase="external-advice",
+        required_inputs=("question", "context summary", "why external advice helps"),
+        expected_outputs=("advisor summary", "accepted/rejected advice", "decision note"),
+        artifact_expectations=("advisor transcript reference only when explicitly captured",),
+        safety_rules=(
+            "Use only when configured and materially useful.",
+            "Treat advisor output as evidence to evaluate, not authority.",
+            "Do not send secrets or private prompts without explicit opt-in.",
+        ),
     ),
     SkillDefinition(
         "cancel",
         "Hermes adaptation for ending active workflow state cleanly.",
         ("cancel", "$cancel", "stop", "abort"),
         "Use to cleanly end active adapted workflow state.",
+        category="operator",
+        phase="state-cleanup",
+        required_inputs=("active workflow state", "cancellation intent"),
+        expected_outputs=("cleared state", "safe stop summary"),
+        artifact_expectations=("state clear record when state exists",),
     ),
     SkillDefinition(
         "skill",
         "Hermes adaptation for managing local skills.",
         ("skill", "$skill", "skills", "manage skills"),
         "Use for local skill listing, search, add, remove, or edit tasks.",
+        category="operator",
+        phase="skill-management",
+        required_inputs=("skill action", "target skill name or directory"),
+        expected_outputs=("skill inventory or mutation result", "verification note"),
+        artifact_expectations=("manifest update when managed skills change",),
     ),
     SkillDefinition(
         "doctor",
         "Hermes adaptation for diagnosing oh-my-hermes installation health.",
         ("doctor", "$doctor", "diagnose omh", "installation health"),
         "Use to diagnose OMH installation and Hermes config registration.",
+        category="operator",
+        phase="diagnostics",
+        required_inputs=("omh home", "Hermes home", "observed issue"),
+        expected_outputs=("health checks", "fix guidance", "known proof boundary"),
+        artifact_expectations=("doctor state summary when runtime artifacts are writable",),
     ),
 ]
 

@@ -188,6 +188,31 @@ class CliTests(unittest.TestCase):
             self.assertTrue(shown["delegation"]["requested"])
             self.assertFalse(shown["delegation"]["observed"])
 
+    def test_docs_workflows_command_prints_writes_and_checks_generated_reference(self) -> None:
+        status, stdout, stderr = run_cli(["docs", "workflows"])
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        self.assertIn("# Workflow Reference", stdout)
+        self.assertIn("### oh-my-hermes", stdout)
+
+        with TemporaryDirectory() as tmp:
+            output = Path(tmp) / "WORKFLOWS.md"
+            status, stdout, stderr = run_cli(["docs", "workflows", "--output", str(output)])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertTrue(output.exists())
+            self.assertIn("written", stdout)
+
+            status, stdout, stderr = run_cli(["docs", "workflows", "--output", str(output), "--check"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertIn("checked", stdout)
+
+            output.write_text(output.read_text(encoding="utf-8") + "\nstale\n", encoding="utf-8")
+            status, _, stderr = run_cli(["docs", "workflows", "--output", str(output), "--check"])
+            self.assertEqual(status, 2)
+            self.assertIn("workflow docs are stale", stderr)
+
     def test_runtime_record_rejects_unknown_names(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -6,7 +6,8 @@ import unittest
 from _local_package import load_local_package
 
 load_local_package()
-from omh.skill_pack import builtin_harnesses, builtin_skill_templates
+from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
+from omh.skills.render import workflow_reference_markdown
 
 
 class RouterContentTests(unittest.TestCase):
@@ -62,10 +63,22 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("Delegation:", router.content)
         self.assertIn("Fallback:", router.content)
 
+    def test_catalog_definitions_expose_required_metadata_fields(self) -> None:
+        for definition in builtin_definitions():
+            self.assertTrue(definition.category, definition.name)
+            self.assertTrue(definition.phase, definition.name)
+            self.assertGreaterEqual(len(definition.required_inputs), 1, definition.name)
+            self.assertGreaterEqual(len(definition.expected_outputs), 1, definition.name)
+            self.assertGreaterEqual(len(definition.artifact_expectations), 1, definition.name)
+            self.assertGreaterEqual(len(definition.safety_rules), 1, definition.name)
+
     def test_workflow_skills_refer_to_harness_discipline(self) -> None:
         skills = {skill.name: skill for skill in builtin_skill_templates()}
 
         self.assertIn("Harness Discipline", skills["ultragoal"].content)
+        self.assertIn("Catalog Metadata", skills["ultragoal"].content)
+        self.assertIn("Category: `execution`", skills["ultragoal"].content)
+        self.assertIn("Phase: `durable-goals`", skills["ultragoal"].content)
         self.assertIn("Runtime Evidence", skills["ultragoal"].content)
         self.assertIn("omh runtime record --skill ultragoal --harness goal-execution --status started", skills["ultragoal"].content)
         self.assertIn("Prefer richer evidence and clearer stop conditions", skills["code-review"].content)
@@ -75,6 +88,20 @@ class RouterContentTests(unittest.TestCase):
             self.assertGreaterEqual(len(harness.artifact_events), 1)
             self.assertEqual(harness.privacy_default, "metadata_only")
             self.assertIn("Record", harness.delegation_expectation)
+
+    def test_generated_workflow_reference_matches_catalog(self) -> None:
+        reference = Path("docs/WORKFLOWS.md").read_text(encoding="utf-8")
+
+        self.assertEqual(reference, workflow_reference_markdown())
+        self.assertIn("This file is generated from `src/skills/catalog.py`", reference)
+        for definition in builtin_definitions():
+            self.assertIn(f"### {definition.name}", reference)
+            self.assertIn(f"- Category: `{definition.category}`", reference)
+            self.assertIn(f"- Phase: `{definition.phase}`", reference)
+        for harness in builtin_harnesses():
+            self.assertIn(f"### {harness.name}", reference)
+            for event in harness.artifact_events:
+                self.assertIn(f"`{event}`", reference)
 
     def test_generated_public_content_avoids_external_runtime_branding(self) -> None:
         forbidden = ("om" + "x", "oh-my-" + "co" + "dex", "co" + "dex")
