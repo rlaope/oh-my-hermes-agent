@@ -87,6 +87,7 @@ omh update --from-skills-dir ./skills
 omh apply --dry-run
 omh runtime record --skill oh-my-hermes --harness coding-handling --status started
 omh runtime runs
+omh docs workflows
 omh list
 omh snippet --dry-run
 omh uninstall
@@ -154,6 +155,7 @@ it could mean normal conversation.
 | `omh runtime status` | Inspect local runtime artifact state. |
 | `omh runtime record` | Create a metadata-only workflow run artifact. |
 | `omh runtime delegate` | Record observed or unavailable delegation for a run. |
+| `omh docs workflows` | Print or verify the generated workflow reference from catalog data. |
 | `omh snippet` | Print optional workspace guidance without applying it. |
 | `omh uninstall` | Remove Hermes config registration, optionally removing files. |
 
