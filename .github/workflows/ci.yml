@@ -24,3 +24,7 @@ jobs:
         run: python -m compileall src
       - name: Dry-run install smoke
         run: python -m omh.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke install --dry-run
+      - name: Runtime artifact smoke
+        run: |
+          python -m omh.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke runtime record --skill oh-my-hermes --harness coding-handling --status started
+          python -m omh.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke runtime runs

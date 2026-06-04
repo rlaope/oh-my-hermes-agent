@@ -39,10 +39,10 @@ This repository is a quality-gated preview: small enough to inspect, but shaped
 as a real public project instead of a throwaway script.
 
 The current release provides a local installer, generated Hermes skill catalog,
-application cases, runtime diagnostics, CI, and contributor guidance. The next
-direction is deeper runtime support: richer routing metadata, goal ledgers under
-`.omh/`, stronger diagnostics, release packaging, and Hermes-specific workflow
-tests.
+application cases, runtime diagnostics, local runtime artifacts, CI, and
+contributor guidance. The next direction is deeper Hermes-side integration:
+richer routing metadata, stronger wrapper examples, release packaging, and
+Hermes-specific workflow tests.
 
 ## Quick Start
 
@@ -66,6 +66,7 @@ Check or manage the installation with `omh`:
 ```sh
 omh doctor
 omh list
+omh runtime status
 omh update
 ```
 
@@ -84,6 +85,8 @@ omh install --dry-run
 omh install --from-skills-dir ./skills
 omh update --from-skills-dir ./skills
 omh apply --dry-run
+omh runtime record --skill oh-my-hermes --harness coding-handling --status started
+omh runtime runs
 omh list
 omh snippet --dry-run
 omh uninstall
@@ -97,11 +100,25 @@ Hermes remains the agent runtime.
 
 1. A managed skill directory at `~/.omh/skills`
 2. A manifest at `~/.omh/manifest.json`
-3. A config registration in Hermes' `skills.external_dirs`
+3. Local runtime artifacts under `~/.omh/runtime`
+4. A config registration in Hermes' `skills.external_dirs`
 
 That means installation is reversible and inspectable. `omh apply` updates only
 the Hermes skill discovery setting. It does not rewrite workspace instructions
 or modify Hermes internals.
+
+## What Gets Recorded
+
+`omh` records local metadata only by default:
+
+- install/apply/doctor summaries in `~/.omh/runtime/state.json`
+- workflow run envelopes in `~/.omh/runtime/runs/<run-id>/run.json`
+- append-only run events in `events.jsonl`
+- delegation observation in `delegation.json`
+
+Delegation artifacts separate `requested` from `observed`. If Hermes or a bot
+wrapper cannot prove that a specialist lane actually ran, the result should stay
+`not_observed` or `not_available`.
 
 ## Routing Model
 
@@ -134,6 +151,9 @@ it could mean normal conversation.
 | `omh apply` | Register `~/.omh/skills` in Hermes `skills.external_dirs`. |
 | `omh list` | Print the installed manifest. |
 | `omh doctor` | Verify managed files and Hermes config registration. |
+| `omh runtime status` | Inspect local runtime artifact state. |
+| `omh runtime record` | Create a metadata-only workflow run artifact. |
+| `omh runtime delegate` | Record observed or unavailable delegation for a run. |
 | `omh snippet` | Print optional workspace guidance without applying it. |
 | `omh uninstall` | Remove Hermes config registration, optionally removing files. |
 
@@ -196,7 +216,7 @@ python -m omh.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke inst
 
 - Versioned release artifacts for stable installer targets
 - A richer generated routing registry
-- File-backed goal ledgers under `.omh/goals/`
+- More artifact-backed bot and workflow examples
 - More Hermes-specific diagnostics in `omh doctor`
 - Command-level tests for uninstall, snippet output, and imported skill edge cases
 - Workflow fixtures that verify generated skill behavior remains conservative

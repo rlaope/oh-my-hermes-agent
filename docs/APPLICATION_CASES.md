@@ -58,6 +58,18 @@ For repository development, verify the generated router content through tests:
 python -m unittest discover -s tests
 ```
 
+Artifact-backed verification can be recorded without capturing prompt bodies:
+
+```sh
+run_json="$(omh runtime record --skill oh-my-hermes --harness coding-handling --status started)"
+run_id="$(printf '%s' "$run_json" | python -c 'import json,sys; print(json.load(sys.stdin)["run"]["run_id"])')"
+omh runtime delegate --run "$run_id" --requested --not-observed --result not_observed
+omh runtime show "$run_id"
+```
+
+This proves the workflow was tracked locally while preserving the distinction
+between requested review/delegation and delegation that Hermes actually exposed.
+
 ### Current Limit
 
 This case verifies installed prompt guidance and generated skill content.
@@ -113,6 +125,18 @@ Repository maintainers can verify generated content through tests:
 python -m unittest discover -s tests
 ```
 
+Artifact-backed verification:
+
+```sh
+run_json="$(omh runtime record --skill ultragoal --harness goal-execution --status started)"
+run_id="$(printf '%s' "$run_json" | python -c 'import json,sys; print(json.load(sys.stdin)["run"]["run_id"])')"
+omh runtime delegate --run "$run_id" --requested --not-observed --result not_observed
+omh runtime show "$run_id"
+```
+
+Use `not_observed` when the active Hermes surface does not expose a separate
+goal runner or planner identity.
+
 ### Current Limit
 
 This case is prompt-level workflow guidance unless a future Hermes extension
@@ -167,6 +191,19 @@ Repository maintainers can verify this with:
 python -m unittest discover -s tests
 ```
 
+Artifact-backed verification:
+
+```sh
+run_json="$(omh runtime record --skill code-review --harness critic --status completed)"
+run_id="$(printf '%s' "$run_json" | python -c 'import json,sys; print(json.load(sys.stdin)["run"]["run_id"])')"
+omh runtime delegate --run "$run_id" --requested --not-observed --result not_observed --evidence-ref run.json
+omh runtime show "$run_id"
+```
+
+If a bot wrapper can observe separate specialist outputs, it can record
+`--observed --result completed --participants architect,critic`. Otherwise the
+artifact should remain explicit that delegation was not observed.
+
 ### Current Limit
 
 If Hermes delegation is unavailable, the harness still improves response
@@ -182,6 +219,8 @@ Before using these cases as public release evidence, verify:
   registration clearly.
 - The generated router includes the representative harness registry.
 - The three cases above match actual generated skill behavior.
+- The three cases above can create `.omh/runtime/runs/<run-id>/` artifacts.
+- `delegation.json` separates requested delegation from observed delegation.
 - Public docs avoid comparisons to other projects.
 - Any real Hermes runtime behavior that could not be automated is listed as a
   manual check.

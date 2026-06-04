@@ -64,6 +64,12 @@ Representative harnesses are preview metadata for generated prompt guidance.
 They are not separate runtime roles, hidden hooks, or proof that Hermes exposes a
 matching internal role system.
 
+Runtime artifacts make that boundary inspectable. A harness can request local
+evidence under `.omh/runtime/`, but the artifact must separate requested
+delegation from observed delegation. If Hermes or a wrapper does not expose a
+specialist lane result, the recorded result stays `not_observed` or
+`not_available`.
+
 When a harness is added, removed, or renamed, update these surfaces together:
 
 - `src/skills/catalog.py`
@@ -71,8 +77,47 @@ When a harness is added, removed, or renamed, update these surfaces together:
 - `docs/APPLICATION_CASES.md`
 - `tests/test_router_content.py`
 
+Each harness must also define runtime evidence expectations in catalog data:
+
+- artifact event names
+- delegation expectation
+- privacy default
+
 This keeps the generated router, public examples, and regression tests aligned
 around one catalog contract.
+
+## Runtime Artifacts
+
+Runtime artifacts are local JSON/JSONL files under `.omh/runtime/`.
+
+```text
+.omh/
+  runtime/
+    state.json
+    runs/
+      <run-id>/
+        run.json
+        events.jsonl
+        delegation.json
+        evidence/
+```
+
+`state.json` records install, apply, and doctor summaries. A run directory
+records a workflow envelope, append-only events, delegation observation, and
+optional evidence files.
+
+The runtime artifact layer is intentionally small:
+
+- JSON/JSONL only
+- no external service
+- no prompt body capture by default
+- schema-versioned files
+- CLI inspection through `omh runtime status`, `omh runtime runs`, and
+  `omh runtime show <run-id>`
+
+Bot wrappers can call `omh runtime record` before invoking Hermes and
+`omh runtime delegate` after the response if delegation metadata is available.
+If not, they should record `not_observed` rather than guessing.
 
 ## Safety Model
 
@@ -80,3 +125,5 @@ around one catalog contract.
 - Local modifications block updates unless `--force` is supplied.
 - Config registration is isolated to `skills.external_dirs`.
 - Workspace guidance is printed by `omh snippet`; it is not applied by default.
+- Runtime artifacts are local metadata by default and do not capture prompt or
+  response bodies unless a future explicit opt-in is added.

@@ -24,10 +24,13 @@ Check the installation:
 ```sh
 omh doctor
 omh list
+omh runtime status
 ```
 
 `omh doctor` should report a healthy installation. `omh list` should show the
-managed skills available to Hermes.
+managed skills available to Hermes. `omh runtime status` should show the local
+runtime artifact directory and the latest install/apply/doctor state when those
+commands have run.
 
 For concrete examples that show how the installed skills should affect coding,
 planning, and specialist review flows, see
@@ -49,6 +52,8 @@ The flow is:
    names, trigger phrases, fallback rules, and recovery behavior.
 7. Hermes selects the relevant installed skill and continues the response inside
    the Discord bot flow.
+8. The bot or operator can record local evidence with `omh runtime record` and
+   `omh runtime delegate`.
 
 `omh` does not replace the Discord bot, modify Discord commands, or patch Hermes
 internals. It prepares the skill layer that Hermes can load when the bot invokes
@@ -63,6 +68,22 @@ omh doctor
 
 Then restart the bot process so Hermes reloads its config and skill directory.
 
+Optional artifact-backed flow:
+
+```sh
+run_json="$(omh runtime record --skill oh-my-hermes --harness coding-handling --status started)"
+run_id="$(printf '%s' "$run_json" | python -c 'import json,sys; print(json.load(sys.stdin)["run"]["run_id"])')"
+
+# After Hermes responds, record what the bot could actually observe.
+omh runtime delegate --run "$run_id" --requested --not-observed --result not_observed
+omh runtime show "$run_id"
+```
+
+For hosted bots, run these commands inside the same container, virtual
+environment, or user account that owns the bot runtime. If the wrapper can
+observe a specialist lane result, record it with `--observed`; otherwise keep
+the result as `not_observed`.
+
 ## Review Checklist
 
 Before calling the bot integration ready, verify these points:
@@ -73,6 +94,8 @@ Before calling the bot integration ready, verify these points:
 - The bot was restarted after installation or update.
 - A Discord message that strongly names a workflow reaches Hermes with installed
   skill descriptions available.
+- `omh runtime record` can create a run and `omh runtime show <run-id>` can read
+  it from the same runtime context.
 - If skills do not appear, run `omh apply`, then `omh doctor`, then restart the
   bot again.
 
