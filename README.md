@@ -67,6 +67,7 @@ Check or manage the installation with `omh`:
 omh doctor
 omh list
 omh runtime status
+omh state status
 omh update
 ```
 
@@ -155,6 +156,7 @@ it could mean normal conversation.
 | `omh runtime status` | Inspect local runtime artifact state. |
 | `omh runtime record` | Create a metadata-only workflow run artifact. |
 | `omh runtime delegate` | Record observed or unavailable delegation for a run. |
+| `omh state status` | Inspect file-backed workflow lifecycle state under `~/.omh/state`. |
 | `omh docs workflows` | Print or verify the generated workflow reference from catalog data. |
 | `omh snippet` | Print optional workspace guidance without applying it. |
 | `omh uninstall` | Remove Hermes config registration, optionally removing files. |

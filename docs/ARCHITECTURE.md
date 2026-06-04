@@ -119,6 +119,33 @@ Bot wrappers can call `omh runtime record` before invoking Hermes and
 `omh runtime delegate` after the response if delegation metadata is available.
 If not, they should record `not_observed` rather than guessing.
 
+## Workflow State
+
+Workflow lifecycle state is stored separately from runtime run evidence under
+`.omh/state/`.
+
+```text
+.omh/
+  state/
+    <workflow>-state.json
+```
+
+State files are the authoritative local lifecycle surface for adapted workflows:
+active status, lifecycle outcome, timestamps, notes, and allowed handoff
+metadata. Runtime runs under `.omh/runtime/` remain evidence envelopes for what a
+wrapper or operator observed.
+
+The CLI exposes the state layer through:
+
+- `omh state start --workflow <name>`
+- `omh state status`
+- `omh state finish --workflow <name> --outcome finished`
+- `omh state clear --workflow <name>`
+
+Initial transition policy is intentionally conservative: clarification can hand
+off to planning, and planning can hand off to execution or QA. Other active
+workflow conflicts must be finished or cleared explicitly.
+
 ## Safety Model
 
 - Managed files are tracked by manifest hashes.

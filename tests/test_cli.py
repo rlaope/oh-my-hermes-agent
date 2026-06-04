@@ -51,6 +51,7 @@ class CliTests(unittest.TestCase):
             self.assertTrue(checks["manifest_skills_dir"]["ok"])
             self.assertTrue(checks["local_modifications"]["ok"])
             self.assertTrue(checks["runtime_artifacts"]["ok"])
+            self.assertTrue(checks["workflow_state"]["ok"])
 
     def test_install_is_idempotent_and_detects_local_modifications(self) -> None:
         with TemporaryDirectory() as tmp:

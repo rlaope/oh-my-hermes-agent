@@ -31,6 +31,10 @@ class OmhPaths:
         return self.runtime_dir / "runs"
 
     @property
+    def workflow_state_dir(self) -> Path:
+        return self.omh_home / "state"
+
+    @property
     def hermes_config_path(self) -> Path:
         return self.hermes_home / "config.yaml"
 
