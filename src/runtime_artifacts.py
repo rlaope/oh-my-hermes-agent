@@ -500,7 +500,7 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
 def validate_runtime(paths: OmhPaths, run_id: str | None = None) -> dict[str, Any]:
     if run_id:
         run_dirs = [paths.runtime_runs_dir / run_id]
-        session_dirs: list[Path] = []
+        session_dirs = _wrapper_session_dirs_for_run(paths, run_id)
     else:
         run_dirs = sorted(path for path in paths.runtime_runs_dir.glob("*") if path.is_dir()) if paths.runtime_runs_dir.exists() else []
         session_dirs = (
@@ -515,6 +515,17 @@ def validate_runtime(paths: OmhPaths, run_id: str | None = None) -> dict[str, An
         "runs": results,
         "wrapper_sessions": session_results,
     }
+
+
+def _wrapper_session_dirs_for_run(paths: OmhPaths, run_id: str) -> list[Path]:
+    if not paths.runtime_wrapper_sessions_dir.exists():
+        return []
+    session_dirs: list[Path] = []
+    for session_json in sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json")):
+        session = read_json_object(session_json)
+        if session and session.get("current_run_id") == run_id:
+            session_dirs.append(session_json.parent)
+    return session_dirs
 
 
 SENSITIVE_KEY_PARTS = ("secret", "token", "api_key", "apikey", "password")

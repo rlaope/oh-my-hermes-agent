@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -8,11 +9,13 @@ from tempfile import TemporaryDirectory
 from _local_package import load_local_package
 
 load_local_package()
+from omh.coding_lifecycle import start_codex_delegation_lifecycle
 from omh.paths import resolve_paths
 from omh.runtime_artifacts import create_run, export_runtime, validate_runtime
 from omh.runtime_records import validate_wrapper_session_record
 from omh.wrapper_sessions import (
     WrapperSessionError,
+    append_wrapper_session_event,
     build_wrapper_session_status,
     create_or_resume_wrapper_session,
     prepare_wrapper_session_handoff,
@@ -142,6 +145,32 @@ class WrapperSessionTests(unittest.TestCase):
             self.assertEqual(status["session_status"], "handoff_prepared")
             self.assertEqual(status["runtime_status"]["next_action"], "dispatch_to_executor")
 
+    def test_handoff_retry_recovers_orphan_prepared_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor"
+            source_metadata = {"source_event_id": "m1", "channel_ref": "c1"}
+            started = create_or_resume_wrapper_session(paths, message, source="discord", source_metadata=source_metadata)
+            session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, session_id, "accept")
+            append_wrapper_session_event(
+                paths.runtime_wrapper_sessions_dir / session_id,
+                {
+                    "event": "handoff_prepare_started",
+                    "message": "wrapper session started preparing coding handoff",
+                    "data": {"message_sha256": hashlib.sha256(message.encode("utf-8")).hexdigest(), "message_length": len(message)},
+                },
+            )
+            orphan = start_codex_delegation_lifecycle(paths, message, source="discord", source_metadata=source_metadata)
+
+            recovered = prepare_wrapper_session_handoff(paths, session_id, message)
+
+            self.assertEqual(recovered["session"]["current_run_id"], orphan["run"]["run_id"])
+            self.assertEqual(len(validate_runtime(paths)["runs"]), 1)
+            events = recovered["status"]["runtime_status"]["runtime_validation"]["wrapper_sessions"]
+            self.assertEqual(len(events), 1)
+            self.assertTrue(events[0]["ok"])
+
     def test_status_uses_linked_run_instead_of_session_execution_fields(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
@@ -155,6 +184,8 @@ class WrapperSessionTests(unittest.TestCase):
             self.assertIn("runtime_status", status)
             self.assertNotIn("execution", status)
             self.assertEqual(status["claim_boundary"], "Execution claims come from the linked runtime run ledger, not the wrapper session.")
+            self.assertEqual(len(status["runtime_status"]["runtime_validation"]["wrapper_sessions"]), 1)
+            self.assertTrue(status["runtime_status"]["runtime_validation"]["wrapper_sessions"][0]["ok"])
 
     def test_export_runtime_includes_wrapper_sessions_without_raw_prompt(self) -> None:
         with TemporaryDirectory() as tmp:
