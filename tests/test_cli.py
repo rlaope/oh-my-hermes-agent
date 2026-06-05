@@ -261,6 +261,45 @@ class CliTests(unittest.TestCase):
         self.assertTrue(plan["acceptance_criteria"])
         self.assertTrue(plan["verification_plan"])
         self.assertIn("omh coding delegate --record", plan["execution_handoff"])
+        contract = payload["wrapper_contract"]
+        self.assertEqual(contract["schema_version"], "hermes_plan_wrapper/v1")
+        self.assertEqual(contract["current_step"], "present_plan")
+        self.assertEqual(contract["next_action"], "prepare_coding_delegation_after_plan_acceptance")
+        self.assertEqual(contract["message_field"], "plan.task_statement")
+        self.assertFalse(contract["plan_artifact"]["recorded"])
+        self.assertTrue(contract["decision_gate"]["required"])
+        coding_delegate = contract["coding_delegate"]
+        self.assertTrue(coding_delegate["available"])
+        self.assertTrue(coding_delegate["requires_plan_acceptance"])
+        self.assertEqual(coding_delegate["stdout_schema_version"], "coding_delegation/v1")
+        self.assertEqual(coding_delegate["recording_contract"], "prepared_not_observed")
+        self.assertIn("{message}", coding_delegate["argv_template"])
+        self.assertNotIn("command_template", coding_delegate)
+
+    def test_hermes_plan_wrapper_contract_uses_only_argv_for_hostile_messages(self) -> None:
+        hostile = "refactor api; rm -rf / # nope"
+
+        status, stdout, stderr = run_cli(["hermes", "plan", "--source", "discord", hostile])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        coding_delegate = payload["wrapper_contract"]["coding_delegate"]
+        self.assertTrue(coding_delegate["available"])
+        self.assertNotIn("command_template", coding_delegate)
+        self.assertEqual(coding_delegate["argv_template"][-1], "{message}")
+        self.assertNotIn(hostile, json.dumps(coding_delegate))
+
+    def test_hermes_plan_wrapper_contract_rejects_substring_coding_matches(self) -> None:
+        for message in ("plan a contest announcement", "write a prefix migration guide", "feature request template"):
+            with self.subTest(message=message):
+                status, stdout, stderr = run_cli(["hermes", "plan", message])
+
+                self.assertEqual(stderr, "")
+                self.assertEqual(status, 0)
+                coding_delegate = json.loads(stdout)["wrapper_contract"]["coding_delegate"]
+                self.assertFalse(coding_delegate["available"])
+                self.assertEqual(coding_delegate["unavailable_reason"], "task is not implementation-shaped")
 
     def test_hermes_plan_records_under_hermes_home(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -289,6 +328,10 @@ class CliTests(unittest.TestCase):
             plan_path = Path(artifact["path"])
             self.assertEqual(artifact["kind"], "hermes_plan")
             self.assertEqual(artifact["status"], "draft")
+            contract_artifact = payload["wrapper_contract"]["plan_artifact"]
+            self.assertTrue(contract_artifact["recorded"])
+            self.assertEqual(contract_artifact["path"], artifact["path"])
+            self.assertEqual(contract_artifact["status"], "draft")
             self.assertEqual(plan_path.parent.resolve(), (hermes_home / "plans").resolve())
             self.assertTrue(plan_path.exists())
             self.assertFalse((root / ("." + "om" + "x") / "plans").exists())
@@ -310,8 +353,14 @@ class CliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             payload = json.loads(stdout)
             self.assertEqual(payload["plan"]["status"], "blocked")
+            contract = payload["wrapper_contract"]
+            self.assertEqual(contract["current_step"], "ask_clarification")
+            self.assertEqual(contract["next_action"], "ask_clarification")
+            self.assertFalse(contract["coding_delegate"]["available"])
+            self.assertEqual(contract["coding_delegate"]["unavailable_reason"], "plan is blocked")
             artifact = payload["artifact"]
             self.assertIn("context_path", artifact)
+            self.assertEqual(payload["wrapper_contract"]["plan_artifact"]["context_path"], artifact["context_path"])
             plan_path = Path(artifact["path"])
             context_path = Path(artifact["context_path"])
             self.assertEqual(plan_path.parent.resolve(), (hermes_home / "plans").resolve())
@@ -324,7 +373,7 @@ class CliTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             event = Path(tmp) / "event.json"
             event.write_text(
-                '{"event": {"id": "m1", "text": "risky architecture plan", "channel": "c1", "user": "u1", "ts": "123.4"}}',
+                '{"event": {"id": "m1", "text": "risky refactor architecture plan", "channel": "c1", "user": "u1", "ts": "123.4"}}',
                 encoding="utf-8",
             )
 
@@ -338,6 +387,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["source_metadata"]["channel_ref"], "c1")
         self.assertEqual(payload["source_metadata"]["user_ref"], "u1")
         self.assertEqual(payload["plan"]["recommended_workflow"], "ralplan")
+        contract = payload["wrapper_contract"]
+        argv = contract["coding_delegate"]["argv_template"]
+        self.assertEqual(contract["source"], "slack")
+        self.assertIn("--source-event-id", argv)
+        self.assertIn("m1", argv)
+        self.assertIn("--channel-ref", argv)
+        self.assertIn("c1", argv)
+        self.assertIn("--user-ref", argv)
+        self.assertIn("u1", argv)
 
     def test_hermes_plan_frontmatter_quotes_untrusted_metadata(self) -> None:
         with TemporaryDirectory() as tmp:
