@@ -124,6 +124,79 @@ class CliTests(unittest.TestCase):
         self.assertEqual(shown["routing"]["action"], "dispatch")
         self.assertNotIn("risky refactor", json.dumps(shown["routing"]))
 
+    def test_chat_session_flow_persists_plan_decision_and_links_handoff_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home_args = ["--omh-home", str(root / ".omh"), "--hermes-home", str(root / ".hermes")]
+            message = "risky refactor with private-token-123"
+
+            status, stdout, stderr = run_cli(
+                home_args
+                + [
+                    "chat",
+                    "session",
+                    "start",
+                    "--source",
+                    "discord",
+                    "--source-event-id",
+                    "m1",
+                    "--channel-ref",
+                    "c1",
+                    message,
+                ]
+            )
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            started = json.loads(stdout)
+            session_id = started["session"]["session_id"]
+            self.assertEqual(started["session"]["thread_key"], "discord:c1:m1")
+            self.assertEqual(started["session"]["status"], "plan_presented")
+            self.assertNotIn(message, json.dumps(started))
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "accept-plan", session_id])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            accepted = json.loads(stdout)
+            self.assertEqual(accepted["session"]["decision"], "plan_accepted")
+            self.assertEqual(accepted["status"]["chat_response"]["state"]["next_action"], "prepare_handoff")
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "prepare-handoff", session_id, message])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            handoff = json.loads(stdout)
+            run_id = handoff["session"]["current_run_id"]
+            self.assertTrue(run_id)
+            self.assertEqual(handoff["handoff"]["status"]["next_action"], "dispatch_to_executor")
+            self.assertNotIn(message, json.dumps(handoff["session"]))
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "status", session_id])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            session_status = json.loads(stdout)
+            self.assertEqual(session_status["current_run_id"], run_id)
+            self.assertEqual(session_status["runtime_status"]["next_action"], "dispatch_to_executor")
+            self.assertNotIn("omh ", json.dumps(session_status["chat_response"]).lower())
+
+            status, stdout, stderr = run_cli(home_args + ["runtime", "validate"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            validation = json.loads(stdout)
+            self.assertTrue(validation["ok"])
+            self.assertEqual(len(validation["wrapper_sessions"]), 1)
+
+            status, stdout, stderr = run_cli(home_args + ["runtime", "export"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        exported = json.loads(stdout)
+        self.assertEqual(len(exported["wrapper_sessions"]), 1)
+        self.assertNotIn(message, json.dumps(exported))
+
     def test_coding_delegate_returns_public_contract_without_raw_message(self) -> None:
         status, stdout, stderr = run_cli(["coding", "delegate", "--source", "discord", "risky", "refactor"])
 

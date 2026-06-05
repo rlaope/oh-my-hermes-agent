@@ -34,6 +34,7 @@ src/
   runtime_artifacts.py
   runtime_records.py
   snippet.py
+  wrapper_sessions.py
   skill_pack.py
   wrapper_contract.py
   core/
@@ -71,6 +72,10 @@ acceptance.
 `runtime_artifacts.py` and `runtime_records.py` own local JSON/JSONL evidence,
 schema validation, redacted export, and derived delegated coding status.
 
+`wrapper_sessions.py` owns metadata-only chat session persistence for wrappers.
+It records chat continuity, plan decisions, and a link to a prepared run id, but
+it does not own execution, review, CI, merge readiness, or merge evidence.
+
 `installer.py` owns managed skill writes, manifest updates, update behavior, and
 uninstall behavior.
 
@@ -88,7 +93,7 @@ the package grows internally.
 
 ## Routing
 
-Routing, planning, and delegation have five local surfaces:
+Routing, planning, and delegation have six local surfaces:
 
 1. Prompt-level guidance. The router skill gives Hermes a structured map of
    workflow names and strong trigger phrases, but it does not override Hermes
@@ -96,13 +101,16 @@ Routing, planning, and delegation have five local surfaces:
 2. Wrapper-native chat orchestration. `omh chat interact` lets Discord, Slack,
    or hosted Hermes wrappers receive one platform-neutral `chat_interaction/v1`
    envelope with renderable chat copy, state, action buttons, and a thread key.
-3. Wrapper-assisted chat routing. `omh chat route` lets Discord, Slack, or
+3. Wrapper session persistence. `omh chat session` lets wrappers persist
+   metadata-only plan decisions, recover status by `session_id`, and link an
+   accepted plan to a prepared coding run without owning execution evidence.
+4. Wrapper-assisted chat routing. `omh chat route` lets Discord, Slack, or
    hosted Hermes wrappers run a deterministic pre-dispatch decision before they
    forward a plain user message to Hermes.
-4. Wrapper-assisted coding delegation. `omh coding delegate` lets wrappers turn
+5. Wrapper-assisted coding delegation. `omh coding delegate` lets wrappers turn
    implementation-shaped messages into a deterministic `coding_delegation/v1`
    handoff payload for an executor lane.
-5. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
+6. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
    operators create deterministic `hermes_plan/v1` planning scaffolds under
    `.hermes/plans/` without claiming that execution or review already happened.
 
@@ -149,6 +157,13 @@ handoff template. For implementation-shaped draft plans,
 calling `omh coding delegate --record` after plan acceptance. Blocked or
 non-coding plans keep `coding_delegate.available` false so wrappers do not infer
 execution from presentation text.
+
+`omh chat session` is the recovery layer for adapters that need button/thread
+state to survive restarts. The session id is derived from `thread_key`. Session
+records own chat continuity, route summary, plan accepted/revision/cancelled
+decisions, and a `current_run_id` link. The linked run remains the only
+authoritative source for prepared handoff, dispatch, executor result,
+verification, review, CI, merge readiness, and merge observations.
 
 Future routing work should deepen the catalog first, then render richer skill
 metadata from it.
@@ -219,12 +234,18 @@ Runtime artifacts are local JSON/JSONL files under `.omh/runtime/`.
         delegation.json
         wrapper.json
         evidence/
+    wrapper_sessions/
+      <session-id>/
+        session.json
+        events.jsonl
 ```
 
 `state.json` records install, apply, and doctor summaries. A run directory
 records a workflow envelope, append-only events, routing decisions, prepared
 coding delegation, delegation observation, and wrapper observation plus optional
-evidence files.
+evidence files. A wrapper session directory records chat-thread continuity and
+plan decisions only; it may link to a run id but must not duplicate run-level
+execution evidence.
 
 The runtime artifact layer is intentionally small:
 
