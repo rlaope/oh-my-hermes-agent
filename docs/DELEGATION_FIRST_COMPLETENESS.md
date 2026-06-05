@@ -25,6 +25,7 @@ evidence exists.
 | Surface | Current role | Evidence |
 | --- | --- | --- |
 | `omh chat interact` | Composes route, plan, delegation, and status into one wrapper-native `chat_interaction/v1` response for Discord, Slack, and hosted Hermes adapters. | `src/wrapper_contract.py`, `tests/test_wrapper_contract.py`, `tests/test_cli.py` |
+| `omh chat session` | Persists metadata-only chat session decisions, plan acceptance/revision/cancel state, and links accepted sessions to prepared Codex handoff runs. | `src/wrapper_sessions.py`, `tests/test_wrapper_sessions.py`, `tests/test_cli.py` |
 | `omh chat route` | Deterministically routes plain chat into a workflow decision before wrapper dispatch. | `src/chat_router.py`, `tests/test_cli.py` |
 | `omh hermes plan` | Produces Hermes-facing plan scaffolds and wrapper contracts under `.hermes/plans`. | `src/hermes_planning.py`, `docs/ARCHITECTURE.md` |
 | `omh coding delegate` | Prepares metadata-only coding handoffs and records `prepared_not_observed` evidence. | `src/coding_delegation.py`, `src/runtime_artifacts.py` |
@@ -37,11 +38,13 @@ The strongest existing path is:
 1. A Discord or Slack wrapper receives a plain user message.
 2. The wrapper runs `omh chat interact` and renders the returned
    `chat_response/v1` in the original channel or thread.
-3. For planning-shaped work, the wrapper presents the draft plan and waits for
-   acceptance before preparing a handoff.
-4. For accepted implementation-shaped work, the wrapper starts a Codex lifecycle
-   handoff and dispatches that handoff outside OMHM.
-5. Separate wrapper/runtime evidence is required before OMHM can say execution,
+3. If the wrapper needs restart recovery, it records the turn with
+   `omh chat session start`.
+4. For planning-shaped work, the wrapper presents the draft plan and records
+   accept/revise/cancel decisions with `omh chat session`.
+5. For accepted implementation-shaped work, the wrapper prepares a Codex
+   lifecycle handoff and links the session to the runtime run id.
+6. Separate wrapper/runtime evidence is required before OMHM can say execution,
    review, verification, CI, merge, or merge-readiness was observed.
 
 ## Completeness Gaps
@@ -49,8 +52,7 @@ The strongest existing path is:
 | Priority | Gap | Why it matters | Target story |
 | --- | --- | --- | --- |
 | P0 | Actual Discord and Slack adapters are not implemented in this repository. | The core contract is ready, but platform auth, retries, edits, and posting still belong to wrapper projects. | Build example adapter shims only after transport dependencies and packaging are approved. |
-| P0 | Review, CI, and merge evidence are still represented as wrapper-observed gaps rather than first-class records. | Coding lifecycle reports must keep blocking final completion for review-heavy tasks. | Add explicit review/CI/merge observation records or document the wrapper evidence shape. |
-| P1 | Plan acceptance is represented by wrapper actions, but no persisted acceptance event exists yet. | Wrappers need durable recovery when a platform process restarts between plan acceptance and Codex dispatch. | Add a metadata-only plan acceptance record keyed by `thread_key` and `run_id`. |
+| P0 | Review, CI, and merge evidence need richer first-class run-level records. | Session state now preserves plan decisions, so the next evidence gap is downstream delivery status. | Add explicit run-level review/CI/merge observation records without moving execution claims into sessions. |
 | P1 | Chat response examples are schema-level, not transport-level. | Adapter authors need clear button/thread/status update examples without duplicating policy. | Add Discord/Slack pseudocode fixtures and golden JSON examples. |
 | P2 | Lifecycle reporting is Codex-oriented only. | Future executor targets may need the same state machine without weakening the Codex default. | Generalize only after another executor contract exists. |
 

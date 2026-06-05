@@ -101,6 +101,10 @@ omh apply --dry-run
 omh recommend "risky refactor"
 omh chat interact --source discord "risky refactor"
 omh chat interact --source slack --stdin
+omh chat session start --source discord --source-event-id m1 --channel-ref c1 "risky refactor"
+omh chat session accept-plan <session-id>
+omh chat session prepare-handoff <session-id> "risky refactor"
+omh chat session status <session-id>
 omh chat route --source discord --record "risky refactor"
 omh coding delegate --source discord --record "risky refactor"
 omh coding delegate --executor codex --source discord --record "risky refactor"
@@ -143,6 +147,7 @@ or modify Hermes internals.
 - install/apply/doctor summaries in `~/.omh/runtime/state.json`
 - workflow run envelopes in `~/.omh/runtime/runs/<run-id>/run.json`
 - append-only run events in `events.jsonl`
+- wrapper chat sessions in `~/.omh/runtime/wrapper_sessions/<session-id>/`
 - delegation observation in `delegation.json`
 - prepared coding handoffs in `coding_delegation.json`
 - wrapper observation in `wrapper.json`
@@ -249,6 +254,13 @@ contains the user-facing headline, body, state, and platform-neutral actions
 such as `accept_plan`, `revise_plan`, `send_to_codex`, `show_status`, or
 `cancel`. Action labels do not expose `omh`, argv arrays, or shell command text.
 
+Wrappers that need restart recovery can use `omh chat session`. A session is a
+metadata-only chat decision/index record keyed by `thread_key` and
+`session_id`. It records plan accepted, revision requested, cancelled, and
+handoff prepared decisions. It links to `current_run_id` after a Codex handoff is
+prepared, but execution, review, CI, and merge evidence remain owned by the
+linked runtime run ledger.
+
 `omh chat interact` composes existing deterministic primitives instead of
 replacing them. Route-shaped turns use `omh chat route` semantics. Planning
 turns use `hermes_plan/v1` and the existing `wrapper_contract` bridge.
@@ -261,6 +273,7 @@ The lower-level commands remain useful for debugging, tests, and custom
 adapters:
 
 - `omh chat route` returns only the deterministic route decision.
+- `omh chat session` persists wrapper plan decisions and links accepted plans to prepared Codex handoff runs.
 - `omh hermes plan` writes Hermes-facing plan Markdown under `.hermes/plans/`.
 - `omh coding delegate` prepares a coding handoff without tracking lifecycle.
 - `omh coding lifecycle` records and reports the Codex handoff lifecycle.
@@ -281,6 +294,7 @@ patch Hermes internals.
 | `omh doctor` | Verify managed files and Hermes config registration. |
 | `omh recommend <task>` | Deterministically suggest workflow skills from the local OMHM catalog. |
 | `omh chat interact <message>` | Compose a wrapper-native `chat_interaction/v1` response for Discord, Slack, or hosted Hermes adapters. |
+| `omh chat session <step>` | Persist wrapper chat session decisions and recover status from linked runtime evidence. |
 | `omh chat route <message>` | Route a plain chat message before a Discord, Slack, or Hermes wrapper dispatches it. |
 | `omh coding delegate <task>` | Prepare a deterministic coding handoff payload and optional metadata-only runtime record. |
 | `omh coding lifecycle <step>` | Start, dispatch, observe, verify, and report a Codex handoff lifecycle using local runtime evidence. |
@@ -316,6 +330,7 @@ src/
   recommend.py           deterministic workflow skill recommender
   runtime_artifacts.py   runtime evidence read/write and validation helpers
   runtime_records.py     runtime schema builders and validators
+  wrapper_sessions.py    metadata-only wrapper chat session decision/index layer
   snippet.py             optional workspace guidance
   skill_pack.py          compatibility facade for generated skills
   wrapper_contract.py    platform-neutral chat interaction contracts

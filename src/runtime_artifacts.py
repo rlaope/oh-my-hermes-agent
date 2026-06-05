@@ -33,6 +33,7 @@ from .runtime_records import (
     validate_routing_record,
     validate_run_record,
     validate_wrapper_record,
+    validate_wrapper_session_record,
 )
 
 
@@ -231,6 +232,28 @@ def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
         "delegation": read_json_object(run_dir / "delegation.json"),
         "wrapper": read_json_object(run_dir / "wrapper.json"),
         "evidence": sorted(path.name for path in evidence_dir.iterdir()) if evidence_dir.exists() else [],
+    }
+
+
+def list_wrapper_session_records(paths: OmhPaths) -> list[dict[str, Any]]:
+    if not paths.runtime_wrapper_sessions_dir.exists():
+        return []
+    sessions: list[dict[str, Any]] = []
+    for session_json in sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json")):
+        session = read_json_object(session_json)
+        if session:
+            sessions.append(session)
+    return sessions
+
+
+def show_wrapper_session_record(paths: OmhPaths, session_id: str) -> dict[str, Any]:
+    session_dir = paths.runtime_wrapper_sessions_dir / session_id
+    session = read_json_object(session_dir / "session.json")
+    if not session:
+        raise FileNotFoundError(session_id)
+    return {
+        "session": session,
+        "events": _read_jsonl_events(session_dir / "events.jsonl"),
     }
 
 
@@ -477,10 +500,64 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
 def validate_runtime(paths: OmhPaths, run_id: str | None = None) -> dict[str, Any]:
     if run_id:
         run_dirs = [paths.runtime_runs_dir / run_id]
+        session_dirs = _wrapper_session_dirs_for_run(paths, run_id)
     else:
         run_dirs = sorted(path for path in paths.runtime_runs_dir.glob("*") if path.is_dir()) if paths.runtime_runs_dir.exists() else []
+        session_dirs = (
+            sorted(path for path in paths.runtime_wrapper_sessions_dir.glob("*") if path.is_dir())
+            if paths.runtime_wrapper_sessions_dir.exists()
+            else []
+        )
     results = [validate_run_dir(run_dir) for run_dir in run_dirs]
-    return {"ok": all(result["ok"] for result in results), "runs": results}
+    session_results = [validate_wrapper_session_dir(session_dir) for session_dir in session_dirs]
+    _add_duplicate_wrapper_run_link_errors(session_results, session_dirs)
+    return {
+        "ok": all(result["ok"] for result in results) and all(result["ok"] for result in session_results),
+        "runs": results,
+        "wrapper_sessions": session_results,
+    }
+
+
+def _wrapper_session_dirs_for_run(paths: OmhPaths, run_id: str) -> list[Path]:
+    if not paths.runtime_wrapper_sessions_dir.exists():
+        return []
+    session_dirs: list[Path] = []
+    for session_json in sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json")):
+        session = read_json_object(session_json)
+        if session and session.get("current_run_id") == run_id:
+            session_dirs.append(session_json.parent)
+    return session_dirs
+
+
+def _add_duplicate_wrapper_run_link_errors(session_results: list[dict[str, Any]], session_dirs: list[Path]) -> None:
+    owners_by_run_id: dict[str, list[str]] = {}
+    for session_dir in session_dirs:
+        session = read_json_object(session_dir / "session.json")
+        if not session:
+            continue
+        run_id = str(session.get("current_run_id", ""))
+        if run_id:
+            owners_by_run_id.setdefault(run_id, []).append(session_dir.name)
+    duplicate_errors = {
+        run_id: f"current_run_id {run_id} is linked by multiple wrapper sessions: {', '.join(sorted(session_ids))}"
+        for run_id, session_ids in owners_by_run_id.items()
+        if len(session_ids) > 1
+    }
+    if not duplicate_errors:
+        return
+    results_by_session_id = {str(result.get("session_id")): result for result in session_results}
+    for session_dir in session_dirs:
+        session = read_json_object(session_dir / "session.json")
+        if not session:
+            continue
+        run_id = str(session.get("current_run_id", ""))
+        if run_id not in duplicate_errors:
+            continue
+        result = results_by_session_id.get(session_dir.name)
+        if not result:
+            continue
+        result.setdefault("errors", []).append(f"{session_dir / 'session.json'}: {duplicate_errors[run_id]}")
+        result["ok"] = False
 
 
 SENSITIVE_KEY_PARTS = ("secret", "token", "api_key", "apikey", "password")
@@ -518,6 +595,7 @@ def export_runtime(paths: OmhPaths, redacted: bool = True) -> dict[str, Any]:
         "runtime_dir": str(paths.runtime_dir),
         "state": read_state(paths),
         "runs": [show_run(paths, run["run_id"]) for run in list_runs(paths)],
+        "wrapper_sessions": [show_wrapper_session_record(paths, session["session_id"]) for session in list_wrapper_session_records(paths)],
     }
     if redacted:
         payload = _redact(payload)
@@ -525,3 +603,81 @@ def export_runtime(paths: OmhPaths, redacted: bool = True) -> dict[str, Any]:
     else:
         payload["redacted"] = False
     return payload
+
+
+def _read_jsonl_events(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
+    errors: list[str] = []
+    session_path = session_dir / "session.json"
+    events: list[dict[str, Any]] = []
+    try:
+        session = read_json_object(session_path)
+    except (OSError, JSONDecodeError, ValueError) as exc:
+        session = None
+        errors.append(f"{session_path}: {exc}")
+    if not session:
+        errors.append(f"{session_path}: missing session.json")
+    else:
+        errors.extend(f"{session_path}: {error}" for error in validate_wrapper_session_record(session))
+        if session.get("session_id") != session_dir.name:
+            errors.append(f"{session_path}: session_id must match directory name")
+    events_path = session_dir / "events.jsonl"
+    if events_path.exists():
+        try:
+            for index, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
+                if not line.strip():
+                    continue
+                event = json.loads(line)
+                if not isinstance(event, dict):
+                    errors.append(f"{events_path}:{index}: event must be an object")
+                    continue
+                events.append(event)
+                errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
+        except (OSError, JSONDecodeError) as exc:
+            errors.append(f"{events_path}: {exc}")
+    else:
+        errors.append(f"{events_path}: missing events.jsonl")
+    if session:
+        errors.extend(_validate_wrapper_session_run_link(session_dir, session, events))
+    return {"session_id": session_dir.name, "ok": not errors, "errors": errors}
+
+
+def _validate_wrapper_session_run_link(session_dir: Path, session: dict[str, Any], events: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    run_id = str(session.get("current_run_id", ""))
+    if not run_id:
+        return errors
+    session_path = session_dir / "session.json"
+    run_dir = session_dir.parents[1] / "runs" / run_id
+    run_path = run_dir / "run.json"
+    coding_path = run_dir / "coding_delegation.json"
+    run = read_json_object(run_path)
+    if not run:
+        return [f"{session_path}: current_run_id does not point to an existing runtime run"]
+    errors.extend(f"{run_path}: {error}" for error in validate_run_record(run))
+    if run.get("artifact_kind") != "prepared_coding_delegation":
+        errors.append(f"{session_path}: current_run_id must point to a prepared coding delegation run")
+    if run.get("phase") != "prepared" or run.get("observation_status") != "prepared_not_observed":
+        errors.append(f"{session_path}: linked run must preserve prepared_not_observed boundary")
+    coding = read_json_object(coding_path)
+    if not coding:
+        errors.append(f"{session_path}: linked run is missing coding_delegation.json")
+    else:
+        errors.extend(f"{coding_path}: {error}" for error in validate_coding_delegation_record(coding))
+        handoff = coding.get("executor_handoff") if isinstance(coding, dict) else None
+        if not isinstance(handoff, dict) or handoff.get("executor_target") != "codex":
+            errors.append(f"{session_path}: linked run must include a Codex executor handoff")
+        if isinstance(coding, dict) and coding.get("status") != "prepared_not_observed":
+            errors.append(f"{session_path}: linked coding delegation must be prepared_not_observed")
+    has_link_event = any(
+        event.get("event") == "handoff_prepared" and isinstance(event.get("data"), dict) and event["data"].get("run_id") == run_id
+        for event in events
+    )
+    if not has_link_event:
+        errors.append(f"{session_path}: current_run_id must be recorded by a handoff_prepared session event")
+    return errors

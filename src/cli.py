@@ -70,6 +70,15 @@ from .workflow_state import (
     start_workflow_state,
 )
 from .wrapper_contract import INTERACTION_MODES, build_chat_interaction_payload, build_chat_status_interaction
+from .wrapper_sessions import (
+    WrapperSessionError,
+    build_wrapper_session_status,
+    create_or_resume_wrapper_session,
+    list_wrapper_sessions,
+    prepare_wrapper_session_handoff,
+    record_plan_decision,
+    show_wrapper_session,
+)
 
 
 def _paths(args: argparse.Namespace):
@@ -262,6 +271,73 @@ def cmd_chat_interact(args: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         raise OmhError(str(exc)) from exc
     _print_json(payload)
+    return 0
+
+
+def cmd_chat_session_start(args: argparse.Namespace) -> int:
+    try:
+        event_or_message, source_metadata = _chat_input_and_metadata(args)
+        payload = create_or_resume_wrapper_session(
+            _paths(args),
+            event_or_message,
+            source=args.source,
+            limit=args.limit,
+            min_confidence=args.min_confidence,
+            source_metadata=source_metadata,
+        )
+    except (OSError, json.JSONDecodeError, ValueError, WrapperSessionError) as exc:
+        raise OmhError(str(exc)) from exc
+    _print_json(payload)
+    return 0
+
+
+def cmd_chat_session_decision(args: argparse.Namespace) -> int:
+    try:
+        _print_json(record_plan_decision(_paths(args), args.session_id, args.decision))
+    except FileNotFoundError as exc:
+        raise OmhError(f"wrapper session not found: {args.session_id}") from exc
+    except WrapperSessionError as exc:
+        raise OmhError(str(exc)) from exc
+    return 0
+
+
+def cmd_chat_session_prepare_handoff(args: argparse.Namespace) -> int:
+    try:
+        event_or_message, source_metadata = _chat_input_and_metadata(args)
+        payload = prepare_wrapper_session_handoff(
+            _paths(args),
+            args.session_id,
+            event_or_message,
+            limit=args.limit,
+            include_message=args.include_message,
+            source_metadata=source_metadata,
+        )
+    except FileNotFoundError as exc:
+        raise OmhError(f"wrapper session not found: {args.session_id}") from exc
+    except (OSError, json.JSONDecodeError, ValueError, WrapperSessionError) as exc:
+        raise OmhError(str(exc)) from exc
+    _print_json(payload)
+    return 0
+
+
+def cmd_chat_session_status(args: argparse.Namespace) -> int:
+    try:
+        _print_json(build_wrapper_session_status(_paths(args), args.session_id))
+    except FileNotFoundError as exc:
+        raise OmhError(f"wrapper session not found: {args.session_id}") from exc
+    return 0
+
+
+def cmd_chat_session_show(args: argparse.Namespace) -> int:
+    try:
+        _print_json(show_wrapper_session(_paths(args), args.session_id))
+    except FileNotFoundError as exc:
+        raise OmhError(f"wrapper session not found: {args.session_id}") from exc
+    return 0
+
+
+def cmd_chat_session_list(args: argparse.Namespace) -> int:
+    _print_json({"wrapper_sessions": list_wrapper_sessions(_paths(args))})
     return 0
 
 
@@ -498,6 +574,7 @@ def cmd_runtime_status(args: argparse.Namespace) -> int:
             "runtime_dir": str(paths.runtime_dir),
             "state_path": str(paths.runtime_state_path),
             "runs_dir": str(paths.runtime_runs_dir),
+            "wrapper_sessions_dir": str(paths.runtime_wrapper_sessions_dir),
             "state": state,
             "state_error": state_error,
         }
@@ -832,6 +909,56 @@ def _add_chat_commands(sub) -> None:
     interact.add_argument("--channel-ref", default="", help="Optional channel reference to store as metadata.")
     interact.add_argument("--user-ref", default="", help="Optional user reference to store as metadata.")
     interact.set_defaults(func=cmd_chat_interact)
+
+    session = chat_sub.add_parser("session")
+    session_sub = session.add_subparsers(dest="session_command", required=True)
+
+    session_start = session_sub.add_parser("start")
+    session_start.add_argument("message", nargs="*", help="Chat message to bind to a wrapper session.")
+    session_start.add_argument("--source", choices=CHAT_SOURCES, default="generic")
+    session_start.add_argument("--limit", type=int, default=3)
+    session_start.add_argument("--min-confidence", choices=CONFIDENCE_LEVELS, default="high")
+    session_start.add_argument("--stdin", action="store_true")
+    session_start.add_argument("--event-json", default=None)
+    session_start.add_argument("--source-event-id", default="")
+    session_start.add_argument("--channel-ref", default="")
+    session_start.add_argument("--user-ref", default="")
+    session_start.set_defaults(func=cmd_chat_session_start)
+
+    session_accept = session_sub.add_parser("accept-plan")
+    session_accept.add_argument("session_id")
+    session_accept.set_defaults(func=cmd_chat_session_decision, decision="accept")
+
+    session_revise = session_sub.add_parser("revise-plan")
+    session_revise.add_argument("session_id")
+    session_revise.set_defaults(func=cmd_chat_session_decision, decision="revise")
+
+    session_cancel = session_sub.add_parser("cancel")
+    session_cancel.add_argument("session_id")
+    session_cancel.set_defaults(func=cmd_chat_session_decision, decision="cancel")
+
+    session_prepare = session_sub.add_parser("prepare-handoff")
+    session_prepare.add_argument("session_id")
+    session_prepare.add_argument("message", nargs="*", help="Original or clarified task text for the prepared handoff.")
+    session_prepare.add_argument("--limit", type=int, default=3)
+    session_prepare.add_argument("--stdin", action="store_true")
+    session_prepare.add_argument("--event-json", default=None)
+    session_prepare.add_argument("--include-message", action="store_true")
+    session_prepare.add_argument("--source-event-id", default="")
+    session_prepare.add_argument("--channel-ref", default="")
+    session_prepare.add_argument("--user-ref", default="")
+    session_prepare.set_defaults(func=cmd_chat_session_prepare_handoff)
+
+    session_status = session_sub.add_parser("status")
+    session_status.add_argument("session_id")
+    session_status.set_defaults(func=cmd_chat_session_status)
+
+    session_show = session_sub.add_parser("show")
+    session_show.add_argument("session_id")
+    session_show.set_defaults(func=cmd_chat_session_show)
+
+    session_list = session_sub.add_parser("list")
+    session_list.set_defaults(func=cmd_chat_session_list)
 
 
 def _add_coding_commands(sub) -> None:

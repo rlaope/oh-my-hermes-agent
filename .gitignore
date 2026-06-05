@@ -22,6 +22,9 @@ dist/
 *.egg-info/
 *.whl
 
+# Local Hermes artifacts
+.hermes/
+
 # Editor and OS files
 .DS_Store
 .idea/

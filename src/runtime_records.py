@@ -65,6 +65,65 @@ CODING_EXECUTOR_HANDOFF_KEYS = (
     "verification",
     "review",
 )
+WRAPPER_SESSION_SCHEMA_VERSION = "wrapper_session/v1"
+WRAPPER_SESSION_RECORD_TYPE = "wrapper_session"
+WRAPPER_SESSION_STATUSES = (
+    "plan_presented",
+    "clarifying",
+    "routed",
+    "plan_accepted",
+    "revision_requested",
+    "cancelled",
+    "handoff_prepared",
+)
+WRAPPER_SESSION_DECISIONS = ("none", "plan_accepted", "plan_revision_requested", "plan_cancelled")
+WRAPPER_SESSION_SOURCE_METADATA_KEYS = CODING_SOURCE_METADATA_KEYS
+WRAPPER_SESSION_ROUTE_KEYS = ("action", "selected_skill", "selected_harness", "confidence", "score")
+WRAPPER_SESSION_PLAN_KEYS = ("status", "recommended_workflow", "recommended_harness")
+WRAPPER_SESSION_AUTHORITY_SESSION_OWNS = (
+    "chat_continuity",
+    "route_summary",
+    "plan_decision",
+    "linked_run_id",
+)
+WRAPPER_SESSION_AUTHORITY_RUN_LEDGER_OWNS = (
+    "prepared_handoff",
+    "dispatch",
+    "executor_result",
+    "verification",
+    "review",
+    "ci",
+    "merge_readiness",
+    "merge",
+)
+WRAPPER_SESSION_STATUS_DECISIONS = {
+    "plan_presented": "none",
+    "clarifying": "none",
+    "routed": "none",
+    "plan_accepted": "plan_accepted",
+    "revision_requested": "plan_revision_requested",
+    "cancelled": "plan_cancelled",
+    "handoff_prepared": "plan_accepted",
+}
+WRAPPER_SESSION_RECORD_KEYS = (
+    "schema_version",
+    "record_type",
+    "session_id",
+    "thread_key",
+    "source",
+    "source_metadata",
+    "message_sha256",
+    "message_length",
+    "created_at",
+    "updated_at",
+    "status",
+    "decision",
+    "route",
+    "plan",
+    "current_run_id",
+    "redaction_policy",
+    "authority",
+)
 
 
 def build_run_record(metadata: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -232,6 +291,42 @@ def build_coding_delegation_record(delegation: dict[str, Any]) -> dict[str, Any]
     return record
 
 
+def build_wrapper_session_record(session: dict[str, Any]) -> dict[str, Any]:
+    status = str(session.get("status", "plan_presented"))
+    if status not in WRAPPER_SESSION_STATUSES:
+        raise ValueError(f"unsupported wrapper session status: {status}")
+    decision = str(session.get("decision", "none"))
+    if decision not in WRAPPER_SESSION_DECISIONS:
+        raise ValueError(f"unsupported wrapper session decision: {decision}")
+    created_at = str(session.get("created_at") or utc_now())
+    record = {
+        "schema_version": WRAPPER_SESSION_SCHEMA_VERSION,
+        "record_type": WRAPPER_SESSION_RECORD_TYPE,
+        "session_id": str(session.get("session_id", "")),
+        "thread_key": str(session.get("thread_key", "")),
+        "source": str(session.get("source", "generic")),
+        "source_metadata": _compact_wrapper_session_source_metadata(session.get("source_metadata", {})),
+        "message_sha256": str(session.get("message_sha256", "")),
+        "message_length": int(session.get("message_length", 0)),
+        "created_at": created_at,
+        "updated_at": str(session.get("updated_at") or utc_now()),
+        "status": status,
+        "decision": decision,
+        "route": _compact_wrapper_session_route(session.get("route", {})),
+        "plan": _compact_wrapper_session_plan(session.get("plan", {})),
+        "current_run_id": str(session.get("current_run_id", "")),
+        "redaction_policy": "metadata_only",
+        "authority": {
+            "session_owns": list(WRAPPER_SESSION_AUTHORITY_SESSION_OWNS),
+            "run_ledger_owns": list(WRAPPER_SESSION_AUTHORITY_RUN_LEDGER_OWNS),
+        },
+    }
+    errors = validate_wrapper_session_record(record)
+    if errors:
+        raise ValueError(errors[0])
+    return record
+
+
 def _compact_routing_recommendations(recommendations: Any) -> list[dict[str, Any]]:
     if not isinstance(recommendations, list):
         return []
@@ -274,6 +369,33 @@ def _compact_source_metadata(metadata: Any) -> dict[str, str]:
     if not isinstance(metadata, dict):
         return {}
     return {key: str(metadata[key]) for key in CODING_SOURCE_METADATA_KEYS if key in metadata and str(metadata[key])}
+
+
+def _compact_wrapper_session_source_metadata(metadata: Any) -> dict[str, str]:
+    if not isinstance(metadata, dict):
+        return {}
+    return {
+        key: str(metadata[key])
+        for key in WRAPPER_SESSION_SOURCE_METADATA_KEYS
+        if key in metadata and str(metadata[key])
+    }
+
+
+def _compact_wrapper_session_route(route: Any) -> dict[str, Any]:
+    if not isinstance(route, dict):
+        return {}
+    compact: dict[str, Any] = {}
+    for key in WRAPPER_SESSION_ROUTE_KEYS:
+        if key not in route:
+            continue
+        compact[key] = int(route[key]) if key == "score" else str(route[key])
+    return compact
+
+
+def _compact_wrapper_session_plan(plan: Any) -> dict[str, str]:
+    if not isinstance(plan, dict):
+        return {}
+    return {key: str(plan[key]) for key in WRAPPER_SESSION_PLAN_KEYS if key in plan and str(plan[key])}
 
 
 def _compact_string_list(values: Any) -> list[str]:
@@ -496,6 +618,78 @@ def validate_coding_delegation_record(delegation: dict[str, Any]) -> list[str]:
             _require(isinstance(value, str), errors, f"coding_delegation {key}[{index}] must be a string")
     if "executor_handoff" in delegation:
         errors.extend(validate_coding_executor_handoff(delegation["executor_handoff"]))
+    return errors
+
+
+def validate_wrapper_session_record(session: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    extra_keys = sorted(set(session) - set(WRAPPER_SESSION_RECORD_KEYS))
+    _require(not extra_keys, errors, f"wrapper_session has unsupported keys: {extra_keys}")
+    _require(session.get("schema_version") == WRAPPER_SESSION_SCHEMA_VERSION, errors, "wrapper_session schema_version is invalid")
+    _require(session.get("record_type") == WRAPPER_SESSION_RECORD_TYPE, errors, "wrapper_session record_type is invalid")
+    for key in ("session_id", "thread_key", "source", "message_sha256", "created_at", "updated_at", "status", "decision"):
+        _require(isinstance(session.get(key), str), errors, f"wrapper_session {key} must be a string")
+    _require(str(session.get("session_id", "")).startswith("ws-"), errors, "wrapper_session session_id must start with ws-")
+    _require(bool(str(session.get("thread_key", ""))), errors, "wrapper_session thread_key is required")
+    _require(session.get("status") in WRAPPER_SESSION_STATUSES, errors, f"wrapper_session status is invalid: {session.get('status')!r}")
+    _require(session.get("decision") in WRAPPER_SESSION_DECISIONS, errors, f"wrapper_session decision is invalid: {session.get('decision')!r}")
+    if session.get("status") in WRAPPER_SESSION_STATUS_DECISIONS:
+        _require(
+            session.get("decision") == WRAPPER_SESSION_STATUS_DECISIONS[session["status"]],
+            errors,
+            "wrapper_session decision must match status",
+        )
+    _require(isinstance(session.get("message_length"), int), errors, "wrapper_session message_length must be an integer")
+    if isinstance(session.get("message_length"), int):
+        _require(session["message_length"] >= 0, errors, "wrapper_session message_length must be non-negative")
+    _require(_is_sha256(str(session.get("message_sha256", ""))), errors, "wrapper_session message_sha256 must be a sha256 hex digest")
+    _require(session.get("redaction_policy") == "metadata_only", errors, "wrapper_session redaction_policy must be metadata_only")
+    metadata = session.get("source_metadata")
+    _require(isinstance(metadata, dict), errors, "wrapper_session source_metadata must be an object")
+    if isinstance(metadata, dict):
+        extra_metadata_keys = sorted(set(metadata) - set(WRAPPER_SESSION_SOURCE_METADATA_KEYS))
+        _require(not extra_metadata_keys, errors, f"wrapper_session source_metadata has unsupported keys: {extra_metadata_keys}")
+        for key, value in metadata.items():
+            _require(isinstance(value, str), errors, f"wrapper_session source_metadata.{key} must be a string")
+    route = session.get("route")
+    _require(isinstance(route, dict), errors, "wrapper_session route must be an object")
+    if isinstance(route, dict):
+        extra_route_keys = sorted(set(route) - set(WRAPPER_SESSION_ROUTE_KEYS))
+        _require(not extra_route_keys, errors, f"wrapper_session route has unsupported keys: {extra_route_keys}")
+        if "score" in route:
+            _require(isinstance(route["score"], int), errors, "wrapper_session route.score must be an integer")
+    plan = session.get("plan")
+    _require(isinstance(plan, dict), errors, "wrapper_session plan must be an object")
+    if isinstance(plan, dict):
+        extra_plan_keys = sorted(set(plan) - set(WRAPPER_SESSION_PLAN_KEYS))
+        _require(not extra_plan_keys, errors, f"wrapper_session plan has unsupported keys: {extra_plan_keys}")
+        for key, value in plan.items():
+            _require(isinstance(value, str), errors, f"wrapper_session plan.{key} must be a string")
+    _require(isinstance(session.get("current_run_id"), str), errors, "wrapper_session current_run_id must be a string")
+    run_id = str(session.get("current_run_id", ""))
+    if session.get("status") == "handoff_prepared":
+        _require(bool(run_id), errors, "wrapper_session handoff_prepared requires current_run_id")
+    elif isinstance(session.get("current_run_id"), str):
+        _require(not run_id, errors, "wrapper_session current_run_id is only allowed for handoff_prepared")
+    authority = session.get("authority")
+    _require(isinstance(authority, dict), errors, "wrapper_session authority must be an object")
+    if isinstance(authority, dict):
+        _require(isinstance(authority.get("session_owns"), list), errors, "wrapper_session authority.session_owns must be a list")
+        _require(isinstance(authority.get("run_ledger_owns"), list), errors, "wrapper_session authority.run_ledger_owns must be a list")
+        forbidden = {"dispatch", "executor_result", "verification", "review", "ci", "merge_readiness", "merge"}
+        session_owns = set(authority.get("session_owns", [])) if isinstance(authority.get("session_owns"), list) else set()
+        _require(not (session_owns & forbidden), errors, "wrapper_session authority must not assign execution evidence to session")
+        _require(
+            session_owns == set(WRAPPER_SESSION_AUTHORITY_SESSION_OWNS),
+            errors,
+            "wrapper_session authority.session_owns must match the wrapper session authority contract",
+        )
+        run_ledger_owns = set(authority.get("run_ledger_owns", [])) if isinstance(authority.get("run_ledger_owns"), list) else set()
+        _require(
+            run_ledger_owns == set(WRAPPER_SESSION_AUTHORITY_RUN_LEDGER_OWNS),
+            errors,
+            "wrapper_session authority.run_ledger_owns must match the run ledger authority contract",
+        )
     return errors
 
 
