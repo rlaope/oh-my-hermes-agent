@@ -171,6 +171,91 @@ class WrapperSessionTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertTrue(events[0]["ok"])
 
+    def test_handoff_retry_does_not_recover_run_owned_by_another_session(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor"
+            source_metadata = {"source_event_id": "m1", "channel_ref": "c1"}
+            started = create_or_resume_wrapper_session(paths, message, source="discord", source_metadata=source_metadata)
+            first_session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, first_session_id, "accept")
+            first_handoff = prepare_wrapper_session_handoff(paths, first_session_id, message)
+            first_run_id = str(first_handoff["session"]["current_run_id"])
+            second_session_id = "ws-duplicate-recovery-attempt"
+            second_session = dict(started["session"])
+            second_session.update(
+                {
+                    "session_id": second_session_id,
+                    "thread_key": "discord:c1:m2",
+                    "status": "plan_accepted",
+                    "decision": "plan_accepted",
+                    "current_run_id": "",
+                }
+            )
+            write_wrapper_session(paths, second_session)
+            append_wrapper_session_event(
+                paths.runtime_wrapper_sessions_dir / second_session_id,
+                {
+                    "event": "handoff_prepare_started",
+                    "message": "wrapper session started preparing coding handoff",
+                    "data": {"message_sha256": hashlib.sha256(message.encode("utf-8")).hexdigest(), "message_length": len(message)},
+                },
+            )
+
+            second_handoff = prepare_wrapper_session_handoff(paths, second_session_id, message, source_metadata=source_metadata)
+
+            self.assertNotEqual(second_handoff["session"]["current_run_id"], first_run_id)
+            self.assertEqual(len(validate_runtime(paths)["runs"]), 2)
+            self.assertTrue(validate_runtime(paths)["ok"])
+
+    def test_handoff_retry_repairs_missing_link_event(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor"
+            started = create_or_resume_wrapper_session(paths, message, source="discord")
+            session_id = str(started["session"]["session_id"])
+            accepted = record_plan_decision(paths, session_id, "accept")
+            lifecycle = start_codex_delegation_lifecycle(paths, message, source="discord")
+            session = dict(accepted["session"])
+            session.update({"status": "handoff_prepared", "current_run_id": lifecycle["run"]["run_id"]})
+            write_wrapper_session(paths, session)
+
+            self.assertFalse(validate_runtime(paths)["ok"])
+            healed = prepare_wrapper_session_handoff(paths, session_id, message)
+
+            self.assertEqual(healed["session"]["current_run_id"], lifecycle["run"]["run_id"])
+            self.assertTrue(validate_runtime(paths)["ok"])
+
+    def test_runtime_validation_rejects_duplicate_wrapper_run_ownership(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor"
+            started = create_or_resume_wrapper_session(paths, message, source="discord")
+            session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, session_id, "accept")
+            handoff = prepare_wrapper_session_handoff(paths, session_id, message)
+            run_id = str(handoff["session"]["current_run_id"])
+            duplicate_session_id = "ws-duplicate-run-owner"
+            duplicate = dict(handoff["session"])
+            duplicate.update({"session_id": duplicate_session_id, "thread_key": "discord:duplicate-thread"})
+            write_wrapper_session(paths, duplicate)
+            append_wrapper_session_event(
+                paths.runtime_wrapper_sessions_dir / duplicate_session_id,
+                {
+                    "event": "handoff_prepared",
+                    "message": "wrapper session linked prepared coding handoff",
+                    "data": {"run_id": run_id, "status": "handoff_prepared", "recovered": True},
+                },
+            )
+
+            validation = validate_runtime(paths)
+            scoped_validation = validate_runtime(paths, run_id)
+
+            self.assertFalse(validation["ok"])
+            self.assertFalse(scoped_validation["ok"])
+            errors = "\n".join(error for session in validation["wrapper_sessions"] for error in session["errors"])
+            self.assertIn("linked by multiple wrapper sessions", errors)
+
     def test_status_uses_linked_run_instead_of_session_execution_fields(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")

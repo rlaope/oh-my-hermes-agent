@@ -12,6 +12,7 @@ from .coding_lifecycle import report_codex_delegation_lifecycle, start_codex_del
 from .local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, utc_now
 from .paths import OmhPaths
 from .runtime_records import (
+    CODING_SOURCE_METADATA_KEYS,
     build_event_record,
     build_wrapper_session_record,
     validate_event_record,
@@ -144,11 +145,15 @@ def prepare_wrapper_session_handoff(
     if session.get("current_run_id"):
         if session["status"] != "handoff_prepared":
             raise WrapperSessionError("wrapper session current_run_id is only valid after handoff preparation")
+        run_id = str(session["current_run_id"])
+        if _run_owned_by_other_session(paths, run_id, str(session["session_id"])):
+            raise WrapperSessionError("wrapper session current_run_id is already linked to another wrapper session")
+        _ensure_handoff_prepared_event(paths, session, run_id, recovered=True)
         return {
             "schema_version": WRAPPER_SESSION_RESULT_SCHEMA_VERSION,
             "session": session,
             "status": build_wrapper_session_status(paths, session_id),
-            "handoff": report_codex_delegation_lifecycle(paths, str(session["current_run_id"])),
+            "handoff": report_codex_delegation_lifecycle(paths, run_id),
         }
     if session["status"] != "plan_accepted":
         raise WrapperSessionError("wrapper session plan must be accepted before preparing a handoff")
@@ -156,8 +161,9 @@ def prepare_wrapper_session_handoff(
     metadata = _source_metadata(event_or_message)
     metadata.update({str(key): str(value) for key, value in (source_metadata or {}).items() if str(value)})
     metadata.update({str(key): str(value) for key, value in session.get("source_metadata", {}).items() if str(value)})
+    metadata = _compact_coding_source_metadata(metadata)
     message_sha256 = hashlib.sha256(message.encode("utf-8")).hexdigest()
-    recovered_run_id = _find_recoverable_prepared_handoff_run(paths, session, message_sha256)
+    recovered_run_id = _find_recoverable_prepared_handoff_run(paths, session, message_sha256, metadata)
     if recovered_run_id:
         return _link_prepared_handoff_run(paths, session, recovered_run_id, recovered=True)
     append_wrapper_session_event(
@@ -282,15 +288,8 @@ def validate_wrapper_sessions(paths: OmhPaths, session_id: str | None = None) ->
 
 def _link_prepared_handoff_run(paths: OmhPaths, session: dict[str, Any], run_id: str, *, recovered: bool) -> dict[str, object]:
     session = {**session, "status": "handoff_prepared", "current_run_id": run_id, "updated_at": utc_now()}
+    _ensure_handoff_prepared_event(paths, session, run_id, recovered=recovered)
     write_wrapper_session(paths, session)
-    append_wrapper_session_event(
-        _session_dir(paths, str(session["session_id"])),
-        {
-            "event": "handoff_prepared",
-            "message": "wrapper session linked prepared coding handoff",
-            "data": {"run_id": run_id, "status": session["status"], "recovered": recovered},
-        },
-    )
     return {
         "schema_version": WRAPPER_SESSION_RESULT_SCHEMA_VERSION,
         "session": session,
@@ -299,7 +298,12 @@ def _link_prepared_handoff_run(paths: OmhPaths, session: dict[str, Any], run_id:
     }
 
 
-def _find_recoverable_prepared_handoff_run(paths: OmhPaths, session: dict[str, Any], message_sha256: str) -> str:
+def _find_recoverable_prepared_handoff_run(
+    paths: OmhPaths,
+    session: dict[str, Any],
+    message_sha256: str,
+    expected_metadata: dict[str, str],
+) -> str:
     session_dir = _session_dir(paths, str(session["session_id"]))
     if not _has_prepare_started_event(session_dir, message_sha256):
         return ""
@@ -307,10 +311,13 @@ def _find_recoverable_prepared_handoff_run(paths: OmhPaths, session: dict[str, A
         run = read_json_object(run_json)
         if not _is_prepared_coding_run(run):
             continue
-        coding = read_json_object(run_json.parent / "coding_delegation.json")
-        if not _is_matching_coding_handoff(coding, session, message_sha256):
+        run_id = str(run.get("run_id") or run_json.parent.name)
+        if _run_owned_by_other_session(paths, run_id, str(session["session_id"])):
             continue
-        return str(run.get("run_id") or run_json.parent.name)
+        coding = read_json_object(run_json.parent / "coding_delegation.json")
+        if not _is_matching_coding_handoff(coding, session, message_sha256, expected_metadata):
+            continue
+        return run_id
     return ""
 
 
@@ -332,7 +339,12 @@ def _is_prepared_coding_run(run: Any) -> bool:
     )
 
 
-def _is_matching_coding_handoff(coding: Any, session: dict[str, Any], message_sha256: str) -> bool:
+def _is_matching_coding_handoff(
+    coding: Any,
+    session: dict[str, Any],
+    message_sha256: str,
+    expected_metadata: dict[str, str],
+) -> bool:
     if not isinstance(coding, dict):
         return False
     handoff = coding.get("executor_handoff")
@@ -343,10 +355,49 @@ def _is_matching_coding_handoff(coding: Any, session: dict[str, Any], message_sh
     if coding.get("source") != session.get("source"):
         return False
     coding_metadata = coding.get("source_metadata", {})
-    session_metadata = session.get("source_metadata", {})
-    if not isinstance(coding_metadata, dict) or not isinstance(session_metadata, dict):
+    if not isinstance(coding_metadata, dict):
         return False
-    return all(coding_metadata.get(key) == value for key, value in session_metadata.items())
+    compact_coding_metadata = _compact_coding_source_metadata(coding_metadata)
+    return compact_coding_metadata == expected_metadata
+
+
+def _ensure_handoff_prepared_event(paths: OmhPaths, session: dict[str, Any], run_id: str, *, recovered: bool) -> None:
+    session_dir = _session_dir(paths, str(session["session_id"]))
+    if _has_handoff_prepared_event(session_dir, run_id):
+        return
+    append_wrapper_session_event(
+        session_dir,
+        {
+            "event": "handoff_prepared",
+            "message": "wrapper session linked prepared coding handoff",
+            "data": {"run_id": run_id, "status": "handoff_prepared", "recovered": recovered},
+        },
+    )
+
+
+def _has_handoff_prepared_event(session_dir: Path, run_id: str) -> bool:
+    return any(
+        event.get("event") == "handoff_prepared" and isinstance(event.get("data"), dict) and event["data"].get("run_id") == run_id
+        for event in read_wrapper_session_events(session_dir)
+    )
+
+
+def _run_owned_by_other_session(paths: OmhPaths, run_id: str, session_id: str) -> bool:
+    if not paths.runtime_wrapper_sessions_dir.exists():
+        return False
+    for session_json in sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json")):
+        if session_json.parent.name == session_id:
+            continue
+        other = read_json_object(session_json)
+        if other and other.get("current_run_id") == run_id:
+            return True
+    return False
+
+
+def _compact_coding_source_metadata(metadata: Any) -> dict[str, str]:
+    if not isinstance(metadata, dict):
+        return {}
+    return {key: str(metadata[key]) for key in CODING_SOURCE_METADATA_KEYS if key in metadata and str(metadata[key])}
 
 
 def _existing_lifecycle_payload(paths: OmhPaths, run_id: str) -> dict[str, object]:

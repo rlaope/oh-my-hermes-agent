@@ -510,6 +510,7 @@ def validate_runtime(paths: OmhPaths, run_id: str | None = None) -> dict[str, An
         )
     results = [validate_run_dir(run_dir) for run_dir in run_dirs]
     session_results = [validate_wrapper_session_dir(session_dir) for session_dir in session_dirs]
+    _add_duplicate_wrapper_run_link_errors(session_results, session_dirs)
     return {
         "ok": all(result["ok"] for result in results) and all(result["ok"] for result in session_results),
         "runs": results,
@@ -526,6 +527,37 @@ def _wrapper_session_dirs_for_run(paths: OmhPaths, run_id: str) -> list[Path]:
         if session and session.get("current_run_id") == run_id:
             session_dirs.append(session_json.parent)
     return session_dirs
+
+
+def _add_duplicate_wrapper_run_link_errors(session_results: list[dict[str, Any]], session_dirs: list[Path]) -> None:
+    owners_by_run_id: dict[str, list[str]] = {}
+    for session_dir in session_dirs:
+        session = read_json_object(session_dir / "session.json")
+        if not session:
+            continue
+        run_id = str(session.get("current_run_id", ""))
+        if run_id:
+            owners_by_run_id.setdefault(run_id, []).append(session_dir.name)
+    duplicate_errors = {
+        run_id: f"current_run_id {run_id} is linked by multiple wrapper sessions: {', '.join(sorted(session_ids))}"
+        for run_id, session_ids in owners_by_run_id.items()
+        if len(session_ids) > 1
+    }
+    if not duplicate_errors:
+        return
+    results_by_session_id = {str(result.get("session_id")): result for result in session_results}
+    for session_dir in session_dirs:
+        session = read_json_object(session_dir / "session.json")
+        if not session:
+            continue
+        run_id = str(session.get("current_run_id", ""))
+        if run_id not in duplicate_errors:
+            continue
+        result = results_by_session_id.get(session_dir.name)
+        if not result:
+            continue
+        result.setdefault("errors", []).append(f"{session_dir / 'session.json'}: {duplicate_errors[run_id]}")
+        result["ok"] = False
 
 
 SENSITIVE_KEY_PARTS = ("secret", "token", "api_key", "apikey", "password")
