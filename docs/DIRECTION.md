@@ -1,0 +1,147 @@
+# Direction
+
+## Product Thesis
+
+OMHM is a Hermes-native wrapper orchestration layer.
+
+It should make Hermes feel mature in chat surfaces without pretending Hermes is
+the main coding executor. The product is not a clone of a Codex-side workflow
+runtime. It borrows the discipline of staged workflows, local state, and
+evidence gates, then translates that discipline into Hermes-native chat,
+planning, status, and handoff contracts.
+
+## Project Type
+
+OMHM is:
+
+- a local installer for managed Hermes skills
+- a deterministic skill catalog and router contract
+- a wrapper-native chat contract for Discord, Slack, and hosted adapters
+- a Hermes-facing planning artifact generator
+- a metadata-only evidence ledger for prepared and observed handoffs
+- a delegation-first bridge from Hermes requests to Codex-like coding executors
+
+OMHM is not:
+
+- a Hermes core patch
+- a Discord or Slack bot implementation
+- an LLM router or network service
+- a hidden coding runtime
+- a claim that Hermes executed work that only a handoff prepared
+
+## Ownership Boundary
+
+Hermes owns:
+
+- chat intake
+- clarification
+- source-backed research
+- planning
+- skill and workflow narration
+- user-facing status continuity
+
+OMH owns:
+
+- deterministic local contracts
+- generated Hermes skill content
+- metadata-only runtime artifacts
+- wrapper session state
+- prepared coding handoff payloads
+- derived status that separates prepared intent from observed evidence
+
+Codex-like executors own:
+
+- main implementation work
+- code changes
+- code review fixes
+- verification execution
+- merge-readiness work
+
+## Direction Rules
+
+1. Keep users command-agnostic in chat.
+   Discord, Slack, and hosted wrappers should accept natural language and render
+   skill, plan, status, and handoff UX without requiring users to know OMH
+   commands.
+
+2. Preserve prepared versus observed boundaries.
+   `prepared_not_observed` means a handoff exists. It does not mean execution,
+   review, CI, merge readiness, or merge happened.
+
+3. Keep Hermes retained work high quality.
+   Deep interview, source-backed research, planning, status narration, and
+   evidence synthesis should improve inside Hermes-facing surfaces.
+
+4. Delegate main coding deliberately.
+   Coding-heavy work should become a prepared Codex-like executor handoff with
+   scope, non-goals, acceptance criteria, verification expectations, and review
+   expectations.
+
+5. Prefer local deterministic artifacts over hidden magic.
+   Runtime records, wrapper sessions, and plans should be inspectable,
+   schema-versioned, redacted by default, and local-only unless a wrapper
+   outside this repository performs transport work.
+
+6. Do not widen into platform transports prematurely.
+   Transport adapters, auth, retries, message edits, and posting belong outside
+   this repository until their dependency and packaging story is explicitly
+   approved.
+
+7. Treat compatibility skill names as UX affordances.
+   Workflow names may remain installed for familiarity, but their generated
+   role and handoff policies must describe the Hermes-native boundary rather
+   than implying copied runtime behavior.
+
+## Delivery Grain
+
+One user goal should normally produce one PR.
+
+Inside that PR, multiple focused commits are fine: plan/documentation, tests,
+implementation, review fixes, and CI fixes can all live in the same goal PR.
+Do not split review feedback, follow-up test fixes, or small documentation
+adjustments into new PRs unless they are independently releasable goals or the
+user explicitly asks for a separate PR.
+
+Split into separate PRs only when:
+
+- the next change has a different user-facing goal
+- the work has independent release or rollback value
+- the current PR would become too risky to review coherently
+- a dependency or external decision blocks part of the work
+- the user explicitly requests stacked or separate PRs
+
+## Strategic Milestones
+
+1. Direction lock.
+   Keep this document, architecture docs, README, generated skills, examples,
+   and tests aligned around delegation-first wrapper orchestration.
+
+2. Wrapper-native UX depth.
+   Add golden JSON and pseudocode examples for Discord and Slack actions,
+   threads, buttons, and status updates without adding transport dependencies.
+
+3. Evidence completeness.
+   Add first-class review, CI, merge-readiness, and merge observation records at
+   the run level while keeping wrapper sessions as chat continuity only.
+
+4. Retained cognition quality.
+   Improve Hermes-side research, deep interview, and planning skills so
+   non-coding requests feel first-class rather than like coding handoff
+   leftovers.
+
+5. Adapter boundary readiness.
+   Only after the local contract is stable, consider example shims or adapter
+   packages that consume `chat_interaction/v1` without moving platform secrets
+   or network behavior into core OMH.
+
+## Review Checklist
+
+Before accepting direction-changing work, verify:
+
+- Does it keep Hermes as orchestrator and narrator, not hidden coder?
+- Does it keep coding execution in a Codex-like handoff when code changes are
+  required?
+- Does it preserve `prepared_not_observed` until wrapper evidence exists?
+- Does it avoid Hermes core patching, LLM/API calls, and transport networking?
+- Does it keep chat users free from command knowledge?
+- Does it fit one coherent goal PR unless there is a clear reason to split?

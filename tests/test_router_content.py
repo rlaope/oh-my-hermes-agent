@@ -171,6 +171,8 @@ class RouterContentTests(unittest.TestCase):
     def test_first_release_trust_surfaces_are_present(self) -> None:
         required_paths = [
             Path("README.md"),
+            Path("AGENTS.md"),
+            Path("docs/DIRECTION.md"),
             Path("docs/INSTALLATION.md"),
             Path("docs/APPLICATION_CASES.md"),
             Path("docs/RELEASE.md"),
@@ -210,6 +212,21 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("Pinned stable install", release)
         self.assertIn("Runtime evidence smoke", release)
         self.assertIn("Capability probe status", release)
+
+    def test_direction_and_agent_contract_lock_product_boundary(self) -> None:
+        direction = Path("docs/DIRECTION.md").read_text(encoding="utf-8")
+        agents = Path("AGENTS.md").read_text(encoding="utf-8")
+
+        self.assertIn("OMHM is a Hermes-native wrapper orchestration layer.", direction)
+        self.assertIn("Hermes owns:", direction)
+        self.assertIn("OMH owns:", direction)
+        self.assertIn("Codex-like executors own:", direction)
+        self.assertIn("prepared_not_observed", direction)
+        self.assertIn("One user goal should normally produce one PR.", direction)
+        self.assertIn("Keep users command-agnostic in chat.", direction)
+        self.assertIn("Do not turn OMHM into a hidden Hermes runtime patch", agents)
+        self.assertIn("One user goal should normally produce one PR.", agents)
+        self.assertIn("review feedback or small follow-up fixes", agents)
 
     def test_application_cases_document_representative_flows(self) -> None:
         text = Path("docs/APPLICATION_CASES.md").read_text(encoding="utf-8")

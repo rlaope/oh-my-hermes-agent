@@ -48,6 +48,9 @@ chat contracts, CI, and contributor guidance. The next direction is deeper
 adapter integration: example Discord/Slack shims, richer routing metadata,
 release packaging, and Hermes-specific workflow tests.
 
+For the product boundary and delivery philosophy, see
+[Direction](docs/DIRECTION.md).
+
 ## Quick Start
 
 Install and apply the managed Hermes skill pack without cloning the repository:
