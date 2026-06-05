@@ -2,6 +2,9 @@
 
 ## Goals
 
+The product direction is defined in `docs/DIRECTION.md`; this architecture
+document describes the current module boundaries that implement that direction.
+
 oh-my-hermes-agent should feel like a native Hermes workflow layer, not a pile
 of copied prompt files.
 

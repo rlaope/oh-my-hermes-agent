@@ -48,6 +48,23 @@ chat contracts, CI, and contributor guidance. The next direction is deeper
 adapter integration: example Discord/Slack shims, richer routing metadata,
 release packaging, and Hermes-specific workflow tests.
 
+For the product boundary and delivery philosophy, see
+[Direction](docs/DIRECTION.md). For the full documentation map, see
+[Documentation](docs/README.md).
+
+## Documentation Map
+
+Start with these documents when evaluating or changing OMHM:
+
+| Need | Document |
+| --- | --- |
+| Product boundary, philosophy, and delivery grain | [Direction](docs/DIRECTION.md) |
+| Module ownership and artifact boundaries | [Architecture](docs/ARCHITECTURE.md) |
+| Wrapper lifecycle and delegation completeness | [Delegation-First Completeness](docs/DELEGATION_FIRST_COMPLETENESS.md) |
+| Generated workflow catalog reference | [Workflow Reference](docs/WORKFLOWS.md) |
+| Install, update, and wrapper smoke flows | [Installation](docs/INSTALLATION.md) |
+| Representative user-facing scenarios | [Application Cases](docs/APPLICATION_CASES.md) |
+
 ## Quick Start
 
 Install and apply the managed Hermes skill pack without cloning the repository:

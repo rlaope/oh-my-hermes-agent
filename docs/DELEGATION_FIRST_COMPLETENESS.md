@@ -2,6 +2,9 @@
 
 ## Direction
 
+The product charter is `docs/DIRECTION.md`. This document expands the
+delegation-first completion slice of that charter.
+
 OMHM should raise Hermes toward a mature workflow-layer experience without
 pretending that Hermes is the primary coding executor.
 
