@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+import json
 import re
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -160,7 +162,7 @@ def render_plan_markdown(payload: dict[str, object], artifact_name: str = "plan.
         for key in ("source_event_id", "channel_ref", "user_ref", "timestamp"):
             value = metadata.get(key)
             if value:
-                lines.append(f"  {key}: {value}")
+                lines.append(f"  {key}: {_yaml_string(value)}")
     lines.extend(
         [
             "---",
@@ -459,14 +461,12 @@ def _option_lines(values: object) -> list[str]:
 
 
 def _unique_artifact_path(directory: Path, slug: str, suffix: str) -> Path:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    base = f"{today}-{slug}"
-    path = directory / f"{base}{suffix}"
-    index = 2
-    while path.exists():
-        path = directory / f"{base}-{index}{suffix}"
-        index += 1
-    return path
+    for _ in range(100):
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%S%fZ")
+        path = directory / f"{stamp}-{slug}-{secrets.token_hex(3)}{suffix}"
+        if not path.exists():
+            return path
+    raise RuntimeError("could not allocate unique Hermes planning artifact path")
 
 
 def _slugify(value: str) -> str:
@@ -487,3 +487,7 @@ def _int_value(value: object, default: int = 0) -> int:
         except ValueError:
             return default
     return default
+
+
+def _yaml_string(value: object) -> str:
+    return json.dumps(str(value))

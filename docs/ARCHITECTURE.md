@@ -209,9 +209,9 @@ Hermes-facing plans live under the configured Hermes home:
 ```text
 .hermes/
   plans/
-    <date>-<slug>.md
+    <timestamp>-<slug>-<token>.md
   context/
-    <date>-<slug>-context.md
+    <timestamp>-<slug>-context-<token>.md
 ```
 
 `omh hermes plan --record` writes Markdown, not runtime JSON. The plan frontmatter

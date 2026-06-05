@@ -131,7 +131,7 @@ or modify Hermes internals.
 
 ## What Gets Recorded
 
-`omh` records local metadata only by default:
+`omh` records runtime metadata only by default:
 
 - install/apply/doctor summaries in `~/.omh/runtime/state.json`
 - workflow run envelopes in `~/.omh/runtime/runs/<run-id>/run.json`
@@ -139,7 +139,11 @@ or modify Hermes internals.
 - delegation observation in `delegation.json`
 - prepared coding handoffs in `coding_delegation.json`
 - wrapper observation in `wrapper.json`
-- Hermes-facing plan files in `~/.hermes/plans`
+
+Hermes-facing plans are separate user-facing Markdown artifacts under
+`~/.hermes/plans`. They intentionally include the task statement so Hermes and
+the user can inspect the plan subject. They do not store raw platform event JSON
+or claim review/execution evidence by default.
 
 Coding delegation artifacts separate a prepared executor handoff from observed
 execution. `omh coding delegate --record` stores the recommended workflow,
