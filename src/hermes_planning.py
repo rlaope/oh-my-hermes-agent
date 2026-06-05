@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 import json
 import re
 import secrets
-import shlex
 from pathlib import Path
 from typing import Any
 
@@ -501,7 +500,6 @@ def _wrapper_contract(plan: HermesPlan, *, source: str, source_metadata: dict[st
                         *metadata_args,
                         "{message}",
                     ],
-                    "command_template": _coding_delegate_command_template(source, metadata_args),
                     "prompt_template_field": "delegation.delegation_prompt_template",
                     "include_message_flag": "--include-message",
                     "recorded_run_field": "runtime.run.run_id",
@@ -536,20 +534,13 @@ def _source_metadata_argv(metadata: dict[str, str]) -> list[str]:
     return args
 
 
-def _coding_delegate_command_template(source: str, metadata_args: list[str]) -> str:
-    parts = ["omh", "coding", "delegate", "--source", source, "--record", *metadata_args, "{message}"]
-    return " ".join(_shell_token(part) for part in parts)
-
-
-def _shell_token(value: str) -> str:
-    if value == "{message}":
-        return value
-    return shlex.quote(value)
-
-
 def _is_coding_shaped(task: str) -> bool:
-    lowered = task.lower()
-    return any(term in lowered for term in ("code", "coding", "implement", "fix", "debug", "test", "feature", "refactor"))
+    return bool(
+        re.search(
+            r"\b(code|coding|implement|implementation|fix|fixed|fixes|debug|debugging|test|tests|testing|refactor|refactoring|bug)\b",
+            task.lower(),
+        )
+    )
 
 
 def _markdown_list(values: object) -> list[str]:

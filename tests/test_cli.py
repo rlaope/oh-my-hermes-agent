@@ -274,7 +274,32 @@ class CliTests(unittest.TestCase):
         self.assertEqual(coding_delegate["stdout_schema_version"], "coding_delegation/v1")
         self.assertEqual(coding_delegate["recording_contract"], "prepared_not_observed")
         self.assertIn("{message}", coding_delegate["argv_template"])
-        self.assertIn("omh coding delegate --source generic --record {message}", coding_delegate["command_template"])
+        self.assertNotIn("command_template", coding_delegate)
+
+    def test_hermes_plan_wrapper_contract_uses_only_argv_for_hostile_messages(self) -> None:
+        hostile = "refactor api; rm -rf / # nope"
+
+        status, stdout, stderr = run_cli(["hermes", "plan", "--source", "discord", hostile])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        coding_delegate = payload["wrapper_contract"]["coding_delegate"]
+        self.assertTrue(coding_delegate["available"])
+        self.assertNotIn("command_template", coding_delegate)
+        self.assertEqual(coding_delegate["argv_template"][-1], "{message}")
+        self.assertNotIn(hostile, json.dumps(coding_delegate))
+
+    def test_hermes_plan_wrapper_contract_rejects_substring_coding_matches(self) -> None:
+        for message in ("plan a contest announcement", "write a prefix migration guide", "feature request template"):
+            with self.subTest(message=message):
+                status, stdout, stderr = run_cli(["hermes", "plan", message])
+
+                self.assertEqual(stderr, "")
+                self.assertEqual(status, 0)
+                coding_delegate = json.loads(stdout)["wrapper_contract"]["coding_delegate"]
+                self.assertFalse(coding_delegate["available"])
+                self.assertEqual(coding_delegate["unavailable_reason"], "task is not implementation-shaped")
 
     def test_hermes_plan_records_under_hermes_home(self) -> None:
         with TemporaryDirectory() as tmp:
