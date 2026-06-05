@@ -144,11 +144,12 @@ Before calling the bot integration ready, verify these points:
   status `prepared_not_observed` for implementation-shaped requests.
 - `omh hermes plan --source discord --record "<message>"` writes a
   `hermes_plan/v1` artifact under the same Hermes home that the bot uses.
-- The companion `run.json` for that command is marked
-  `artifact_kind: prepared_coding_delegation`, `phase: prepared`, and
-  `observation_status: prepared_not_observed`; the run envelope is bookkeeping,
-  not observed Hermes execution. Runtime validation treats that run envelope and
-  `coding_delegation.json` as a required pair.
+- That planning command does not create a runtime `run.json` or
+  `coding_delegation.json`; `.hermes/plans/` is a user-facing draft surface, not
+  observed execution evidence.
+- If a wrapper needs machine-readable planning fields, use the stdout
+  `hermes_plan/v1` JSON payload as the contract and treat the Markdown file as
+  presentation.
 - A Discord message that strongly names a workflow reaches Hermes with installed
   skill descriptions available.
 - `omh runtime record` can create a run and `omh runtime show <run-id>` can read
