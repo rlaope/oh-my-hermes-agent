@@ -1308,7 +1308,7 @@ class CliTests(unittest.TestCase):
             self.assertTrue(checks["runtime_artifacts"]["ok"])
             self.assertTrue(checks["workflow_state"]["ok"])
 
-    def test_setup_runs_install_apply_and_doctor(self) -> None:
+    def test_setup_runs_install_and_apply(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             omh_home = root / ".omh"
@@ -1322,11 +1322,15 @@ class CliTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertIn("install", payload["steps"])
             self.assertIn("apply", payload["steps"])
-            self.assertIn("doctor", payload["steps"])
-            self.assertTrue(payload["steps"]["doctor"]["ok"])
+            self.assertNotIn("doctor", payload["steps"])
             self.assertIn(str(omh_home / "skills"), (hermes_home / "config.yaml").read_text(encoding="utf-8"))
             state = json.loads((omh_home / "runtime" / "state.json").read_text(encoding="utf-8"))
             self.assertTrue(state["last_setup"]["ok"])
+
+            doctor_status, doctor_stdout, doctor_stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "doctor"])
+            self.assertEqual(doctor_stderr, "")
+            self.assertEqual(doctor_status, 0)
+            self.assertTrue(json.loads(doctor_stdout)["ok"])
 
     def test_install_is_idempotent_and_detects_local_modifications(self) -> None:
         with TemporaryDirectory() as tmp:

@@ -277,6 +277,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("v<version>", readme)
         self.assertIn("The installer runs setup automatically", readme)
         self.assertIn("omh setup", readme)
+        self.assertIn("omh doctor", readme)
         self.assertIn("## Command Surface", readme)
         self.assertIn("omh docs workflows --json", readme)
         self.assertIn("omh harness validate", readme)

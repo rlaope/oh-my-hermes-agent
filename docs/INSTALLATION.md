@@ -22,9 +22,9 @@ curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/inst
 For custom release archives or local package sources accepted by `pip`, pass
 `OMH_PACKAGE_URL`.
 
-The installer prepares the `omh` command and runs `omh setup`, which installs
-the managed Hermes skills, registers the managed skill directory with Hermes,
-and checks the result.
+The installer prepares the `omh` command, runs `omh setup` to install managed
+Hermes skills and register the managed skill directory with Hermes, then runs
+`omh doctor` as a separate health check.
 
 After it finishes, restart Hermes Agent so it can reload the registered skill
 directory.
@@ -36,13 +36,14 @@ refresh the local Hermes skill registration:
 
 ```sh
 omh setup
+omh doctor
 omh list
 omh runtime status
 omh probe
 ```
 
-`omh setup` should report a healthy setup result with install, apply, and doctor
-steps. `omh list` should show the managed skills available to Hermes.
+`omh setup` should report install and apply steps. `omh doctor` should report a
+healthy setup result. `omh list` should show the managed skills available to Hermes.
 `omh runtime status` should show the local runtime artifact directory and the
 latest install/apply/doctor state when those commands have run. `omh probe`
 reports observable Hermes capability surfaces without mutating Hermes internals.
@@ -96,6 +97,7 @@ For a hosted bot, the practical deployment shape is usually:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
 omh setup
+omh doctor
 ```
 
 Then restart the bot process so Hermes reloads its config and skill directory.
@@ -227,7 +229,8 @@ Before calling the bot integration ready, verify these points:
   it from the same runtime context.
 - `omh probe` reports managed skills and external skill directory registration
   as available before any deeper integration claim is made.
-- If skills do not appear, run `omh setup`, then restart the bot again.
+- If skills do not appear, run `omh setup`, then `omh doctor`, then restart the
+  bot again.
 
 Current limitation: actual Discord, Slack, Hermes, Codex, GitHub, CI, and merge
 operations still happen outside OMHM. `omh chat interact`, `omh chat route`,
@@ -242,13 +245,14 @@ Update the installed skill pack:
 ```sh
 omh update --channel preview
 omh setup
+omh doctor
 ```
 
 Use `omh update --channel stable --version <version>` to record a pinned stable
 update intent, or `omh update --channel local --from-skills-dir ./skills` for a
 local fixture. Local modifications block updates unless `--force` is supplied.
-Use `omh setup` after an update to reinstall managed skills, reapply Hermes
-registration, run doctor, then restart Hermes Agent.
+Use `omh setup` after an update to reinstall managed skills and reapply Hermes
+registration. Then run `omh doctor` and restart Hermes Agent.
 
 ## Reapply
 
@@ -256,6 +260,7 @@ If Hermes does not show the installed skills, reapply the config registration:
 
 ```sh
 omh setup
+omh doctor
 ```
 
 Then restart Hermes Agent.
