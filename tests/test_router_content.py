@@ -7,7 +7,7 @@ from _local_package import load_local_package
 
 load_local_package()
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
-from omh.skills.catalog import primary_harness_for_skill
+from omh.skills.catalog import harness_quality_contract, primary_harness_for_skill
 from omh.skills.render import workflow_reference_markdown, workflow_reference_payload
 
 
@@ -144,6 +144,15 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("coding_delegation_prepared", harnesses["coding-handling"]["evidence_ladder"])
         self.assertIn("send_to_codex", harnesses["coding-handling"]["wrapper_actions"])
         self.assertIn("prepared", " ".join(harnesses["coding-handling"]["overclaim_guards"]).lower())
+
+    def test_unknown_harness_quality_contract_is_safe_to_render(self) -> None:
+        contract = harness_quality_contract("not-installed-harness")
+
+        self.assertEqual(contract["schema_version"], "harness_quality/v1")
+        self.assertEqual(contract["quality_tier"], "unknown")
+        self.assertIn("operator_review_required", contract["evidence_ladder"])
+        self.assertEqual(contract["wrapper_actions"], ["show_status"])
+        self.assertIn("do not infer runtime capability", contract["overclaim_guards"][0].lower())
 
     def test_generated_workflow_reference_matches_catalog(self) -> None:
         reference = Path("docs/WORKFLOWS.md").read_text(encoding="utf-8")

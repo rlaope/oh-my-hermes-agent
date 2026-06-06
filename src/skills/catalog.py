@@ -766,9 +766,9 @@ def harness_quality_contract(name: str) -> dict[str, object]:
             "schema_version": "harness_quality/v1",
             "harness": name,
             "quality_tier": "unknown",
-            "quality_bar": [],
-            "evidence_ladder": [],
-            "wrapper_actions": [],
+            "quality_bar": ["Treat the harness as unrecognized and ask for explicit operator review before dispatch."],
+            "evidence_ladder": ["harness_unrecognized", "operator_review_required"],
+            "wrapper_actions": ["show_status"],
             "overclaim_guards": ["Unknown harness; do not infer runtime capability."],
         }
     return {
