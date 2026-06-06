@@ -252,6 +252,10 @@ Before calling the bot integration ready, verify these points:
 - `omh coding lifecycle start --executor codex --record "<message>"` creates a
   prepared Codex handoff lifecycle without storing the raw prompt body by
   default.
+- Codex handoff payloads expose `codex_skill` plus
+  `codex_invocation.dispatch_text_template`, for example
+  `$ai-slop-cleaner {message}`. The wrapper replaces `{message}` only when it
+  dispatches to Codex.
 - `omh coding lifecycle result --run <run-id> --result completed` is rejected
   until `omh coding lifecycle dispatch --run <run-id>` records dispatch
   observation.

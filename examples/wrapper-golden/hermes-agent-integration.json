@@ -95,23 +95,31 @@
         "schema_version",
         "executor_target",
         "handoff_mode",
+        "codex_skill",
+        "codex_invocation",
         "status",
         "recording_contract",
         "dispatch_contract",
+        "execution_brief",
         "scope",
         "acceptance_criteria",
         "verification",
         "review",
+        "report_contract",
+        "evidence_contract",
         "prompt_template",
         "non_goals",
         "harness_quality"
       ],
       "renderable_fields": [
         "executor_target",
+        "codex_skill",
+        "codex_invocation.dispatch_text_template",
         "status",
         "recording_contract",
         "acceptance_criteria",
         "verification",
+        "report_contract.required_fields",
         "review.required"
       ]
     }

@@ -61,15 +61,20 @@ CODING_EXECUTOR_HANDOFF_KEYS = (
     "schema_version",
     "executor_target",
     "handoff_mode",
+    "codex_skill",
+    "codex_invocation",
     "status",
     "recording_contract",
     "dispatch_contract",
     "prompt_template",
+    "execution_brief",
     "scope",
     "non_goals",
     "acceptance_criteria",
     "verification",
     "review",
+    "report_contract",
+    "evidence_contract",
     "harness_quality",
 )
 WRAPPER_SESSION_SCHEMA_VERSION = "wrapper_session/v1"
@@ -515,14 +520,19 @@ def _compact_executor_handoff(value: Any) -> dict[str, Any]:
         "schema_version": str(value.get("schema_version", "")),
         "executor_target": str(value.get("executor_target", "")),
         "handoff_mode": str(value.get("handoff_mode", "")),
+        "codex_skill": str(value.get("codex_skill", "")),
+        "codex_invocation": _compact_codex_invocation(value.get("codex_invocation", {})),
         "status": str(value.get("status", "")),
         "recording_contract": str(value.get("recording_contract", "")),
         "dispatch_contract": str(value.get("dispatch_contract", "")),
         "prompt_template": str(value.get("prompt_template", "")),
+        "execution_brief": _compact_execution_brief(value.get("execution_brief", {})),
         "scope": _compact_string_list(value.get("scope", [])),
         "non_goals": _compact_string_list(value.get("non_goals", [])),
         "acceptance_criteria": _compact_string_list(value.get("acceptance_criteria", [])),
         "verification": _compact_string_list(value.get("verification", [])),
+        "report_contract": _compact_report_contract(value.get("report_contract", {})),
+        "evidence_contract": _compact_evidence_contract(value.get("evidence_contract", {})),
     }
     harness_quality = _compact_harness_quality(value.get("harness_quality", {}))
     if harness_quality:
@@ -535,6 +545,50 @@ def _compact_executor_handoff(value: Any) -> dict[str, Any]:
             "evidence_required": str(review.get("evidence_required", "")),
         }
     return compact
+
+
+def _compact_codex_invocation(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "syntax": str(value.get("syntax", "")),
+        "skill": str(value.get("skill", "")),
+        "dispatch_text_template": str(value.get("dispatch_text_template", "")),
+        "message_placeholder": str(value.get("message_placeholder", "")),
+        "wrapper_note": str(value.get("wrapper_note", "")),
+    }
+
+
+def _compact_execution_brief(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "task_source": str(value.get("task_source", "")),
+        "recommended_workflow": str(value.get("recommended_workflow", "")),
+        "recommended_harness": str(value.get("recommended_harness", "")),
+        "intent": str(value.get("intent", "")),
+        "codex_owns": _compact_string_list(value.get("codex_owns", [])),
+        "hermes_owns": _compact_string_list(value.get("hermes_owns", [])),
+    }
+
+
+def _compact_report_contract(value: Any) -> dict[str, list[str]]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "allowed_statuses": _compact_string_list(value.get("allowed_statuses", [])),
+        "required_fields": _compact_string_list(value.get("required_fields", [])),
+        "review_fields": _compact_string_list(value.get("review_fields", [])),
+    }
+
+
+def _compact_evidence_contract(value: Any) -> dict[str, list[str]]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "prepared_is_not": _compact_string_list(value.get("prepared_is_not", [])),
+        "observed_required_for": _compact_string_list(value.get("observed_required_for", [])),
+    }
 
 
 def _require(condition: bool, errors: list[str], message: str) -> None:
@@ -936,8 +990,9 @@ def validate_coding_executor_handoff(handoff: Any) -> list[str]:
         errors,
         f"coding_delegation executor_handoff executor_target is invalid: {handoff.get('executor_target')!r}",
     )
-    for key in ("handoff_mode", "status", "recording_contract", "dispatch_contract", "prompt_template"):
+    for key in ("handoff_mode", "codex_skill", "status", "recording_contract", "dispatch_contract", "prompt_template"):
         _require(isinstance(handoff.get(key), str), errors, f"coding_delegation executor_handoff {key} must be a string")
+    _require(str(handoff.get("codex_skill", "")).startswith("$"), errors, "coding_delegation executor_handoff codex_skill must start with $")
     _require(
         handoff.get("status") == "prepared_not_observed",
         errors,
@@ -948,6 +1003,28 @@ def validate_coding_executor_handoff(handoff: Any) -> list[str]:
         errors,
         "coding_delegation executor_handoff prompt_template must keep {message} placeholder",
     )
+    invocation = handoff.get("codex_invocation")
+    _require(isinstance(invocation, dict), errors, "coding_delegation executor_handoff codex_invocation must be an object")
+    if isinstance(invocation, dict):
+        for key in ("syntax", "skill", "dispatch_text_template", "message_placeholder", "wrapper_note"):
+            _require(isinstance(invocation.get(key), str), errors, f"coding_delegation executor_handoff codex_invocation.{key} must be a string")
+        _require(invocation.get("syntax") == "$skill", errors, "coding_delegation executor_handoff codex_invocation.syntax must be $skill")
+        _require(invocation.get("skill") == handoff.get("codex_skill"), errors, "coding_delegation executor_handoff codex_invocation.skill must match codex_skill")
+        _require(
+            "{message}" in str(invocation.get("dispatch_text_template", "")),
+            errors,
+            "coding_delegation executor_handoff codex_invocation.dispatch_text_template must keep {message} placeholder",
+        )
+    brief = handoff.get("execution_brief")
+    _require(isinstance(brief, dict), errors, "coding_delegation executor_handoff execution_brief must be an object")
+    if isinstance(brief, dict):
+        for key in ("task_source", "recommended_workflow", "recommended_harness", "intent"):
+            _require(isinstance(brief.get(key), str), errors, f"coding_delegation executor_handoff execution_brief.{key} must be a string")
+        for key in ("codex_owns", "hermes_owns"):
+            _require(isinstance(brief.get(key), list), errors, f"coding_delegation executor_handoff execution_brief.{key} must be a list")
+            if isinstance(brief.get(key), list):
+                for index, value in enumerate(brief[key]):
+                    _require(isinstance(value, str), errors, f"coding_delegation executor_handoff execution_brief.{key}[{index}] must be a string")
     for key in ("scope", "non_goals", "acceptance_criteria", "verification"):
         _require(isinstance(handoff.get(key), list), errors, f"coding_delegation executor_handoff {key} must be a list")
         if isinstance(handoff.get(key), list):
@@ -967,6 +1044,15 @@ def validate_coding_executor_handoff(handoff: Any) -> list[str]:
             errors,
             "coding_delegation executor_handoff review.evidence_required must be a string",
         )
+    for key in ("report_contract", "evidence_contract"):
+        contract = handoff.get(key)
+        _require(isinstance(contract, dict), errors, f"coding_delegation executor_handoff {key} must be an object")
+        if isinstance(contract, dict):
+            for nested_key, nested_value in contract.items():
+                _require(isinstance(nested_value, list), errors, f"coding_delegation executor_handoff {key}.{nested_key} must be a list")
+                if isinstance(nested_value, list):
+                    for index, item in enumerate(nested_value):
+                        _require(isinstance(item, str), errors, f"coding_delegation executor_handoff {key}.{nested_key}[{index}] must be a string")
     if "harness_quality" in handoff:
         errors.extend(validate_harness_quality(handoff["harness_quality"], "coding_delegation executor_handoff harness_quality"))
     return errors

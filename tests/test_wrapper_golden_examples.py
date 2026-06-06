@@ -153,6 +153,9 @@ class WrapperGoldenExampleTests(unittest.TestCase):
         ]
         for field in contracts["coding_executor_handoff/v1"]["required_fields"]:
             self.assertIn(field, live_handoff)
+        self.assertEqual(live_handoff["codex_skill"], "$ai-slop-cleaner")
+        self.assertEqual(live_handoff["codex_invocation"]["syntax"], "$skill")
+        self.assertIn("{message}", live_handoff["codex_invocation"]["dispatch_text_template"])
         self.assertNotIn("recommended_workflow", contracts["coding_executor_handoff/v1"]["required_fields"])
         self.assertNotIn("verification_expectations", contracts["coding_executor_handoff/v1"]["required_fields"])
 

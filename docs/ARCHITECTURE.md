@@ -221,9 +221,13 @@ through `--include-message`. Coding delegation returns a
 criteria, verification expectations, and optional metadata-only
 `coding_delegation.json` evidence. With `--executor codex`, it also returns a
 `coding_executor_handoff/v1` instruction payload that names Codex as the
-executor target without launching Codex. That record stores a compact snapshot
-of the generated acceptance criteria and verification expectations, but not the
-raw prompt body. With `--record`, the companion `run.json` is marked as
+executor target without launching Codex. Codex handoffs include `codex_skill`
+and `codex_invocation.dispatch_text_template`, so a wrapper can turn a Hermes
+workflow into the Codex `$skill {message}` surface while still keeping the raw
+message out of persisted OMH artifacts. That record stores a compact snapshot
+of the generated acceptance criteria, verification expectations, report
+contract, and evidence contract, but not the raw prompt body. With `--record`,
+the companion `run.json` is marked as
 `artifact_kind: prepared_coding_delegation`, `phase: prepared`, and
 `observation_status: prepared_not_observed`; validation treats the run envelope
 and `coding_delegation.json` as a required pair. The run envelope is

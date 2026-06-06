@@ -37,7 +37,8 @@ delegate coding, or report status.
 - **Hermes-native boundary** - no Hermes core patching, hidden transport bot, or
   network service inside this package.
 - **Delegation-first coding** - coding-heavy requests become prepared handoffs
-  for external coding executors, with review and verification expectations.
+  for external coding executors, with review, verification, and Codex `$skill`
+  invocation expectations.
 - **Evidence-aware status** - prepared, dispatched, executed, reviewed,
   verified, CI, and merge-ready states stay separate.
 - **Local and inspectable** - skills, manifests, plans, sessions, and runtime

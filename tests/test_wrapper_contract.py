@@ -69,6 +69,7 @@ class WrapperContractTests(unittest.TestCase):
         actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
         self.assertEqual(payload["next_action"], "send_to_codex")
         self.assertEqual(payload["delegation"]["executor_handoff"]["schema_version"], "coding_executor_handoff/v1")
+        self.assertTrue(payload["delegation"]["executor_handoff"]["codex_skill"].startswith("$"))
         self.assertIn("send_to_codex", actions)
 
     def test_plan_mode_disables_prepare_handoff_before_acceptance(self) -> None:
