@@ -15,6 +15,7 @@
       <div class="brand">OMH</div>
       <nav class="nav" aria-label="Primary navigation">
         <a href="#flow">Flow</a>
+        <a href="#example">Example</a>
         <a href="#contracts">Contracts</a>
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
@@ -68,6 +69,71 @@
               acceptance criteria, verification, and review expectations.
             </p>
           </article>
+        </div>
+      </section>
+
+      <section class="section" id="example">
+        <div class="section__header">
+          <h2>What Hermes Agent can say in chat.</h2>
+          <p>
+            The local Discord shim turns a natural request into a wrapper-native response
+            with actions and honest status boundaries.
+          </p>
+        </div>
+        <div class="site-example">
+          <div class="discord-frame" aria-label="Discord-style Hermes Agent example">
+            <div class="discord-channel"># repo-planning</div>
+            <div class="discord-message">
+              <div class="avatar avatar--user">M</div>
+              <div class="message-body">
+                <div class="message-meta"><strong>maintainer-1</strong></div>
+                <p>I want to safely add a feature to this repo</p>
+              </div>
+            </div>
+            <div class="discord-message">
+              <div class="avatar avatar--bot">H</div>
+              <div class="message-body bot-response">
+                <div class="message-meta"><strong>Hermes Agent</strong> <span>BOT</span></div>
+                <h3>I routed this to <code>plan</code> because it needs a safe plan first.</h3>
+                <p>
+                  Accept or revise the plan first; the handoff button stays disabled until
+                  acceptance. A draft plan is still only planning evidence.
+                </p>
+                <div class="button-row" aria-label="Wrapper actions">
+                  <button type="button">Accept plan</button>
+                  <button type="button">Revise plan</button>
+                  <button type="button" disabled>Prepare handoff</button>
+                </div>
+                <p class="claim-boundary">A draft plan is not execution evidence.</p>
+              </div>
+            </div>
+            <div class="status-preview">
+              <div>
+                <strong>A Codex handoff is ready.</strong>
+                <p>I have prepared the handoff, but executor dispatch is not observed yet.</p>
+              </div>
+              <ol>
+                <li><span class="state state--ready">ready</span> Handoff</li>
+                <li><span class="state">pending</span> Execution</li>
+                <li><span class="state">pending</span> Verification</li>
+                <li><span class="state state--na">n/a</span> Review</li>
+                <li><span class="state">pending</span> CI</li>
+                <li><span class="state">pending</span> Merge Ready</li>
+              </ol>
+              <p class="claim-boundary">Preparation is not execution evidence.</p>
+            </div>
+          </div>
+          <aside class="example-note" aria-label="Example provenance">
+            <h3>Fixture-backed, not mocked by hand.</h3>
+            <p>
+              This site example mirrors the deterministic output from
+              <code>uv run python examples/discord-adapter-shim.py</code>.
+            </p>
+            <p>
+              The wrapper can render the buttons, phase, next action, and evidence
+              boundary without asking the user to know an OMH command.
+            </p>
+          </aside>
         </div>
       </section>
 

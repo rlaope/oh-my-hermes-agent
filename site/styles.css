@@ -292,6 +292,37 @@ h1 {
   font-weight: 700;
 }
 
+.site-example {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.site-example .discord-frame {
+  margin-top: 0;
+}
+
+.example-note {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.example-note h3 {
+  margin-bottom: 10px;
+  font-size: 19px;
+}
+
+.example-note p {
+  color: var(--muted);
+}
+
+.example-note code {
+  color: var(--ink);
+}
+
 .footer {
   padding: 30px clamp(20px, 5vw, 72px);
   border-top: 1px solid var(--line);
@@ -543,6 +574,7 @@ h1 {
 
   .grid,
   .band,
+  .site-example,
   .docs-shell,
   .docs-grid {
     grid-template-columns: 1fr;
