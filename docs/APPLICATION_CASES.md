@@ -13,6 +13,7 @@ Install and apply the managed skill pack:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
 omh setup
+omh doctor
 ```
 
 Restart Hermes Agent after installation so it can reload its configured skill
@@ -84,6 +85,7 @@ Confirm the skill pack is installed and registered:
 
 ```sh
 omh setup
+omh doctor
 ```
 
 ### User Prompt Shape
@@ -151,6 +153,7 @@ Install the skill pack and make sure Hermes can read the same config that
 
 ```sh
 omh setup
+omh doctor
 ```
 
 For Discord bot deployments, install in the same runtime context that starts
@@ -274,6 +277,7 @@ Before using these cases as public release evidence, verify:
 - The one-command installer still works.
 - `omh setup` reports the managed skill directory and Hermes config
   registration clearly.
+- `omh doctor` reports the managed skill directory as healthy after setup.
 - The generated router includes the representative harness registry.
 - `omh docs workflows --json` exposes `harness_quality/v1` style quality data
   for wrapper rendering and status decisions.

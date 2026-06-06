@@ -60,10 +60,6 @@ if [ "$OMH_AUTO_APPLY" = "0" ]; then
   set -- "$@" --skip-apply
 fi
 
-if [ "$OMH_RUN_DOCTOR" = "0" ]; then
-  set -- "$@" --skip-doctor
-fi
-
 if [ -n "$OMH_VERSION" ]; then
   set -- "$@" --version "$OMH_VERSION"
 fi
@@ -71,5 +67,12 @@ fi
 say "Setting up managed Hermes skills..."
 run_omh "$@"
 
+if [ "$OMH_RUN_DOCTOR" = "0" ]; then
+  say "Skipped doctor check because OMH_RUN_DOCTOR=0."
+else
+  say "Verifying installation..."
+  run_omh doctor
+fi
+
 say "oh-my-hermes-agent is installed."
-say "Run 'omh list' to inspect installed skills."
+say "Run 'omh list' to inspect installed skills, or 'omh setup' to reapply Hermes registration."

@@ -217,28 +217,18 @@ def cmd_setup(args: argparse.Namespace) -> int:
     else:
         steps["apply"] = _apply_result(args)
 
-    if args.skip_doctor:
-        doctor_payload: dict[str, object] = {"ok": True, "skipped": True, "message": "Skipped doctor check because --skip-doctor was set."}
-    elif args.dry_run:
-        doctor_payload = {"ok": True, "skipped": True, "message": "Skipped doctor check because setup --dry-run does not write install artifacts."}
-    else:
-        doctor_payload = _doctor_result(args)
-    steps["doctor"] = doctor_payload
-
-    ok = bool(doctor_payload["ok"])
     if not args.dry_run:
         update_state(
             _paths(args),
             {
                 "last_setup": {
-                    "ok": ok,
+                    "ok": True,
                     "apply_skipped": bool(args.skip_apply),
-                    "doctor_skipped": bool(args.skip_doctor),
                 }
             },
         )
-    _print_json({"ok": ok, "steps": steps, "dry_run": args.dry_run})
-    return 0 if ok else 1
+    _print_json({"ok": True, "steps": steps, "dry_run": args.dry_run})
+    return 0
 
 
 def cmd_recommend(args: argparse.Namespace) -> int:
@@ -992,7 +982,6 @@ def _add_top_level_commands(sub) -> None:
     setup = sub.add_parser("setup")
     _add_common_install_options(setup)
     setup.add_argument("--skip-apply", action="store_true", help="Install skills without registering them in Hermes config.")
-    setup.add_argument("--skip-doctor", action="store_true", help="Skip the final doctor check.")
     setup.set_defaults(func=cmd_setup)
 
     install = sub.add_parser("install")

@@ -68,14 +68,15 @@ curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/inst
 **Step 2: Set Up OMH**
 
 The installer runs setup automatically. Re-run it any time you want to reinstall
-managed skills, reapply Hermes config, and verify the result:
+managed skills and reapply Hermes config:
 
 ```sh
 omh setup
+omh doctor
 ```
 
-Then open Hermes Agent and use the installed skills through Hermes' normal skill
-surfaces.
+`omh doctor` is the separate health check. Then open Hermes Agent and use the
+installed skills through Hermes' normal skill surfaces.
 
 **Step 3: Try one wrapper-shaped turn**
 
@@ -123,6 +124,7 @@ exists.
 ```sh
 omh update
 omh setup
+omh doctor
 ```
 
 ## Mental Model
@@ -243,7 +245,7 @@ instead of presented as the first path.
 | Install | `curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh \| sh` |
 | Set up or repair | `omh setup` |
 | Verify only | `omh doctor` |
-| Update | `omh update && omh setup` |
+| Update | `omh update && omh setup && omh doctor` |
 | Inspect installed skills | `omh list` |
 | Pick a workflow locally | `omh recommend <task>` |
 | Pick a situation pipeline | `omh playbook recommend <task>` |
