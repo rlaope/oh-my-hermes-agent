@@ -5,6 +5,10 @@ Hermes Agent chat response. The example is generated from local fixtures; it
 does not require a bot SDK, credentials, network access, an LLM call, or Hermes
 core changes.
 
+For the operator runbook that ties these examples to state transitions,
+responsibilities, and evidence boundaries, read
+[Hermes Agent Integration Runbook](HERMES_AGENT_INTEGRATION_RUNBOOK.md).
+
 ## Commands Used
 
 ```sh

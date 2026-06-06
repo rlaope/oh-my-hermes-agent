@@ -230,6 +230,7 @@ class RouterContentTests(unittest.TestCase):
             Path("docs/README.md"),
             Path("docs/DIRECTION.md"),
             Path("docs/HARNESS_QUALITY.md"),
+            Path("docs/HERMES_AGENT_INTEGRATION_RUNBOOK.md"),
             Path("docs/INSTALLATION.md"),
             Path("docs/APPLICATION_CASES.md"),
             Path("docs/PLAYBOOKS.md"),
@@ -258,11 +259,13 @@ class RouterContentTests(unittest.TestCase):
             self.assertTrue(path.exists(), f"{path} should be present")
 
         readme = Path("README.md").read_text(encoding="utf-8")
+        docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
         installation = Path("docs/INSTALLATION.md").read_text(encoding="utf-8")
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
         release = Path("docs/RELEASE.md").read_text(encoding="utf-8")
         harness_quality = Path("docs/HARNESS_QUALITY.md").read_text(encoding="utf-8")
+        runbook = Path("docs/HERMES_AGENT_INTEGRATION_RUNBOOK.md").read_text(encoding="utf-8")
         site = Path("site/index.html").read_text(encoding="utf-8")
         site_docs = Path("site/docs/index.html").read_text(encoding="utf-8")
         site_css = Path("site/styles.css").read_text(encoding="utf-8")
@@ -291,6 +294,11 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("wrapper_actions", harness_quality)
         self.assertIn("overclaim_guards", harness_quality)
         self.assertIn("harness_progress/v1", harness_quality)
+        self.assertIn("This is an operator reference, not an `omh` command.", runbook)
+        self.assertIn("Hermes-agent wrapper", runbook)
+        self.assertIn("Prepared handoff is not execution evidence", runbook)
+        self.assertIn("examples/wrapper-golden/hermes-agent-integration.json", runbook)
+        self.assertIn("Hermes Agent Integration Runbook", docs_readme)
         self.assertIn("python -m unittest discover -s tests", ci)
         self.assertIn("python -m compileall src", ci)
         self.assertIn("docs workflows --check", ci)
@@ -309,6 +317,8 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("Capability probe status", release)
         self.assertIn("OMH", site)
         self.assertIn('href="docs/">Read docs</a>', site)
+        self.assertIn("Hermes Agent Integration Runbook", site_docs)
+        self.assertIn("examples/wrapper-golden/hermes-agent-integration.json", site_docs)
         topbar = site.split('<header class="topbar"', 1)[1].split("</header>", 1)[0]
         self.assertIn('href="docs/"', topbar)
         self.assertNotIn('href="#architecture"', topbar)

@@ -41,6 +41,8 @@ class WrapperGoldenExampleTests(unittest.TestCase):
             self.assertEqual(response["schema_version"], "chat_response/v1")
             self.assertIn(item["source"], {"discord", "slack"})
             self.assertTrue(item["claim_boundary"])
+            self.assertTrue(item["observed_evidence"])
+            self.assertTrue(item["not_evidence"])
             self.assertTrue(response["headline"])
             self.assertTrue(response["body"])
             self.assertIsInstance(response["action_ids"], list)
@@ -124,6 +126,55 @@ class WrapperGoldenExampleTests(unittest.TestCase):
                 source_quality = self._source_harness_quality(item)
                 for key, value in item["expected_quality"].items():
                     self.assertEqual(source_quality[key], value)
+
+    def test_hermes_agent_integration_examples_match_status_ladder(self) -> None:
+        payload = json.loads(Path("examples/wrapper-golden/hermes-agent-integration.json").read_text(encoding="utf-8"))
+        ladder = json.loads(Path("examples/wrapper-golden/status-ladder.json").read_text(encoding="utf-8"))
+        ladder_scenarios = {item["scenario"]: item for item in ladder["scenarios"]}
+
+        self.assertEqual(payload["schema_version"], "hermes_agent_integration_examples/v1")
+        self.assertTrue(Path(payload["runbook"]).exists())
+        self.assertIn("platform SDK implementation", payload["transport_boundary"]["non_goals"])
+        self.assertIn("network calls", payload["transport_boundary"]["non_goals"])
+        self.assertIn("Hermes core patching", payload["transport_boundary"]["non_goals"])
+
+        contracts = {item["schema_version"]: item for item in payload["consumed_contracts"]}
+        self.assertEqual(
+            set(contracts),
+            {"chat_interaction/v1", "chat_response/v1", "coding_executor_handoff/v1", "status_card/v1"},
+        )
+        self.assertIn("chat_interaction/v1", contracts)
+        self.assertIn("status_card/v1", contracts)
+        self.assertIn("coding_executor_handoff/v1", contracts)
+        self.assertIn("chat_response", contracts["chat_interaction/v1"]["required_fields"])
+        self.assertIn("claim_boundary", contracts["status_card/v1"]["required_fields"])
+        live_handoff = build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex")[
+            "executor_handoff"
+        ]
+        for field in contracts["coding_executor_handoff/v1"]["required_fields"]:
+            self.assertIn(field, live_handoff)
+        self.assertNotIn("recommended_workflow", contracts["coding_executor_handoff/v1"]["required_fields"])
+        self.assertNotIn("verification_expectations", contracts["coding_executor_handoff/v1"]["required_fields"])
+
+        transitions = payload["state_transitions"]
+        source_scenarios = {item["source_scenario"] for item in transitions}
+        self.assertEqual(len(transitions), len(ladder_scenarios))
+        self.assertEqual(source_scenarios, set(ladder_scenarios))
+        self.assertIn("clarifying", {item["to_state"] for item in transitions})
+        self.assertIn("awaiting_review", {item["to_state"] for item in transitions})
+        self.assertIn("awaiting_ci", {item["to_state"] for item in transitions})
+        self.assertIn("blocked", {item["to_state"] for item in transitions})
+        self.assertIn("merge_ready", {item["to_state"] for item in transitions})
+        self.assertIn("merged", {item["to_state"] for item in transitions})
+
+        for item in transitions:
+            with self.subTest(item["scenario"]):
+                source = ladder_scenarios[item["source_scenario"]]
+                self.assertEqual(item["claim_boundary"], source["claim_boundary"])
+                self.assertEqual(item["observed_evidence"], source["observed_evidence"])
+                self.assertEqual(item["not_evidence"], source["not_evidence"])
+                self.assertIn(item["wrapper_action"], source["expected_response"]["action_ids"])
+                self.assertNotIn("token", json.dumps(item).lower())
 
     def test_transport_free_adapter_shims_render_fixture_events(self) -> None:
         cases = (

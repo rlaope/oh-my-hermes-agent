@@ -1,0 +1,324 @@
+{
+  "schema_version": "hermes_agent_integration_examples/v1",
+  "description": "Transport-free contract examples for Hermes-agent wrappers consuming OMH outputs.",
+  "runbook": "docs/HERMES_AGENT_INTEGRATION_RUNBOOK.md",
+  "transport_boundary": {
+    "wrapper_owns": [
+      "platform events",
+      "button rendering",
+      "thread lifecycle",
+      "message edits",
+      "notifications"
+    ],
+    "omh_owns": [
+      "chat_interaction/v1",
+      "chat_response/v1",
+      "status_card/v1",
+      "coding_executor_handoff/v1",
+      "metadata-only runtime evidence boundaries"
+    ],
+    "non_goals": [
+      "platform SDK implementation",
+      "bot authentication",
+      "network calls",
+      "Hermes core patching",
+      "hidden executor launch"
+    ]
+  },
+  "consumed_contracts": [
+    {
+      "schema_version": "chat_interaction/v1",
+      "consumed_by": "Hermes-agent wrapper",
+      "required_fields": [
+        "source",
+        "thread_key",
+        "mode",
+        "next_action",
+        "chat_response",
+        "overclaim_guard"
+      ],
+      "renderable_fields": [
+        "chat_response.headline",
+        "chat_response.body",
+        "chat_response.actions",
+        "chat_response.claim_boundary",
+        "chat_response.state"
+      ]
+    },
+    {
+      "schema_version": "chat_response/v1",
+      "consumed_by": "Hermes-agent wrapper",
+      "required_fields": [
+        "kind",
+        "visibility",
+        "headline",
+        "body",
+        "state",
+        "actions",
+        "claim_boundary"
+      ],
+      "renderable_fields": [
+        "headline",
+        "body",
+        "actions[].id",
+        "actions[].label",
+        "actions[].enabled",
+        "claim_boundary"
+      ]
+    },
+    {
+      "schema_version": "status_card/v1",
+      "consumed_by": "Hermes-agent wrapper",
+      "required_fields": [
+        "run_id",
+        "severity",
+        "headline",
+        "summary",
+        "next_action",
+        "primary_action",
+        "steps",
+        "claim_boundary"
+      ],
+      "renderable_fields": [
+        "headline",
+        "summary",
+        "steps[].label",
+        "steps[].state",
+        "primary_action",
+        "claim_boundary"
+      ]
+    },
+    {
+      "schema_version": "coding_executor_handoff/v1",
+      "consumed_by": "External coding executor lane",
+      "required_fields": [
+        "schema_version",
+        "executor_target",
+        "handoff_mode",
+        "status",
+        "recording_contract",
+        "dispatch_contract",
+        "scope",
+        "acceptance_criteria",
+        "verification",
+        "review",
+        "prompt_template",
+        "non_goals",
+        "harness_quality"
+      ],
+      "renderable_fields": [
+        "executor_target",
+        "status",
+        "recording_contract",
+        "acceptance_criteria",
+        "verification",
+        "review.required"
+      ]
+    }
+  ],
+  "state_transitions": [
+    {
+      "scenario": "clarification_needed",
+      "source_scenario": "clarify_needed",
+      "from_state": "message_received",
+      "to_state": "clarifying",
+      "wrapper_action": "answer:clarify",
+      "observed_evidence": [
+        "source metadata",
+        "message hash",
+        "clarification request"
+      ],
+      "not_evidence": [
+        "approved plan",
+        "executor dispatch",
+        "executor result"
+      ],
+      "claim_boundary": "No execution has started."
+    },
+    {
+      "scenario": "plan_presented",
+      "source_scenario": "plan_presented",
+      "from_state": "message_received",
+      "to_state": "planning",
+      "wrapper_action": "accept_plan",
+      "observed_evidence": [
+        "draft plan",
+        "selected workflow",
+        "wrapper actions"
+      ],
+      "not_evidence": [
+        "plan acceptance",
+        "prepared handoff",
+        "executor dispatch"
+      ],
+      "claim_boundary": "A draft plan is not execution evidence."
+    },
+    {
+      "scenario": "deep_interview_before_plan",
+      "source_scenario": "deep_interview_blocked_plan",
+      "from_state": "message_received",
+      "to_state": "clarifying",
+      "wrapper_action": "answer:clarify",
+      "observed_evidence": [
+        "missing decision list",
+        "one-question prompt",
+        "rerun-plan next action"
+      ],
+      "not_evidence": [
+        "approved plan",
+        "executor dispatch"
+      ],
+      "claim_boundary": "No plan or execution is approved."
+    },
+    {
+      "scenario": "handoff_prepared",
+      "source_scenario": "handoff_prepared",
+      "from_state": "plan_accepted",
+      "to_state": "handoff_prepared",
+      "wrapper_action": "send_to_codex",
+      "observed_evidence": [
+        "prepared handoff payload",
+        "linked run id",
+        "status card handoff step"
+      ],
+      "not_evidence": [
+        "executor dispatch",
+        "executor result",
+        "verification"
+      ],
+      "claim_boundary": "Prepared handoff is not execution evidence."
+    },
+    {
+      "scenario": "dispatched_waiting",
+      "source_scenario": "dispatched_executor_not_observed",
+      "from_state": "handoff_prepared",
+      "to_state": "dispatched",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "dispatch observed",
+        "linked run id"
+      ],
+      "not_evidence": [
+        "executor completion",
+        "verification",
+        "review"
+      ],
+      "claim_boundary": "Dispatch is not completion evidence."
+    },
+    {
+      "scenario": "review_pending",
+      "source_scenario": "review_pending",
+      "from_state": "executor_completed",
+      "to_state": "awaiting_review",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "executor result",
+        "verification evidence"
+      ],
+      "not_evidence": [
+        "review passed",
+        "CI passed",
+        "merge readiness"
+      ],
+      "claim_boundary": "Execution is observed; review is not."
+    },
+    {
+      "scenario": "status_card_review_pending",
+      "source_scenario": "status_card_review_pending",
+      "from_state": "executor_verified",
+      "to_state": "awaiting_review",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "status_card/v1",
+        "execution complete step",
+        "verification complete step"
+      ],
+      "not_evidence": [
+        "review passed",
+        "merge readiness",
+        "merged"
+      ],
+      "claim_boundary": "Execution and verification are not review evidence."
+    },
+    {
+      "scenario": "ci_pending",
+      "source_scenario": "ci_pending",
+      "from_state": "review_passed",
+      "to_state": "awaiting_ci",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "review passed"
+      ],
+      "not_evidence": [
+        "CI passed",
+        "merge readiness",
+        "merged"
+      ],
+      "claim_boundary": "Review is not CI evidence."
+    },
+    {
+      "scenario": "ci_failed",
+      "source_scenario": "ci_failed",
+      "from_state": "ci_started",
+      "to_state": "blocked",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "failing CI checks",
+        "blocked status card"
+      ],
+      "not_evidence": [
+        "merge readiness",
+        "merged"
+      ],
+      "claim_boundary": "Failed CI is not merge-ready."
+    },
+    {
+      "scenario": "merge_ready",
+      "source_scenario": "merge_ready",
+      "from_state": "ci_passed",
+      "to_state": "merge_ready",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "execution evidence",
+        "verification evidence",
+        "review evidence",
+        "CI evidence",
+        "merge-readiness evidence"
+      ],
+      "not_evidence": [
+        "merged"
+      ],
+      "claim_boundary": "Ready to merge is not the same as merged."
+    },
+    {
+      "scenario": "merged",
+      "source_scenario": "merged",
+      "from_state": "merge_ready",
+      "to_state": "merged",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "runtime ledger merge evidence"
+      ],
+      "not_evidence": [
+        "unobserved follow-up work"
+      ],
+      "claim_boundary": "Merged status is backed by runtime ledger evidence."
+    },
+    {
+      "scenario": "contradictory_merge_ready_without_ci",
+      "source_scenario": "contradictory_merge_ready_without_ci",
+      "from_state": "review_passed",
+      "to_state": "awaiting_ci",
+      "wrapper_action": "show_status",
+      "observed_evidence": [
+        "review passed",
+        "missing CI evidence"
+      ],
+      "not_evidence": [
+        "merge readiness",
+        "merged"
+      ],
+      "claim_boundary": "The upstream CI blocker is shown instead of merge-ready."
+    }
+  ]
+}
