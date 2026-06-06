@@ -232,6 +232,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["harness_quality"]["schema_version"], "harness_quality/v1")
         self.assertEqual(payload["harness_quality"]["harness"], "coding-handling")
         self.assertIn("coding_delegation_prepared", payload["harness_quality"]["evidence_ladder"])
+        self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
         self.assertNotIn("suggested_prompt", json.dumps(payload))
         self.assertNotIn("risky refactor", json.dumps(payload))
 
@@ -281,6 +282,8 @@ class CliTests(unittest.TestCase):
         self.assertEqual(handoff["status"], "prepared_not_observed")
         self.assertEqual(handoff["recording_contract"], "prepared_not_observed")
         self.assertIn("{message}", handoff["prompt_template"])
+        self.assertIn("send_to_codex", payload["harness_quality"]["wrapper_actions"])
+        self.assertIn("send_to_codex", handoff["harness_quality"]["wrapper_actions"])
         self.assertNotIn(hostile, json.dumps(handoff))
         self.assertNotIn(hostile, json.dumps(payload))
 
@@ -303,6 +306,9 @@ class CliTests(unittest.TestCase):
                 payload = json.loads(stdout)
                 self.assertEqual(payload["delegation"]["action"], action)
                 self.assertNotIn("executor_handoff", payload)
+                self.assertEqual(payload["harness_quality"]["schema_version"], "harness_quality/v1")
+                self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
+                self.assertNotIn("send_to_codex", payload["harness_quality"]["wrapper_actions"])
 
     def test_coding_delegate_weak_query_falls_back(self) -> None:
         status, stdout, stderr = run_cli(["coding", "delegate", "zzzzunknownphrase"])
@@ -1416,6 +1422,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(harnesses["coding-handling"]["quality_tier"], "handoff-gated")
         self.assertIn("coding_delegation_prepared", harnesses["coding-handling"]["evidence_ladder"])
         self.assertIn("send_to_codex", harnesses["coding-handling"]["wrapper_actions"])
+        quality = harnesses["coding-handling"]["harness_quality"]
+        self.assertEqual(quality["schema_version"], "harness_quality/v1")
+        self.assertEqual(quality["harness"], "coding-handling")
+        self.assertIn("send_to_codex", quality["wrapper_actions"])
 
         status, _, stderr = run_cli(["docs", "workflows", "--json", "--check"])
         self.assertEqual(status, 2)

@@ -7,6 +7,7 @@ from _local_package import load_local_package
 
 load_local_package()
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
+from omh.runtime.records import validate_harness_quality
 from omh.skills.catalog import harness_quality_contract, primary_harness_for_skill
 from omh.skills.render import workflow_reference_markdown, workflow_reference_payload
 
@@ -144,6 +145,14 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("coding_delegation_prepared", harnesses["coding-handling"]["evidence_ladder"])
         self.assertIn("send_to_codex", harnesses["coding-handling"]["wrapper_actions"])
         self.assertIn("prepared", " ".join(harnesses["coding-handling"]["overclaim_guards"]).lower())
+        quality = harnesses["coding-handling"]["harness_quality"]
+        self.assertEqual(quality, harness_quality_contract("coding-handling"))
+        self.assertEqual(quality["schema_version"], "harness_quality/v1")
+        self.assertEqual(validate_harness_quality(quality), [])
+
+        for harness in payload["harnesses"]:
+            self.assertIn("harness_quality", harness)
+            self.assertEqual(validate_harness_quality(harness["harness_quality"]), [])
 
     def test_unknown_harness_quality_contract_is_safe_to_render(self) -> None:
         contract = harness_quality_contract("not-installed-harness")

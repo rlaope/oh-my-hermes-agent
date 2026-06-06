@@ -4,6 +4,11 @@ import json
 import unittest
 from pathlib import Path
 
+from _local_package import load_local_package
+
+load_local_package()
+from omh.skills.render import workflow_reference_payload
+
 
 class WrapperGoldenExampleTests(unittest.TestCase):
     def test_status_ladder_golden_examples_cover_required_scenarios(self) -> None:
@@ -100,12 +105,18 @@ class WrapperGoldenExampleTests(unittest.TestCase):
         self.assertIn("sources_checked", examples["research_quality"]["expected_quality"]["evidence_ladder"])
         self.assertIn("answer:clarify", examples["clarification_quality"]["expected_quality"]["wrapper_actions"])
 
+        workflow_catalog = workflow_reference_payload()
+        catalog_harnesses = {harness["name"]: harness["harness_quality"] for harness in workflow_catalog["harnesses"]}
         for item in payload["examples"]:
             serialized = json.dumps(item).lower()
             self.assertTrue(item["user_visible_upgrade"])
             self.assertTrue(item["claim_boundary"])
             self.assertNotIn("token", serialized)
             self.assertNotIn("omh ", serialized)
+            if item["source_payload"] == "workflow_catalog/v1.harnesses[].harness_quality":
+                source_quality = catalog_harnesses[item["harness"]]
+                for key, value in item["expected_quality"].items():
+                    self.assertEqual(source_quality[key], value)
 
 
 if __name__ == "__main__":

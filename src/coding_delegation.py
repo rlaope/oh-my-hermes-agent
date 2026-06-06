@@ -5,6 +5,7 @@ import hashlib
 from typing import Any
 
 from .coding_contracts import CODING_EXECUTOR_TARGETS, EXECUTOR_HANDOFF_SCHEMA_VERSION
+from .harness_quality import with_wrapper_actions
 from .ingress import CHAT_SOURCES, extract_message_text, extract_source_metadata
 from .routing.recommend import recommend_skills
 from .skills.catalog import (
@@ -90,11 +91,15 @@ def build_coding_delegation_payload(
         "schema_version": SCHEMA_VERSION,
         "source": source,
         "delegation": delegation.to_dict(),
-        "harness_quality": harness_quality_contract(harness),
         "recommendations": recommendations,
     }
     if executor_target != "generic" and delegation.action == "delegate":
         payload["executor_handoff"] = _executor_handoff(executor_target, delegation)
+    payload["harness_quality"] = _public_harness_quality(
+        harness,
+        action=delegation.action,
+        has_executor_handoff="executor_handoff" in payload,
+    )
     metadata = {key: value for key, value in (source_metadata or {}).items() if value}
     if metadata:
         payload["source_metadata"] = metadata
@@ -283,6 +288,13 @@ def _executor_handoff(executor_target: str, delegation: CodingDelegation) -> dic
         },
         "harness_quality": harness_quality_contract(delegation.recommended_harness),
     }
+
+
+def _public_harness_quality(harness: str, *, action: str, has_executor_handoff: bool) -> dict[str, object]:
+    contract = harness_quality_contract(harness)
+    if action == "delegate" and has_executor_handoff:
+        return contract
+    return with_wrapper_actions(contract, ("show_status",))
 
 
 def _codex_prompt_template(delegation: CodingDelegation) -> str:

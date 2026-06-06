@@ -211,7 +211,7 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertEqual(coding_delegation["harness_quality"]["schema_version"], "harness_quality/v1")
             self.assertEqual(coding_delegation["harness_quality"]["harness"], "coding-handling")
             self.assertIn("coding_delegation_prepared", coding_delegation["harness_quality"]["evidence_ladder"])
-            self.assertIn("send_to_codex", coding_delegation["harness_quality"]["wrapper_actions"])
+            self.assertEqual(coding_delegation["harness_quality"]["wrapper_actions"], ["show_status"])
             self.assertTrue(coding_delegation["acceptance_criteria"])
             self.assertTrue(coding_delegation["verification"])
             self.assertTrue(validate_runtime(paths, run["run_id"])["ok"])

@@ -4,6 +4,7 @@ import hashlib
 from typing import Any
 
 from ..coding_contracts import CODING_EXECUTOR_HANDOFF_TARGETS, EXECUTOR_HANDOFF_SCHEMA_VERSION
+from ..harness_quality import HARNESS_QUALITY_KEYS, HARNESS_QUALITY_SCHEMA_VERSION
 from ..local_store import utc_now
 
 
@@ -32,16 +33,6 @@ CODING_DELEGATION_INTENTS = ("coding", "cleanup", "review", "planning", "diagnos
 CODING_DELEGATION_STATUSES = ("prepared_not_observed",)
 CODING_SOURCE_METADATA_KEYS = ("source_event_id", "channel_ref", "user_ref", "timestamp")
 CODING_RECOMMENDATION_KEYS = ("skill", "score", "confidence", "matched")
-HARNESS_QUALITY_SCHEMA_VERSION = "harness_quality/v1"
-HARNESS_QUALITY_KEYS = (
-    "schema_version",
-    "harness",
-    "quality_tier",
-    "quality_bar",
-    "evidence_ladder",
-    "wrapper_actions",
-    "overclaim_guards",
-)
 CODING_DELEGATION_RECORD_KEYS = (
     "schema_version",
     "record_type",

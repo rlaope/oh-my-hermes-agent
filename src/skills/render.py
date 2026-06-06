@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
-from .catalog import DESCRIPTIONS, HarnessDefinition, SkillDefinition, builtin_definitions, builtin_harnesses, primary_harness_for_skill
+from .catalog import (
+    DESCRIPTIONS,
+    HarnessDefinition,
+    SkillDefinition,
+    builtin_definitions,
+    builtin_harnesses,
+    harness_quality_contract,
+    primary_harness_for_skill,
+)
 
 
 @dataclass(frozen=True)
@@ -377,11 +385,48 @@ def workflow_reference_payload() -> dict[str, object]:
             "Deterministic Hermes-native skill and harness metadata. This payload is local guidance, "
             "not proof of hidden Hermes runtime behavior."
         ),
-        "skills": [_catalog_payload(definition) for definition in builtin_definitions()],
-        "harnesses": [_catalog_payload(harness) for harness in builtin_harnesses()],
+        "skills": [_skill_payload(definition) for definition in builtin_definitions()],
+        "harnesses": [_harness_payload(harness) for harness in builtin_harnesses()],
     }
 
 
-def _catalog_payload(item: SkillDefinition | HarnessDefinition) -> dict[str, object]:
-    data = asdict(item)
-    return {key: list(value) if isinstance(value, tuple) else value for key, value in data.items()}
+def _skill_payload(definition: SkillDefinition) -> dict[str, object]:
+    return {
+        "name": definition.name,
+        "description": definition.description,
+        "use_when": definition.use_when,
+        "category": definition.category,
+        "phase": definition.phase,
+        "triggers": list(definition.triggers),
+        "primary_harness": primary_harness_for_skill(definition.name),
+        "hermes_role": definition.hermes_role,
+        "handoff_policy": definition.handoff_policy,
+        "quality_tier": definition.quality_tier,
+        "quality_bar": list(definition.quality_bar),
+        "required_inputs": list(definition.required_inputs),
+        "expected_outputs": list(definition.expected_outputs),
+        "artifact_expectations": list(definition.artifact_expectations),
+        "safety_rules": list(definition.safety_rules),
+    }
+
+
+def _harness_payload(harness: HarnessDefinition) -> dict[str, object]:
+    return {
+        "name": harness.name,
+        "purpose": harness.purpose,
+        "use_when": harness.use_when,
+        "quality_tier": harness.quality_tier,
+        "quality_bar": list(harness.quality_bar),
+        "required_inputs": list(harness.required_inputs),
+        "expected_outputs": list(harness.expected_outputs),
+        "stop_conditions": list(harness.stop_conditions),
+        "verification": list(harness.verification),
+        "evidence_ladder": list(harness.evidence_ladder),
+        "wrapper_actions": list(harness.wrapper_actions),
+        "artifact_events": list(harness.artifact_events),
+        "delegation_expectation": harness.delegation_expectation,
+        "privacy_default": harness.privacy_default,
+        "overclaim_guards": list(harness.overclaim_guards),
+        "fallback": harness.fallback,
+        "harness_quality": harness_quality_contract(harness.name),
+    }

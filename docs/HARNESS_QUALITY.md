@@ -49,11 +49,13 @@ contract shaped like this:
 ## Where It Appears
 
 - `omh docs workflows --json` exposes the full local workflow and harness
-  catalog.
+  catalog, including `workflow_catalog/v1.harnesses[].harness_quality`.
 - `omh coding delegate` includes `harness_quality` beside the prepared
-  delegation.
-- `omh coding delegate --executor codex` also includes the same contract inside
-  `executor_handoff`.
+  delegation. Dispatch actions are removed unless the payload also includes a
+  prepared executor handoff.
+- `omh coding delegate --executor codex` includes the dispatch-capable contract
+  in both the public payload and `executor_handoff` when the request is specific
+  enough to delegate.
 - `omh hermes plan` includes `wrapper_contract.harness_quality` so wrappers can
   render accept/revise/cancel and handoff readiness from the plan contract.
 - Runtime records preserve the contract in `coding_delegation.json` when present.

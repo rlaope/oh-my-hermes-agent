@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..harness_quality import build_harness_quality_contract, unknown_harness_quality_contract
+
 
 @dataclass(frozen=True)
 class SkillDefinition:
@@ -762,24 +764,15 @@ def harness_quality_contract(name: str) -> dict[str, object]:
     try:
         harness = harness_definition(name)
     except KeyError:
-        return {
-            "schema_version": "harness_quality/v1",
-            "harness": name,
-            "quality_tier": "unknown",
-            "quality_bar": ["Treat the harness as unrecognized and ask for explicit operator review before dispatch."],
-            "evidence_ladder": ["harness_unrecognized", "operator_review_required"],
-            "wrapper_actions": ["show_status"],
-            "overclaim_guards": ["Unknown harness; do not infer runtime capability."],
-        }
-    return {
-        "schema_version": "harness_quality/v1",
-        "harness": harness.name,
-        "quality_tier": harness.quality_tier,
-        "quality_bar": list(harness.quality_bar),
-        "evidence_ladder": list(harness.evidence_ladder),
-        "wrapper_actions": list(harness.wrapper_actions),
-        "overclaim_guards": list(harness.overclaim_guards),
-    }
+        return unknown_harness_quality_contract(name)
+    return build_harness_quality_contract(
+        harness=harness.name,
+        quality_tier=harness.quality_tier,
+        quality_bar=harness.quality_bar,
+        evidence_ladder=harness.evidence_ladder,
+        wrapper_actions=harness.wrapper_actions,
+        overclaim_guards=harness.overclaim_guards,
+    )
 
 
 def primary_harness_for_skill(name: str) -> str:
