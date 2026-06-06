@@ -7,6 +7,8 @@
 - Uninstall and snippet command tests
 - Imported skill conflict fixtures
 - Richer routing catalog fields
+- More playbook-backed situation pipelines for wrapper UX, research, planning,
+  and release flows
 - More artifact-backed application cases for bot wrappers
 - Example Discord/Slack adapter shims that consume `chat_interaction/v1`
 - More public-site examples that mirror wrapper contracts without becoming a
@@ -40,3 +42,5 @@
 - Harness catalog inspection and validation through `omh harness list`,
   `omh harness inspect`, and `omh harness validate`
 - GitHub Pages source for the public OMH entry point
+- Situation playbooks exposed through `omh playbook list`, `inspect`, and
+  `recommend`

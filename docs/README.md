@@ -14,6 +14,7 @@ repo-local contract for Codex agents working here.
 | Understand what OMHM is and is not | [Direction](DIRECTION.md) |
 | Understand module boundaries and local artifacts | [Architecture](ARCHITECTURE.md) |
 | Understand chat wrapper UX, sessions, and handoffs | [Delegation-First Completeness](DELEGATION_FIRST_COMPLETENESS.md) |
+| Choose a situation-level pipeline | [Playbooks](PLAYBOOKS.md) |
 | See Discord-style wrapper responses | [Chat Wrapper Examples](CHAT_WRAPPER_EXAMPLES.md) |
 | Render workflow quality gates in wrappers | [Harness Quality Contract](HARNESS_QUALITY.md) |
 | Run deterministic wrapper demos | [`omh demo orchestration`](../README.md#quick-start) and [fixture shims](../examples) |
@@ -48,6 +49,8 @@ merge.
 - Demo and shim examples should stay fixture-backed, deterministic, and
   transport-free unless a scoped integration explicitly opts into a real bot or
   network adapter.
+- Playbook docs should describe situation-level pipelines and ownership
+  boundaries rather than becoming a second skill catalog.
 - Coding-heavy requests should be described as delegated work unless there is
   observed evidence that a coding executor actually ran.
 - Generated workflow docs should come from `src/skills/catalog.py`; update the
@@ -69,6 +72,7 @@ When changing docs, check whether the same claim needs to be updated in:
 - [Direction](DIRECTION.md)
 - [Architecture](ARCHITECTURE.md)
 - [Delegation-First Completeness](DELEGATION_FIRST_COMPLETENESS.md)
+- [Playbooks](PLAYBOOKS.md)
 - [Harness Quality Contract](HARNESS_QUALITY.md)
 - [Application Cases](APPLICATION_CASES.md)
 - [Workflow Reference](WORKFLOWS.md)

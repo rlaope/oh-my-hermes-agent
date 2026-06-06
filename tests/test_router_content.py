@@ -232,6 +232,7 @@ class RouterContentTests(unittest.TestCase):
             Path("docs/HARNESS_QUALITY.md"),
             Path("docs/INSTALLATION.md"),
             Path("docs/APPLICATION_CASES.md"),
+            Path("docs/PLAYBOOKS.md"),
             Path("docs/RELEASE.md"),
             Path("install.sh"),
             Path("CONTRIBUTING.md"),
@@ -344,6 +345,7 @@ class RouterContentTests(unittest.TestCase):
             "## Case 1: Coding Request Handling",
             "## Case 2: Goal, Planning, and Deep Interview Flow",
             "## Case 3: Specialist Harness Flow",
+            "## Case 4: Situation Playbook Pipeline",
             "## Release Review Checklist",
         ):
             self.assertIn(heading, text)
@@ -355,8 +357,23 @@ class RouterContentTests(unittest.TestCase):
             self.assertIn(harness, text)
         self.assertIn("quality tier", text)
         self.assertIn("evidence ladder", text)
+        self.assertIn("omh playbook recommend", text)
+        self.assertIn("safe-feature-change", text)
         self.assertIn("omh docs workflows --json", text)
         self.assertIn("omh probe", text)
+
+    def test_playbook_docs_are_discoverable(self) -> None:
+        readme = Path("README.md").read_text(encoding="utf-8")
+        docs_index = Path("docs/README.md").read_text(encoding="utf-8")
+        playbooks = Path("docs/PLAYBOOKS.md").read_text(encoding="utf-8")
+        site = Path("site/index.html").read_text(encoding="utf-8")
+
+        self.assertIn("omh playbook recommend", readme)
+        self.assertIn("Playbooks", docs_index)
+        self.assertIn("safe-feature-change", playbooks)
+        self.assertIn("source-backed-research", playbooks)
+        self.assertIn("not execution evidence", playbooks)
+        self.assertIn("Situation playbooks", site)
 
     def test_discord_example_uses_wrapper_native_flow(self) -> None:
         text = Path("examples/discord-bot-runtime-flow.md").read_text(encoding="utf-8")

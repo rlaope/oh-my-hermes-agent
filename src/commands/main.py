@@ -30,6 +30,7 @@ from ..installer import OmhError, install_skill_pack, uninstall_skill_pack
 from ..local_store import atomic_write_text
 from ..manifest import read_manifest
 from ..paths import resolve_paths
+from ..playbooks import inspect_playbook, list_playbooks, recommend_playbooks
 from ..probe import probe_capabilities
 from ..routing.recommend import recommend_skills
 from ..release import RELEASE_CHANNELS, package_url_for
@@ -203,6 +204,28 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     if not query:
         raise OmhError("recommend requires a task description")
     _print_json({"query": query, "recommendations": recommend_skills(query, limit=args.limit)})
+    return 0
+
+
+def cmd_playbook_list(args: argparse.Namespace) -> int:
+    _print_json(list_playbooks())
+    return 0
+
+
+def cmd_playbook_inspect(args: argparse.Namespace) -> int:
+    try:
+        _print_json(inspect_playbook(args.id))
+    except KeyError as exc:
+        raise OmhError(f"unknown playbook: {args.id}") from exc
+    return 0
+
+
+def cmd_playbook_recommend(args: argparse.Namespace) -> int:
+    query = " ".join(args.task).strip()
+    try:
+        _print_json(recommend_playbooks(query, limit=args.limit))
+    except ValueError as exc:
+        raise OmhError(str(exc)) from exc
     return 0
 
 
@@ -991,6 +1014,23 @@ def _add_harness_commands(sub) -> None:
     harness_validate.set_defaults(func=cmd_harness_validate)
 
 
+def _add_playbook_commands(sub) -> None:
+    playbook = sub.add_parser("playbook")
+    playbook_sub = playbook.add_subparsers(dest="playbook_command", required=True)
+
+    playbook_list = playbook_sub.add_parser("list")
+    playbook_list.set_defaults(func=cmd_playbook_list)
+
+    playbook_inspect = playbook_sub.add_parser("inspect")
+    playbook_inspect.add_argument("id")
+    playbook_inspect.set_defaults(func=cmd_playbook_inspect)
+
+    playbook_recommend = playbook_sub.add_parser("recommend")
+    playbook_recommend.add_argument("task", nargs="+", help="Natural-language request to map to an OMH playbook.")
+    playbook_recommend.add_argument("--limit", type=int, default=3, help="Maximum playbooks to return.")
+    playbook_recommend.set_defaults(func=cmd_playbook_recommend)
+
+
 def _add_demo_commands(sub) -> None:
     demo = sub.add_parser("demo")
     demo_sub = demo.add_subparsers(dest="demo_command", required=True)
@@ -1370,6 +1410,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_top_level_commands(sub)
     _add_docs_commands(sub)
     _add_harness_commands(sub)
+    _add_playbook_commands(sub)
     _add_demo_commands(sub)
     _add_chat_commands(sub)
     _add_coding_commands(sub)
