@@ -60,7 +60,26 @@ delegate coding, or report status.
 
 ## Quick Start
 
-**Step 1: Install the Hermes skills**
+**Step 1: Install OMH and apply the Hermes setup**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
+omh setup
+```
+
+The installer normally runs setup for you. Keep `omh setup` in the quick start
+because it is the repairable, repeatable step that installs generated skills
+under `~/.omh/skills` and registers them with Hermes through
+`skills.external_dirs`.
+
+Optionally verify the local install:
+
+```sh
+omh doctor
+```
+
+If your Hermes environment supports native skill taps, this is the equivalent
+Hermes-native front door:
 
 ```sh
 hermes skills tap add rlaope/oh-my-hermes-agent

@@ -297,6 +297,10 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("`omh setup` installs generated skills", readme)
         self.assertIn("omh setup", readme)
         self.assertIn("omh doctor", readme)
+        quick_start = readme.split("## Quick Start", 1)[1].split("## Two Install Paths", 1)[0]
+        self.assertIn("curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh", quick_start)
+        self.assertIn("omh setup", quick_start)
+        self.assertLess(quick_start.index("curl -fsSL"), quick_start.index("hermes skills tap add"))
         self.assertIn("## Backend / Operator Surface", readme)
         self.assertIn("omh docs workflows --json", readme)
         self.assertIn("omh harness validate", readme)
@@ -342,10 +346,9 @@ class RouterContentTests(unittest.TestCase):
         self.assertNotIn('href="#architecture"', topbar)
         self.assertNotIn('href="#install"', topbar)
         self.assertNotIn("GitHub", topbar)
-        hero_command = site.split('aria-label="Hermes skill install commands"', 1)[1].split("</code>", 1)[0]
-        self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", hero_command)
-        self.assertIn("hermes skills install oh-my-hermes", hero_command)
-        self.assertNotIn("omh setup", hero_command)
+        hero_command = site.split('aria-label="OMH quick start commands"', 1)[1].split("</code>", 1)[0]
+        self.assertIn("curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh", hero_command)
+        self.assertIn("omh setup", hero_command)
         self.assertNotIn("omh doctor", hero_command)
         self.assertNotIn("github.com/rlaope/oh-my-hermes-agent/tree/main/docs", site)
         self.assertIn("OMH Documentation", site_docs)

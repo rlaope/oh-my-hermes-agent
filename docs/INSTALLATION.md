@@ -5,6 +5,21 @@ skill pack. Normal users should talk to Hermes through Hermes' skill and chat
 surfaces. The `omh` command is bootstrap, repair, verification, and wrapper
 backend infrastructure.
 
+## Quick Start
+
+Use this when you just want Hermes to see OMH skills and have the local
+maintenance command available:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
+omh setup
+omh doctor
+```
+
+The installer normally runs setup automatically, but `omh setup` is kept here
+as the explicit repairable step: it installs generated managed skills and
+registers them with Hermes through `skills.external_dirs`.
+
 ## Install Path A: Hermes-Native Skill Tap
 
 Use this path when the target Hermes environment supports skill taps:
