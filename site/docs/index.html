@@ -23,6 +23,7 @@
         <a href="#overview">Overview</a>
         <a href="#install">Install</a>
         <a href="#chat">Chat wrappers</a>
+        <a href="#runbook">Runbook</a>
         <a href="#demo">Demo</a>
         <a href="#architecture">Architecture</a>
         <a href="#playbooks">Playbooks</a>
@@ -79,6 +80,26 @@ omh chat interact --source slack "diagnose installation health"</code>
             A response can be an answer, a clarification request, a plan, a status card, or a
             prepared handoff. The wrapper should render that response natively instead of
             asking users to memorize CLI commands.
+          </p>
+        </section>
+
+        <section class="docs-section" id="runbook">
+          <h2>Hermes Agent Integration Runbook</h2>
+          <p>
+            Operators should treat OMH as the local contract layer consumed by a
+            Hermes-agent wrapper, not as a transport bot. The runbook explains which
+            fields to render, which owner is responsible for each transition, and which
+            claims are still not evidence.
+          </p>
+          <ul class="docs-list">
+            <li>Wrapper owns platform events, buttons, threads, edits, and notifications.</li>
+            <li>OMH owns deterministic contracts, fixture examples, prepared handoffs, and status boundaries.</li>
+            <li>Codex-like executors own implementation evidence only after dispatch is observed.</li>
+          </ul>
+          <p>
+            Read the source runbook at
+            <code>docs/HERMES_AGENT_INTEGRATION_RUNBOOK.md</code> and validate the matching
+            golden fixture at <code>examples/wrapper-golden/hermes-agent-integration.json</code>.
           </p>
         </section>
 

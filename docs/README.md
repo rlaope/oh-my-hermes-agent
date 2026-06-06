@@ -14,6 +14,7 @@ repo-local contract for Codex agents working here.
 | Understand what OMHM is and is not | [Direction](DIRECTION.md) |
 | Understand module boundaries and local artifacts | [Architecture](ARCHITECTURE.md) |
 | Understand chat wrapper UX, sessions, and handoffs | [Delegation-First Completeness](DELEGATION_FIRST_COMPLETENESS.md) |
+| Operate a Hermes-agent wrapper safely | [Hermes Agent Integration Runbook](HERMES_AGENT_INTEGRATION_RUNBOOK.md) |
 | Choose a situation-level pipeline | [Playbooks](PLAYBOOKS.md) |
 | See Discord-style wrapper responses | [Chat Wrapper Examples](CHAT_WRAPPER_EXAMPLES.md) |
 | Render workflow quality gates in wrappers | [Harness Quality Contract](HARNESS_QUALITY.md) |
@@ -46,6 +47,8 @@ merge.
 - Chat users should remain command-agnostic. Wrapper docs should describe
   buttons, threads, status, and handoff states rather than asking end users to
   run shell commands.
+- Operator runbooks should use document titles, not command-like names, when
+  they describe wrapper responsibilities and status evidence.
 - Demo and shim examples should stay fixture-backed, deterministic, and
   transport-free unless a scoped integration explicitly opts into a real bot or
   network adapter.
@@ -72,6 +75,7 @@ When changing docs, check whether the same claim needs to be updated in:
 - [Direction](DIRECTION.md)
 - [Architecture](ARCHITECTURE.md)
 - [Delegation-First Completeness](DELEGATION_FIRST_COMPLETENESS.md)
+- [Hermes Agent Integration Runbook](HERMES_AGENT_INTEGRATION_RUNBOOK.md)
 - [Playbooks](PLAYBOOKS.md)
 - [Harness Quality Contract](HARNESS_QUALITY.md)
 - [Application Cases](APPLICATION_CASES.md)

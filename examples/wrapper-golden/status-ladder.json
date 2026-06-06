@@ -13,7 +13,17 @@
         "body": "The request is not specific enough for a safe workflow handoff.",
         "action_ids": ["answer:clarify", "cancel"]
       },
-      "claim_boundary": "No execution has started."
+      "claim_boundary": "No execution has started.",
+      "observed_evidence": [
+        "source metadata",
+        "message hash",
+        "clarification request"
+      ],
+      "not_evidence": [
+        "approved plan",
+        "executor dispatch",
+        "executor result"
+      ]
     },
     {
       "scenario": "plan_presented",
@@ -26,7 +36,17 @@
         "body": "The user can accept or revise the plan before any handoff is prepared.",
         "action_ids": ["accept_plan", "revise_plan"]
       },
-      "claim_boundary": "A draft plan is not execution evidence."
+      "claim_boundary": "A draft plan is not execution evidence.",
+      "observed_evidence": [
+        "draft plan",
+        "selected workflow",
+        "wrapper actions"
+      ],
+      "not_evidence": [
+        "plan acceptance",
+        "prepared handoff",
+        "executor dispatch"
+      ]
     },
     {
       "scenario": "deep_interview_blocked_plan",
@@ -46,7 +66,16 @@
         "missing_decisions": ["target outcome", "success criteria", "scope boundary"],
         "after_answer_next_action": "rerun_hermes_plan"
       },
-      "claim_boundary": "No plan or execution is approved."
+      "claim_boundary": "No plan or execution is approved.",
+      "observed_evidence": [
+        "missing decision list",
+        "one-question prompt",
+        "rerun-plan next action"
+      ],
+      "not_evidence": [
+        "approved plan",
+        "executor dispatch"
+      ]
     },
     {
       "scenario": "handoff_prepared",
@@ -59,7 +88,17 @@
         "body": "The handoff is prepared, but executor dispatch is not observed yet.",
         "action_ids": ["send_to_codex", "show_status"]
       },
-      "claim_boundary": "Prepared handoff is not execution evidence."
+      "claim_boundary": "Prepared handoff is not execution evidence.",
+      "observed_evidence": [
+        "prepared handoff payload",
+        "linked run id",
+        "status card handoff step"
+      ],
+      "not_evidence": [
+        "executor dispatch",
+        "executor result",
+        "verification"
+      ]
     },
     {
       "scenario": "dispatched_executor_not_observed",
@@ -72,7 +111,16 @@
         "body": "Executor completion is not observed yet.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Dispatch is not completion evidence."
+      "claim_boundary": "Dispatch is not completion evidence.",
+      "observed_evidence": [
+        "dispatch observed",
+        "linked run id"
+      ],
+      "not_evidence": [
+        "executor completion",
+        "verification",
+        "review"
+      ]
     },
     {
       "scenario": "review_pending",
@@ -85,7 +133,16 @@
         "body": "Review evidence is required before completion is reported.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Execution is observed; review is not."
+      "claim_boundary": "Execution is observed; review is not.",
+      "observed_evidence": [
+        "executor result",
+        "verification evidence"
+      ],
+      "not_evidence": [
+        "review passed",
+        "CI passed",
+        "merge readiness"
+      ]
     },
     {
       "scenario": "status_card_review_pending",
@@ -111,7 +168,17 @@
           {"id": "merged", "state": "pending"}
         ]
       },
-      "claim_boundary": "Execution and verification are not review evidence."
+      "claim_boundary": "Execution and verification are not review evidence.",
+      "observed_evidence": [
+        "status_card/v1",
+        "execution complete step",
+        "verification complete step"
+      ],
+      "not_evidence": [
+        "review passed",
+        "merge readiness",
+        "merged"
+      ]
     },
     {
       "scenario": "ci_pending",
@@ -124,7 +191,15 @@
         "body": "Merge readiness is not reported until CI evidence is observed.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Review is not CI evidence."
+      "claim_boundary": "Review is not CI evidence.",
+      "observed_evidence": [
+        "review passed"
+      ],
+      "not_evidence": [
+        "CI passed",
+        "merge readiness",
+        "merged"
+      ]
     },
     {
       "scenario": "ci_failed",
@@ -137,7 +212,15 @@
         "body": "The failing or blocked CI checks are surfaced instead of claiming merge readiness.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Failed CI is not merge-ready."
+      "claim_boundary": "Failed CI is not merge-ready.",
+      "observed_evidence": [
+        "failing CI checks",
+        "blocked status card"
+      ],
+      "not_evidence": [
+        "merge readiness",
+        "merged"
+      ]
     },
     {
       "scenario": "merge_ready",
@@ -150,7 +233,17 @@
         "body": "Execution, verification, review, CI, and merge-readiness evidence are observed.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Ready to merge is not the same as merged."
+      "claim_boundary": "Ready to merge is not the same as merged.",
+      "observed_evidence": [
+        "execution evidence",
+        "verification evidence",
+        "review evidence",
+        "CI evidence",
+        "merge-readiness evidence"
+      ],
+      "not_evidence": [
+        "merged"
+      ]
     },
     {
       "scenario": "merged",
@@ -163,7 +256,13 @@
         "body": "Merge evidence is observed in the runtime ledger.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "Merged status is backed by runtime ledger evidence."
+      "claim_boundary": "Merged status is backed by runtime ledger evidence.",
+      "observed_evidence": [
+        "runtime ledger merge evidence"
+      ],
+      "not_evidence": [
+        "unobserved follow-up work"
+      ]
     },
     {
       "scenario": "contradictory_merge_ready_without_ci",
@@ -176,7 +275,15 @@
         "body": "A later merge-ready artifact cannot override the missing CI gate.",
         "action_ids": ["show_status"]
       },
-      "claim_boundary": "The upstream CI blocker is shown instead of merge-ready."
+      "claim_boundary": "The upstream CI blocker is shown instead of merge-ready.",
+      "observed_evidence": [
+        "review passed",
+        "missing CI evidence"
+      ],
+      "not_evidence": [
+        "merge readiness",
+        "merged"
+      ]
     }
   ]
 }
