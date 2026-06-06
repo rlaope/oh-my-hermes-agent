@@ -257,8 +257,8 @@ Hermes Plan workflow: structured planning before execution.
 - Hermes role: `retained-cognition`
 - Quality tier: `acceptance-gated`
 - Handoff policy: Keep planning in Hermes; if the accepted plan requires code edits, prepare a Codex handoff after acceptance.
-- Use when: Use for structured planning when implementation is not ready to start safely.
-- Strong routing signals: `plan`, `$plan`, `implementation plan`, `strategy`, `task breakdown`
+- Use when: Use for structured planning when implementation is not ready to start safely, including feature work that needs a safe plan before handoff.
+- Strong routing signals: `plan`, `$plan`, `implementation plan`, `strategy`, `task breakdown`, `safe feature`, `safely add a feature`, `add a feature`, `feature request`, `new feature`
 - Quality bar:
   - Make goals, non-goals, risks, acceptance criteria, and verification shape explicit.
   - Keep draft plans unapproved until a user or wrapper accepts them.

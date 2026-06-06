@@ -27,6 +27,7 @@
         <a href="#overview">Overview</a>
         <a href="#install">Install</a>
         <a href="#chat">Chat wrappers</a>
+        <a href="#demo">Demo</a>
         <a href="#contracts">Contracts</a>
         <a href="#delegation">Delegation</a>
         <a href="#quality">Quality gates</a>
@@ -78,6 +79,23 @@ omh chat interact --source slack "diagnose installation health"</code>
             A response can be an answer, a clarification request, a plan, a status card, or a
             prepared handoff. The wrapper should render that response natively instead of
             asking users to memorize CLI commands.
+          </p>
+        </section>
+
+        <section class="docs-section" id="demo">
+          <h2>Local demo</h2>
+          <p>
+            Use the deterministic orchestration demo to inspect the full wrapper path before
+            building a real adapter.
+          </p>
+          <div class="command" role="region" aria-label="Demo commands" tabindex="0">
+            <code>omh demo orchestration
+uv run python examples/discord-adapter-shim.py
+uv run python examples/slack-adapter-shim.py</code>
+          </div>
+          <p>
+            The demo and shims are fixture-backed. They do not call bot SDKs, LLM APIs,
+            network services, or Hermes internals.
           </p>
         </section>
 

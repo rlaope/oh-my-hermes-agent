@@ -78,11 +78,21 @@ surfaces.
 **Step 3: Try one wrapper-shaped turn**
 
 ```sh
-omh chat interact --source discord "risky refactor"
+omh chat interact --source discord "I want to safely add a feature to this repo"
 ```
 
 That returns a `chat_interaction/v1` JSON envelope a Discord, Slack, or hosted
 adapter can render without exposing shell commands to the end user.
+
+**Step 4: Try the full local demo**
+
+```sh
+omh demo orchestration
+```
+
+The demo is deterministic and transport-free. It shows the full
+recommend -> chat response -> Hermes plan -> Codex handoff -> status card path
+without calling an LLM, bot SDK, network API, or Hermes core patch.
 
 ### Stable Install
 
@@ -137,6 +147,18 @@ Wrappers should treat `omh chat interact` as the primary API.
 
 The wrapper user sees a normal chat UX. The adapter owns buttons, threads,
 message edits, dispatch, and platform credentials.
+
+Source-checkout examples show how a transport shim can render fixture events
+without Discord or Slack SDKs:
+
+```sh
+uv run python examples/discord-adapter-shim.py
+uv run python examples/slack-adapter-shim.py
+```
+
+Those shims read JSON under `examples/wrapper-events/` and emit a compact
+`wrapper_adapter_shim/v1` render payload with response copy, action ids, and
+status card data when present.
 
 ## What Gets Recorded
 
@@ -212,6 +234,7 @@ instead of presented as the first path.
 | Update | `omh update && omh apply && omh doctor` |
 | Inspect installed skills | `omh list` |
 | Pick a workflow locally | `omh recommend <task>` |
+| Demo wrapper orchestration | `omh demo orchestration` |
 | Inspect workflow quality JSON | `omh docs workflows --json` |
 | Drive a chat wrapper turn | `omh chat interact <message>` |
 | Track delegated coding | `omh coding lifecycle <step>` |

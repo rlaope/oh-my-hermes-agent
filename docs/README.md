@@ -15,6 +15,7 @@ repo-local contract for Codex agents working here.
 | Understand module boundaries and local artifacts | [Architecture](ARCHITECTURE.md) |
 | Understand chat wrapper UX, sessions, and handoffs | [Delegation-First Completeness](DELEGATION_FIRST_COMPLETENESS.md) |
 | Render workflow quality gates in wrappers | [Harness Quality Contract](HARNESS_QUALITY.md) |
+| Run deterministic wrapper demos | [`omh demo orchestration`](../README.md#quick-start) and [fixture shims](../examples) |
 | Install or operate the preview package | [Installation](INSTALLATION.md) |
 | See realistic user-facing flows | [Application Cases](APPLICATION_CASES.md) |
 | Check generated skill and harness metadata | [Workflow Reference](WORKFLOWS.md) |
@@ -43,6 +44,9 @@ merge.
 - Chat users should remain command-agnostic. Wrapper docs should describe
   buttons, threads, status, and handoff states rather than asking end users to
   run shell commands.
+- Demo and shim examples should stay fixture-backed, deterministic, and
+  transport-free unless a scoped integration explicitly opts into a real bot or
+  network adapter.
 - Coding-heavy requests should be described as delegated work unless there is
   observed evidence that a coding executor actually ran.
 - Generated workflow docs should come from `src/skills/catalog.py`; update the

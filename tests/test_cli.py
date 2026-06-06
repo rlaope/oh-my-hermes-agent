@@ -36,6 +36,20 @@ class CliTests(unittest.TestCase):
         self.assertTrue({"plan", "ralplan"} & top_names)
         self.assertTrue(any(recommendation["hermes_role"] == "retained-cognition" for recommendation in recommendations))
 
+    def test_recommend_safe_feature_routes_to_plan_with_wrapper_copy(self) -> None:
+        message = "I want to safely add a feature to this repo"
+        status, stdout, stderr = run_cli(["recommend", message, "--limit", "2"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        recommendations = json.loads(stdout)["recommendations"]
+        top = recommendations[0]
+        self.assertEqual(top["skill"], "plan")
+        self.assertEqual(top["confidence"], "high")
+        self.assertEqual(top["next_action"], "present_plan")
+        self.assertIn("not execution evidence", top["evidence_boundary"])
+        self.assertIn("Accept plan", top["wrapper_guidance"])
+
     def test_recommend_web_research_stays_hermes_owned(self) -> None:
         status, stdout, stderr = run_cli(["recommend", "latest", "web", "research", "official", "sources"])
 
@@ -82,6 +96,27 @@ class CliTests(unittest.TestCase):
         self.assertIn("routing_prompt_template", route)
         self.assertIn("{message}", route["routing_prompt_template"])
         self.assertNotIn("risky refactor", json.dumps(route))
+
+    def test_chat_interact_safe_feature_presents_plan_and_disabled_handoff(self) -> None:
+        message = "I want to safely add a feature to this repo"
+        status, stdout, stderr = run_cli(["chat", "interact", "--source", "discord", message])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        self.assertEqual(payload["mode"], "plan")
+        self.assertEqual(payload["next_action"], "present_plan")
+        self.assertEqual(payload["route"]["selected_skill"], "plan")
+        response = payload["chat_response"]
+        self.assertEqual(response["kind"], "plan")
+        self.assertIn("because it needs a safe plan first", response["headline"])
+        self.assertIn("not execution evidence", response["claim_boundary"])
+        actions = {action["id"]: action for action in response["actions"]}
+        self.assertTrue(actions["accept_plan"]["enabled"])
+        self.assertTrue(actions["revise_plan"]["enabled"])
+        self.assertFalse(actions["prepare_handoff"]["enabled"])
+        self.assertTrue(response["state"]["coding_delegate_available"])
+        self.assertNotIn(message, json.dumps(payload))
 
     def test_chat_route_can_emit_complete_prompt_for_non_logging_wrappers(self) -> None:
         status, stdout, stderr = run_cli(["chat", "route", "--include-message", "--source", "discord", "risky", "refactor"])
@@ -235,6 +270,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
         self.assertNotIn("suggested_prompt", json.dumps(payload))
         self.assertNotIn("risky refactor", json.dumps(payload))
+
+    def test_demo_orchestration_shows_recommend_chat_plan_handoff_status(self) -> None:
+        message = "I want to safely add a feature to this repo"
+        status, stdout, stderr = run_cli(["demo", "orchestration"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        self.assertEqual(payload["schema_version"], "orchestration_demo/v1")
+        self.assertEqual([step["id"] for step in payload["steps"]], ["recommend", "chat", "plan", "handoff", "status_card"])
+        self.assertEqual(payload["steps"][0]["payload"]["recommendations"][0]["skill"], "plan")
+        handoff = payload["steps"][3]["payload"]["executor_handoff"]
+        self.assertEqual(handoff["status"], "prepared_not_observed")
+        status_card = payload["steps"][4]["payload"]["status_card"]
+        self.assertEqual(status_card["schema_version"], "status_card/v1")
+        self.assertEqual(status_card["next_action"], "dispatch_to_executor")
+        self.assertIn("executor_result", payload["not_observed"])
+        self.assertNotIn(message, json.dumps(payload))
 
     def test_coding_delegate_include_message_expands_prompt_for_non_logging_wrappers(self) -> None:
         status, stdout, stderr = run_cli(["coding", "delegate", "--include-message", "risky", "refactor"])
