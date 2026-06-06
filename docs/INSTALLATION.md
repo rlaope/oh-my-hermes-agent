@@ -1,9 +1,44 @@
 # Installation
 
-This guide is for users who want to install and apply the Hermes skill pack
-without cloning this repository.
+This guide is for users and operators who want Hermes Agent to see the OMH
+skill pack. Normal users should talk to Hermes through Hermes' skill and chat
+surfaces. The `omh` command is bootstrap, repair, verification, and wrapper
+backend infrastructure.
 
-## Install
+## Install Path A: Hermes-Native Skill Tap
+
+Use this path when the target Hermes environment supports skill taps:
+
+```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
+```
+
+Install additional workflow skills when you want direct Hermes skill surfaces:
+
+```sh
+hermes skills install deep-interview
+hermes skills install ralplan
+hermes skills install web-research
+hermes skills install code-review
+```
+
+This path reads the tap-compatible skill pack under `skills/` in this
+repository. After installation, restart or refresh Hermes Agent if the target
+environment requires it, then use Hermes normally:
+
+```text
+I want to safely add a feature to this repo
+```
+
+Hermes should route through the installed skill guidance without asking the
+chat user to run `omh` commands.
+
+## Install Path B: OMH Bootstrap Setup
+
+Use this path when you want a Python installer, generated managed skills,
+local doctor checks, or wrapper/backend operations in the same runtime context
+as a hosted Hermes wrapper.
 
 Run the installer:
 
@@ -26,8 +61,13 @@ The installer prepares the `omh` command, runs `omh setup` to install managed
 Hermes skills and register the managed skill directory with Hermes, then runs
 `omh doctor` as a separate health check.
 
-After it finishes, restart Hermes Agent so it can reload the registered skill
-directory.
+From the user's point of view, the intended final state matches the Hermes tap
+path: Hermes can discover OMH skills and the user talks to Hermes. `omh setup`
+is the bootstrap/maintenance route that produces that state through generated
+skills and `skills.external_dirs`.
+
+After it finishes, restart Hermes Agent or the hosted wrapper so it can reload
+the registered skill directory.
 
 ## Set Up And Verify
 
@@ -42,8 +82,15 @@ omh runtime status
 omh probe
 ```
 
-`omh setup` should report install and apply steps. `omh doctor` should report a
-healthy setup result. `omh list` should show the managed skills available to Hermes.
+`omh setup` should report install and apply steps plus a
+`hermes_native_setup/v1` block that names the equivalent Hermes skill install
+path, managed skill directory, and `skills.external_dirs` registration key.
+`hermes_native.observed` means the local bootstrap/apply step actually ran; it
+does not prove Hermes has reloaded or used the skill yet.
+`discovery_status: config_registered_reload_required` means restart or refresh
+Hermes before claiming the skill is visible in chat.
+`omh doctor` should report a healthy setup result. `omh list` should show the
+managed skills available to Hermes.
 `omh runtime status` should show the local runtime artifact directory and the
 latest install/apply/doctor state when those commands have run. `omh probe`
 reports observable Hermes capability surfaces without mutating Hermes internals.
@@ -57,13 +104,13 @@ The public project site at
 this `docs/` directory and the root README as the source of truth for operating
 details.
 
-## Chat Wrapper Flow
+## Chat Wrapper Backend Flow
 
 If Hermes Agent is running behind a Discord bot, Slack app, or hosted chat
 adapter, install `oh-my-hermes-agent` on the same machine, container, or runtime
 image that starts the wrapper.
 
-The flow is:
+The backend flow is:
 
 1. The wrapper receives a user message in Discord, Slack, or another chat
    surface.
@@ -92,7 +139,7 @@ connections, invoke Codex, or patch Hermes internals. It prepares deterministic
 local contracts that a wrapper can render, dispatch, and later update with
 observed evidence.
 
-For a hosted bot, the practical deployment shape is usually:
+For a hosted bot, the practical bootstrap shape is usually:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh

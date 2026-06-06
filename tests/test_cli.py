@@ -1323,14 +1323,47 @@ class CliTests(unittest.TestCase):
             self.assertIn("install", payload["steps"])
             self.assertIn("apply", payload["steps"])
             self.assertNotIn("doctor", payload["steps"])
+            self.assertEqual(payload["hermes_native"]["schema_version"], "hermes_native_setup/v1")
+            self.assertEqual(payload["hermes_native"]["mode"], "omh_bootstrap")
+            self.assertFalse(payload["hermes_native"]["dry_run"])
+            self.assertTrue(payload["hermes_native"]["observed"])
+            self.assertIn("local install/apply steps only", payload["hermes_native"]["observed_scope"])
+            self.assertEqual(payload["hermes_native"]["discovery_status"], "config_registered_reload_required")
+            self.assertTrue(payload["hermes_native"]["requires_hermes_reload"])
+            self.assertIn("Hermes Agent chat", payload["hermes_native"]["normal_user_surface"])
+            self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", payload["hermes_native"]["equivalent_hermes_commands"])
+            self.assertIn("hermes skills install oh-my-hermes", payload["hermes_native"]["equivalent_hermes_commands"])
+            self.assertEqual(payload["hermes_native"]["hermes_config_key"], "skills.external_dirs")
+            self.assertIn("not the normal chat UX", payload["hermes_native"]["wrapper_backend_surface"])
             self.assertIn(str(omh_home / "skills"), (hermes_home / "config.yaml").read_text(encoding="utf-8"))
             state = json.loads((omh_home / "runtime" / "state.json").read_text(encoding="utf-8"))
             self.assertTrue(state["last_setup"]["ok"])
+            self.assertEqual(state["last_setup"]["hermes_native"]["schema_version"], "hermes_native_setup/v1")
+            self.assertEqual(state["last_setup"]["hermes_native"]["skills_dir"], str((omh_home / "skills").resolve()))
 
             doctor_status, doctor_stdout, doctor_stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "doctor"])
             self.assertEqual(doctor_stderr, "")
             self.assertEqual(doctor_status, 0)
             self.assertTrue(json.loads(doctor_stdout)["ok"])
+
+    def test_setup_dry_run_marks_bootstrap_state_unobserved(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+
+            status, stdout, stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "setup", "--dry-run"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            payload = json.loads(stdout)
+            self.assertTrue(payload["dry_run"])
+            self.assertTrue(payload["hermes_native"]["dry_run"])
+            self.assertFalse(payload["hermes_native"]["observed"])
+            self.assertEqual(payload["hermes_native"]["discovery_status"], "dry_run_not_observed")
+            self.assertTrue(payload["hermes_native"]["requires_hermes_reload"])
+            self.assertIn("dry run would install", payload["hermes_native"]["bootstrap_final_state"])
+            self.assertFalse((hermes_home / "config.yaml").exists())
 
     def test_install_is_idempotent_and_detects_local_modifications(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -1540,7 +1573,14 @@ class CliTests(unittest.TestCase):
             status, stdout, stderr = run_cli(["docs", "workflows", "--output", str(output), "--check"])
             self.assertEqual(stderr, "")
             self.assertEqual(status, 0)
-            self.assertIn("checked", stdout)
+            checked = json.loads(stdout)
+            self.assertIn("checked", checked)
+            self.assertTrue(checked["tap_skills"]["ok"])
+            self.assertEqual(checked["tap_skills"]["expected"], 20)
+            self.assertEqual(checked["tap_skills"]["checked"], 20)
+            self.assertEqual(checked["tap_skills"]["missing"], [])
+            self.assertEqual(checked["tap_skills"]["stale"], [])
+            self.assertEqual(checked["tap_skills"]["extra"], [])
 
             output.write_text(output.read_text(encoding="utf-8") + "\nstale\n", encoding="utf-8")
             status, _, stderr = run_cli(["docs", "workflows", "--output", str(output), "--check"])

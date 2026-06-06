@@ -18,8 +18,8 @@ repo-local contract for Codex agents working here.
 | Choose a situation-level pipeline | [Playbooks](PLAYBOOKS.md) |
 | See Discord-style wrapper responses | [Chat Wrapper Examples](CHAT_WRAPPER_EXAMPLES.md) |
 | Render workflow quality gates in wrappers | [Harness Quality Contract](HARNESS_QUALITY.md) |
-| Run deterministic wrapper demos | [`omh demo orchestration`](../README.md#quick-start) and [fixture shims](../examples) |
-| Install or operate the preview package | [Installation](INSTALLATION.md) |
+| Install Hermes-native skills or bootstrap managed skills | [Installation](INSTALLATION.md) |
+| Run deterministic backend demos | [`omh demo orchestration`](../README.md#backend--operator-surface) and [fixture shims](../examples) |
 | See realistic user-facing flows | [Application Cases](APPLICATION_CASES.md) |
 | Check generated skill and harness metadata | [Workflow Reference](WORKFLOWS.md) |
 | Prepare or verify a release | [Release](RELEASE.md) |
@@ -47,6 +47,9 @@ merge.
 - Chat users should remain command-agnostic. Wrapper docs should describe
   buttons, threads, status, and handoff states rather than asking end users to
   run shell commands.
+- Installation docs should lead with Hermes skill tap/install when available.
+  `omh setup` should be described as a bootstrap, repair, validation, and
+  wrapper/backend path that creates the same Hermes-visible skill state.
 - Operator runbooks should use document titles, not command-like names, when
   they describe wrapper responsibilities and status evidence.
 - Demo and shim examples should stay fixture-backed, deterministic, and

@@ -39,19 +39,28 @@
           <p class="eyebrow">Documentation</p>
           <h1>Use OMH as a local contract layer for Hermes.</h1>
           <p>
-            OMH helps a chat-facing Hermes agent turn natural language into deterministic
+            OMH gives Hermes installed skill guidance for turning natural language into deterministic
             routing, clarification, planning, status narration, or Codex-ready coding handoffs.
-            It does this with local CLI contracts and schema-versioned artifacts.
+            Local backend contracts and schema-versioned artifacts support wrappers and operators
+            without becoming the normal user UX.
           </p>
         </header>
 
         <section class="docs-section" id="install">
           <h2>Install</h2>
           <p>
-            Install the preview channel from the main branch, then run setup and
-            doctor before wiring wrappers or handoff flows.
+            Install through Hermes skill taps when available. This keeps the
+            main experience inside Hermes.
           </p>
           <div class="command" role="region" aria-label="Install commands" tabindex="0">
+            <code>hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes</code>
+          </div>
+          <p>
+            Use the OMH bootstrap path when you need generated managed skills,
+            local doctor checks, or wrapper/backend commands in the same runtime.
+          </p>
+          <div class="command" role="region" aria-label="Bootstrap commands" tabindex="0">
             <code>curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
 omh setup
 omh doctor</code>
@@ -69,16 +78,18 @@ omh doctor</code>
           <h2>Chat wrappers</h2>
           <p>
             Wrappers own platform-specific work: Discord or Slack auth, incoming events,
-            buttons, threads, edits, and notifications. OMH owns the deterministic response
-            contract that tells the wrapper what kind of UX to render.
+            buttons, threads, edits, and notifications. Hermes owns the chat experience;
+            OMH owns the deterministic backend response contract when a wrapper needs
+            renderable state.
           </p>
           <div class="command" role="region" aria-label="Chat interaction command" tabindex="0">
             <code>omh chat interact --source discord "risky refactor"
 omh chat interact --source slack "diagnose installation health"</code>
           </div>
           <p>
-            A response can be an answer, a clarification request, a plan, a status card, or a
-            prepared handoff. The wrapper should render that response natively instead of
+            These are adapter backend calls. A response can be an answer, a clarification
+            request, a plan, a status card, or a prepared handoff. The wrapper should render
+            that response natively instead of
             asking users to memorize CLI commands.
           </p>
         </section>
@@ -123,14 +134,19 @@ uv run python examples/slack-adapter-shim.py</code>
         <section class="docs-section" id="architecture">
           <h2>Architecture at a glance</h2>
           <p>
-            OMH sits between chat wrappers and executor lanes. It gives wrappers
-            deterministic local contracts while keeping Hermes responsible for
+            OMH starts as installed Hermes skills. Wrapper backends can consume
+            deterministic local contracts while Hermes stays responsible for
             conversation, planning, and status narration.
           </p>
           <div class="architecture-map" aria-label="OMH architecture diagram">
             <div class="arch-node arch-node--source">
               <span>User message</span>
-              <strong>Discord, Slack, hosted chat</strong>
+              <strong>Hermes, Discord, Slack, hosted chat</strong>
+            </div>
+            <div class="arch-arrow" aria-hidden="true">-></div>
+            <div class="arch-node arch-node--hermes">
+              <span>Hermes Agent</span>
+              <strong>Clarify, research, plan, narrate</strong>
             </div>
             <div class="arch-arrow" aria-hidden="true">-></div>
             <div class="arch-node">
@@ -144,8 +160,8 @@ uv run python examples/slack-adapter-shim.py</code>
             </div>
             <div class="arch-branch" aria-hidden="true"></div>
             <div class="arch-node arch-node--hermes">
-              <span>Hermes Agent</span>
-              <strong>Clarify, research, plan, narrate</strong>
+              <span>Installed OMH skills</span>
+              <strong>Tap install or omh setup</strong>
             </div>
             <div class="arch-node arch-node--executor">
               <span>Codex-like executor</span>
@@ -166,7 +182,8 @@ uv run python examples/slack-adapter-shim.py</code>
         <section class="docs-section" id="playbooks">
           <h2>Playbooks</h2>
           <p>
-            Playbooks sit above individual skills. They describe situation-level
+            Playbooks sit above individual skills. Hermes users should not run them directly;
+            wrappers and maintainers can inspect situation-level
             pipelines for source-backed research, deep interview to plan, safe
             coding handoff, local pipeline buildout, and release-readiness review.
           </p>

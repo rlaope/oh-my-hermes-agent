@@ -10,8 +10,9 @@ of copied prompt files.
 
 The architecture favors:
 
-- a small command interface
-- reversible local installation
+- Hermes-native skill installation as the primary user-facing entry point
+- a small support command interface for bootstrap, verification, and wrappers
+- reversible local bootstrap installation
 - generated skill text from testable catalog data
 - explicit compatibility contracts
 - conservative routing behavior
@@ -27,7 +28,8 @@ separate runtime record exists.
 
 ```mermaid
 flowchart LR
-  user["User in Discord, Slack, or hosted chat"]
+  user["User in Hermes, Discord, Slack, or hosted chat"]
+  skills["Installed OMH skills\nHermes skill tap or omh setup"]
   wrapper["Wrapper adapter\nbuttons, threads, edits"]
   omh["OMH local contract layer\nplaybooks, routing, plan, handoff, status"]
   hermes["Hermes Agent\nclarify, research, plan, narrate"]
@@ -35,6 +37,8 @@ flowchart LR
   runtime["Local runtime artifacts\nprepared and observed evidence"]
   site["Docs and status UI\ncards, examples, reports"]
 
+  user --> hermes
+  skills --> hermes
   user --> wrapper
   wrapper -->|"chat_interaction/v1"| omh
   omh -->|"answer, clarify, plan, or status"| wrapper
@@ -49,9 +53,9 @@ flowchart LR
 
 ```text
 Chat user
-  -> Wrapper owns transport UX
-  -> OMH owns deterministic playbook and routing contracts
-  -> Hermes owns conversation, planning, and status narration
+  -> Hermes Agent owns conversation, planning, and status narration
+  -> Installed OMH skills provide workflow and evidence guidance
+  -> Optional wrapper owns transport UX and asks OMH for backend contracts
   -> Executor owns main coding work when dispatched
   -> Runtime artifacts own observed evidence
 ```
@@ -98,13 +102,20 @@ src/
     catalog.py
     packaging.py
     render.py
+skills/
+  <skill-name>/SKILL.md       # tap-compatible Hermes skill pack generated from the same catalog
 ```
 
 ## Main Modules
 
+`skills/` is the Hermes-native distribution surface. It mirrors the generated
+skill templates so `hermes skills tap add rlaope/oh-my-hermes-agent` can expose
+OMH directly when Hermes taps are available.
+
 `cli.py` is a compatibility adapter. `commands/main.py` owns command parsing
-and user-facing JSON output while the package gives future command groups a
-clearer home.
+and support JSON output for bootstrap, repair, verification, wrapper backends,
+and operator debugging while the package gives future command groups a clearer
+home.
 
 `ingress.py` owns platform-neutral message text and source metadata extraction
 for Discord, Slack, Hermes, and generic wrapper event shapes.
@@ -167,27 +178,30 @@ so older imports keep working while the package grows internally.
 
 ## Routing
 
-Routing, planning, and delegation have seven local surfaces:
+Routing, planning, and delegation have eight local surfaces:
 
-1. Prompt-level guidance. The router skill gives Hermes a structured map of
+1. Hermes-native installed skills. The tap-compatible `skills/` directory and
+   the managed `~/.omh/skills` bootstrap directory expose the same generated
+   guidance to Hermes.
+2. Prompt-level guidance. The router skill gives Hermes a structured map of
    workflow names and strong trigger phrases, but it does not override Hermes
    core behavior.
-2. Situation playbooks. `omh playbook recommend` lets wrappers map a natural
+3. Situation playbooks. `omh playbook recommend` lets wrappers map a natural
    request to a higher-level pipeline before they choose a lower-level skill,
    plan, research lane, or handoff.
-3. Wrapper-native chat orchestration. `omh chat interact` lets Discord, Slack,
+4. Wrapper-native chat orchestration. `omh chat interact` lets Discord, Slack,
    or hosted Hermes wrappers receive one platform-neutral `chat_interaction/v1`
    envelope with renderable chat copy, state, action buttons, and a thread key.
-4. Wrapper session persistence. `omh chat session` lets wrappers persist
+5. Wrapper session persistence. `omh chat session` lets wrappers persist
    metadata-only plan decisions, recover status by `session_id`, and link an
    accepted plan to a prepared coding run without owning execution evidence.
-5. Wrapper-assisted chat routing. `omh chat route` lets Discord, Slack, or
+6. Wrapper-assisted chat routing. `omh chat route` lets Discord, Slack, or
    hosted Hermes wrappers run a deterministic pre-dispatch decision before they
    forward a plain user message to Hermes.
-6. Wrapper-assisted coding delegation. `omh coding delegate` lets wrappers turn
+7. Wrapper-assisted coding delegation. `omh coding delegate` lets wrappers turn
    implementation-shaped messages into a deterministic `coding_delegation/v1`
    handoff payload for an executor lane.
-7. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
+8. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
    operators create deterministic `hermes_plan/v1` planning scaffolds under
    `.hermes/plans/` without claiming that execution or review already happened.
 

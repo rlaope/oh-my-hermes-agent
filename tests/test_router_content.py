@@ -21,6 +21,9 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("omh chat route", router.content)
         self.assertIn("omh coding delegate", router.content)
         self.assertIn("deterministic wrapper-side decision layer", router.content)
+        self.assertIn("Normal users should talk to Hermes Agent", router.content)
+        self.assertIn("Hermes-native install paths should converge", router.content)
+        self.assertIn("skills.external_dirs", router.content)
         self.assertIn("Skill Role Classification", router.content)
         self.assertIn("advisory wrapper guidance", router.content)
         self.assertIn("This role metadata is advisory", router.content)
@@ -47,6 +50,16 @@ class RouterContentTests(unittest.TestCase):
             "code-review",
         }:
             self.assertIn(expected, names)
+
+    def test_repo_root_tap_skills_match_generated_templates(self) -> None:
+        templates = {template.name: template for template in builtin_skill_templates()}
+
+        for name, template in templates.items():
+            path = Path("skills") / name / "SKILL.md"
+            self.assertTrue(path.exists(), f"{path} should be present for Hermes skill taps")
+            self.assertEqual(path.read_text(encoding="utf-8"), template.content)
+
+        self.assertEqual({path.parent.name for path in Path("skills").glob("*/SKILL.md")}, set(templates))
 
     def test_router_renders_representative_harness_registry(self) -> None:
         router = next(skill for skill in builtin_skill_templates() if skill.name == "oh-my-hermes")
@@ -208,6 +221,7 @@ class RouterContentTests(unittest.TestCase):
             *Path("src").rglob("*.py"),
             *Path("tests").rglob("*.py"),
             *Path("docs").rglob("*.md"),
+            *Path("skills").rglob("*"),
             *Path("examples").rglob("*"),
             *Path("site").rglob("*"),
             *Path(".github").rglob("*.md"),
@@ -270,6 +284,8 @@ class RouterContentTests(unittest.TestCase):
         site_docs = Path("site/docs/index.html").read_text(encoding="utf-8")
         site_css = Path("site/styles.css").read_text(encoding="utf-8")
 
+        self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", readme)
+        self.assertIn("hermes skills install oh-my-hermes", readme)
         self.assertIn("curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh", readme)
         self.assertIn("https://rlaope.github.io/oh-my-hermes-agent/", readme)
         self.assertIn("[Documentation](docs/README.md)", readme)
@@ -278,15 +294,17 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("[GitHub Pages site](site/index.html)", readme)
         self.assertIn("OMH_CHANNEL=stable OMH_VERSION=<version>", readme)
         self.assertIn("v<version>", readme)
-        self.assertIn("The installer runs setup automatically", readme)
+        self.assertIn("`omh setup` installs generated skills", readme)
         self.assertIn("omh setup", readme)
         self.assertIn("omh doctor", readme)
-        self.assertIn("## Command Surface", readme)
+        self.assertIn("## Backend / Operator Surface", readme)
         self.assertIn("omh docs workflows --json", readme)
         self.assertIn("omh harness validate", readme)
-        self.assertIn("Root README intentionally shows the small public surface", readme)
+        self.assertIn("The primary product surface is installed Hermes skills", readme)
         self.assertNotIn("Useful local and wrapper-debug commands", readme)
-        self.assertIn("Chat Wrapper Flow", installation)
+        self.assertIn("Install Path A: Hermes-Native Skill Tap", installation)
+        self.assertIn("hermes_native_setup/v1", installation)
+        self.assertIn("Chat Wrapper Backend Flow", installation)
         self.assertIn("omh chat interact", installation)
         self.assertIn("harness_quality/v1", installation)
         self.assertIn("omh docs workflows --json", installation)
@@ -324,11 +342,14 @@ class RouterContentTests(unittest.TestCase):
         self.assertNotIn('href="#architecture"', topbar)
         self.assertNotIn('href="#install"', topbar)
         self.assertNotIn("GitHub", topbar)
-        hero_command = site.split('aria-label="Download OMH command"', 1)[1].split("</code>", 1)[0]
-        self.assertIn("omh setup", hero_command)
+        hero_command = site.split('aria-label="Hermes skill install commands"', 1)[1].split("</code>", 1)[0]
+        self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", hero_command)
+        self.assertIn("hermes skills install oh-my-hermes", hero_command)
+        self.assertNotIn("omh setup", hero_command)
         self.assertNotIn("omh doctor", hero_command)
         self.assertNotIn("github.com/rlaope/oh-my-hermes-agent/tree/main/docs", site)
         self.assertIn("OMH Documentation", site_docs)
+        self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", site_docs)
         self.assertIn("omh chat interact --source discord", site_docs)
         self.assertIn("chat_response/v1", site_docs)
         self.assertIn("harness_progress/v1", site_docs)
@@ -350,6 +371,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("One user goal should normally produce one PR.", direction)
         self.assertIn("Keep users command-agnostic in chat.", direction)
         self.assertIn("The goal is parity of seriousness, not parity of implementation shape.", direction)
+        self.assertIn("Skill-first distribution.", direction)
         self.assertIn("This directory is the public operating map", docs_index)
         self.assertIn("prepared versus observed evidence", docs_index)
         self.assertIn("Chat users should remain command-agnostic.", docs_index)

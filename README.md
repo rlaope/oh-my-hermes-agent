@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Hermes-native workflow skills, installed with one small command.</strong>
+  <strong>Hermes-native workflow skills for chat-first orchestration.</strong>
   <br>
   <em>Give Hermes Agent a consistent skill pack for routing, planning, durable execution, review, cleanup, and QA.</em>
 </p>
@@ -25,8 +25,8 @@ plain user message into a clear next step: answer, clarify, research, plan,
 delegate coding, or report status.
 
 [Website](https://rlaope.github.io/oh-my-hermes-agent/) -
-[Quick Start](#quick-start) - [Command Surface](#command-surface) -
-[Wrapper Flow](#wrapper-flow) - [Documentation](docs/README.md) -
+[Quick Start](#quick-start) - [Two Install Paths](#two-install-paths) -
+[Backend Surface](#backend--operator-surface) - [Documentation](docs/README.md) -
 [Installation](docs/INSTALLATION.md) - [Application Cases](docs/APPLICATION_CASES.md)
 
 ---
@@ -47,38 +47,80 @@ delegate coding, or report status.
 
 | Surface | What it provides |
 | --- | --- |
-| Managed skills | Generated Hermes skill guidance under `~/.omh/skills`. |
-| Local installer | Reversible setup, install, update, apply, doctor, and uninstall commands. |
+| Hermes skill tap | Tap-compatible skills under `skills/<name>/SKILL.md` for Hermes-native install. |
+| Bootstrap setup | `omh setup` installs the same generated skills under `~/.omh/skills` and registers `skills.external_dirs`. |
 | Skill catalog | Deterministic routing metadata from `src/skills/catalog.py`. |
 | Playbooks | Situation-level pipelines for research, planning, wrapper UX, and coding handoff flows. |
 | Harness quality | Machine-readable quality bars, evidence ladders, wrapper actions, and overclaim guards. |
-| Wrapper contract | `chat_interaction/v1` responses for Discord, Slack, and hosted adapters. |
+| Wrapper backend contract | `chat_interaction/v1` responses for Discord, Slack, and hosted adapters. |
 | Planning artifacts | Hermes-facing Markdown plans under `~/.hermes/plans`. |
 | Coding handoffs | Prepared executor payloads with acceptance, review, and verification expectations. |
 | Runtime evidence | Metadata-only run/session records under `~/.omh/runtime`. |
 
 ## Quick Start
 
-**Step 1: Install**
+**Step 1: Install the Hermes skills**
+
+```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
+```
+
+Install additional workflow skills when you want them exposed directly in
+Hermes:
+
+```sh
+hermes skills install deep-interview
+hermes skills install ralplan
+hermes skills install web-research
+hermes skills install code-review
+```
+
+**Step 2: Talk to Hermes**
+
+Send a normal message in Hermes Agent, Discord, Slack, or a hosted Hermes
+wrapper:
+
+```text
+I want to safely add a feature to this repo
+```
+
+Hermes should use the installed OMH guidance to decide whether to answer,
+clarify, research, plan, prepare a coding handoff, or report status. Users
+should not need to know `omh recommend`, `omh chat interact`, or other backend
+commands.
+
+## Two Install Paths
+
+### Path A: Hermes-native skill install
+
+Use this when Hermes skill taps are available in the target environment:
+
+```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
+```
+
+This installs from the repo's tap-compatible `skills/` directory and keeps the
+main UX inside Hermes.
+
+### Path B: OMH bootstrap setup
+
+Use this when you want a Python installer, repair command, generated managed
+skills, local doctor checks, or wrapper/backend commands:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
-```
-
-**Step 2: Set Up OMH**
-
-The installer runs setup automatically. Re-run it any time you want to reinstall
-managed skills and reapply Hermes config:
-
-```sh
 omh setup
 omh doctor
 ```
 
-`omh doctor` is the separate health check. Then open Hermes Agent and use the
-installed skills through Hermes' normal skill surfaces.
+`omh setup` installs generated skills under `~/.omh/skills` and registers that
+directory through Hermes' `skills.external_dirs`. The intended final state is
+the same from the user's point of view: Hermes sees OMH skills, and the user
+talks to Hermes.
 
-**Step 3: Try one wrapper-shaped turn**
+**Optional operator smoke test**
 
 ```sh
 omh chat interact --source discord "I want to safely add a feature to this repo"
@@ -87,7 +129,7 @@ omh chat interact --source discord "I want to safely add a feature to this repo"
 That returns a `chat_interaction/v1` JSON envelope a Discord, Slack, or hosted
 adapter can render without exposing shell commands to the end user.
 
-**Step 4: Try the full local demo**
+**Optional local demo**
 
 ```sh
 omh demo orchestration
@@ -97,15 +139,15 @@ The demo is deterministic and transport-free. It shows the full
 recommend -> chat response -> Hermes plan -> Codex handoff -> status card path
 without calling an LLM, bot SDK, network API, or Hermes core patch.
 
-**Step 5: Pick a situation playbook**
+**Optional playbook inspection**
 
 ```sh
 omh playbook recommend "I want to safely add a feature to this repo"
 ```
 
-Playbooks describe the wrapper-visible pipeline for situations such as
-source-backed research, deep interview to plan, safe feature change,
-release-readiness review, and local pipeline buildout.
+Playbooks are backend/operator contracts that describe the wrapper-visible
+pipeline for situations such as source-backed research, deep interview to plan,
+safe feature change, release-readiness review, and local pipeline buildout.
 
 ### Stable Install
 
@@ -133,9 +175,9 @@ OMHM is a local contract layer around Hermes, not a replacement runtime.
 
 ```text
 User chat
-  -> Discord, Slack, or hosted wrapper
-  -> omh chat interact
-  -> Hermes skill guidance, plan, status, or coding handoff
+  -> Hermes Agent with installed OMH skills
+  -> optional Discord, Slack, or hosted wrapper
+  -> optional OMH backend contract for buttons, plans, handoffs, and status
   -> external executor only when coding work is accepted
   -> observed evidence recorded back into local runtime artifacts
 ```
@@ -143,9 +185,11 @@ User chat
 `omh apply` updates only Hermes' `skills.external_dirs` registration. It does
 not rewrite workspace instructions or modify Hermes internals.
 
-## Wrapper Flow
+## Wrapper Backend Flow
 
-Wrappers should treat `omh chat interact` as the primary API.
+Wrappers can treat `omh chat interact` as their local backend API. End users
+should see Hermes chat responses, buttons, threads, and status cards, not shell
+commands.
 
 1. Receive a natural-language user message.
 2. Call `omh chat interact` with a platform source and message or event JSON.
@@ -234,16 +278,17 @@ Hermes plans include a deterministic `quality_gate` and `deep_interview`
 contract. Blocked plans ask one concise question; draft plans remain unapproved
 until the wrapper or user accepts them.
 
-## Command Surface
+## Backend / Operator Surface
 
-Root README intentionally shows the small public surface. Lower-level runtime
-and debug commands remain available, but they are documented in focused guides
-instead of presented as the first path.
+The primary product surface is installed Hermes skills. The `omh` command is
+support infrastructure for bootstrap, repair, verification, wrapper contracts,
+smoke tests, runtime evidence, and operator debugging.
 
 | Need | Command |
 | --- | --- |
-| Install | `curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh \| sh` |
-| Set up or repair | `omh setup` |
+| Hermes-native install | `hermes skills tap add rlaope/oh-my-hermes-agent && hermes skills install oh-my-hermes` |
+| Bootstrap install | `curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh \| sh` |
+| Set up or repair managed skills | `omh setup` |
 | Verify only | `omh doctor` |
 | Update | `omh update && omh setup && omh doctor` |
 | Inspect installed skills | `omh list` |

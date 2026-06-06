@@ -8,9 +8,16 @@ public claims are all checked.
 
 | Channel | Purpose | Install target |
 | --- | --- | --- |
-| `stable` | Pinned user installs and support reproduction | Published Git tag archive such as `v<version>` |
-| `preview` | Latest `main` for early testing | `main` branch archive |
+| `stable` | Pinned user installs and support reproduction | Hermes skill tap plus published Git tag archive such as `v<version>` |
+| `preview` | Latest `main` for early testing | Hermes skill tap plus `main` branch archive |
 | `local` | Maintainer smoke tests from local fixtures | Explicit local source or package URL |
+
+Hermes-native skill install:
+
+```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
+```
 
 Pinned stable install:
 
@@ -40,6 +47,7 @@ python3 -m compileall src
 python3 -m src.cli docs workflows --check
 python3 -m src.cli harness validate
 python3 -m src.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke install --dry-run --channel stable --version 0.1.0
+python3 -m src.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke setup --dry-run --channel stable --version 0.1.0
 python3 -m src.cli --omh-home /tmp/omh-smoke --hermes-home /tmp/hermes-smoke probe
 ```
 
@@ -57,7 +65,7 @@ python3 -m src.cli --omh-home /tmp/omh-smoke runtime export --redacted
 ## Release Notes Must Include
 
 - Release version and channel.
-- Install target used for smoke testing.
+- Hermes skill tap/install wording and bootstrap install target used for smoke testing.
 - Update path tested.
 - Workflow docs generation status.
 - Harness catalog validation status.

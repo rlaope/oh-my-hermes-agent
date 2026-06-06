@@ -61,7 +61,7 @@ from ..runtime.artifacts import (
 )
 from ..skills.render import workflow_reference_markdown, workflow_reference_payload
 from ..skills.validation import harness_inspection_payload, harness_summary_payload, validate_catalog_contract
-from ..skill_pack import builtin_harnesses, builtin_definitions
+from ..skill_pack import builtin_harnesses, builtin_definitions, builtin_skill_templates
 from ..snippet import WORKSPACE_SNIPPET
 from ..workflow_state import (
     LIFECYCLE_OUTCOMES,
@@ -211,23 +211,61 @@ def _doctor_result(args: argparse.Namespace) -> dict[str, object]:
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
+    paths = _paths(args)
     steps: dict[str, object] = {"install": _install_result(args)}
     if args.skip_apply:
         steps["apply"] = {"skipped": True, "message": "Skipped Hermes config registration because --skip-apply was set."}
     else:
         steps["apply"] = _apply_result(args)
+    if args.dry_run:
+        bootstrap_final_state = (
+            "dry run would install generated skills and register the managed OMH skills directory for Hermes discovery"
+            if not args.skip_apply
+            else "dry run would install generated skills, but Hermes discovery registration would be skipped"
+        )
+    elif args.skip_apply:
+        bootstrap_final_state = "generated skills are installed, but Hermes discovery registration was skipped"
+    else:
+        bootstrap_final_state = "generated skills are installed in the managed OMH skills directory and registered for Hermes discovery"
+    discovery_status = (
+        "dry_run_not_observed"
+        if args.dry_run
+        else "not_registered_skip_apply"
+        if args.skip_apply
+        else "config_registered_reload_required"
+    )
+    hermes_native = {
+        "schema_version": "hermes_native_setup/v1",
+        "mode": "omh_bootstrap",
+        "dry_run": bool(args.dry_run),
+        "observed": not args.dry_run and not args.skip_apply,
+        "observed_scope": "local install/apply steps only; this does not prove Hermes reloaded or used the skill",
+        "discovery_status": discovery_status,
+        "requires_hermes_reload": not args.skip_apply,
+        "normal_user_surface": "Hermes Agent chat and installed Hermes skills",
+        "equivalent_hermes_commands": [
+            "hermes skills tap add rlaope/oh-my-hermes-agent",
+            "hermes skills install oh-my-hermes",
+        ],
+        "bootstrap_final_state": bootstrap_final_state,
+        "skills_dir": str(paths.skills_dir),
+        "hermes_config_path": str(paths.hermes_config_path),
+        "hermes_config_key": "skills.external_dirs",
+        "wrapper_backend_surface": "omh chat interact and runtime commands are adapter/operator contracts, not the normal chat UX",
+    }
 
     if not args.dry_run:
         update_state(
-            _paths(args),
+            paths,
             {
                 "last_setup": {
                     "ok": True,
                     "apply_skipped": bool(args.skip_apply),
+                    "hermes_native": hermes_native,
                 }
             },
         )
-    _print_json({"ok": True, "steps": steps, "dry_run": args.dry_run})
+    _print_json({"ok": True, "steps": steps, "dry_run": args.dry_run, "hermes_native": hermes_native})
     return 0
 
 
@@ -878,7 +916,11 @@ def cmd_docs_workflows(args: argparse.Namespace) -> int:
             raise OmhError(f"workflow docs check failed: {exc}") from exc
         if current != content:
             raise OmhError(f"workflow docs are stale: {output}")
-        _print_json({"ok": True, "checked": str(output)})
+        tap_skills = _tap_skills_check_payload(Path("skills"))
+        if not tap_skills["ok"]:
+            stale = ", ".join(tap_skills["missing"] + tap_skills["stale"] + tap_skills["extra"])
+            raise OmhError(f"tap skills are stale: {stale}")
+        _print_json({"ok": True, "checked": str(output), "tap_skills": tap_skills})
         return 0
     if args.output:
         atomic_write_text(output, content)
@@ -886,6 +928,26 @@ def cmd_docs_workflows(args: argparse.Namespace) -> int:
         return 0
     print(content.rstrip())
     return 0
+
+
+def _tap_skills_check_payload(skills_root: Path) -> dict[str, object]:
+    templates = {template.name: template for template in builtin_skill_templates()}
+    paths = {path.parent.name: path for path in skills_root.glob("*/SKILL.md")}
+    missing = sorted(name for name in templates if name not in paths)
+    extra = sorted(name for name in paths if name not in templates)
+    stale: list[str] = []
+    for name, path in sorted(paths.items()):
+        if name in templates and path.read_text(encoding="utf-8") != templates[name].content:
+            stale.append(name)
+    return {
+        "ok": not missing and not stale and not extra,
+        "root": str(skills_root.resolve()),
+        "expected": len(templates),
+        "checked": len(paths),
+        "missing": missing,
+        "stale": stale,
+        "extra": extra,
+    }
 
 
 def cmd_harness_list(args: argparse.Namespace) -> int:
@@ -1441,7 +1503,10 @@ def _add_state_commands(sub) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="omh", description="Install oh-my-hermes skills for Hermes Agent.")
+    parser = argparse.ArgumentParser(
+        prog="omh",
+        description="Bootstrap, verify, and operate oh-my-hermes support contracts for Hermes Agent.",
+    )
     parser.add_argument("--omh-home", default=None)
     parser.add_argument("--hermes-home", default=None)
     sub = parser.add_subparsers(dest="command", required=True)

@@ -126,6 +126,13 @@ Use this skill when the user mentions oh-my-hermes or a workflow keyword such as
 
 This is best-effort Hermes prompt guidance. It does not override Hermes core routing and it does not claim exact runtime parity with another agent framework.
 
+Normal users should talk to Hermes Agent or invoke installed Hermes skills through Hermes' own skill surface. Do not ask chat users to run `omh` commands for ordinary workflow use. The `omh` command is bootstrap, maintenance, verification, and wrapper/backend infrastructure.
+
+Hermes-native install paths should converge on the same skill-visible state:
+
+- `hermes skills tap add rlaope/oh-my-hermes-agent`, then `hermes skills install oh-my-hermes` installs this tap-compatible skill pack directly when Hermes supports taps.
+- `omh setup` installs generated managed skills and registers their directory through `skills.external_dirs` when a local bootstrap or repair path is preferred.
+
 Priority:
 
 1. Explicit slash skill invocation wins.
@@ -142,9 +149,9 @@ Keep compatible workflow names installed, but use this advisory wrapper guidance
 
 General rule: Hermes should retain routing, web/source research, deep interview, planning, status, and evidence narration. This role metadata is advisory unless a wrapper/runtime artifact records observed enforcement. When the accepted next action mutates code, the wrapper should prepare a Codex handoff and track the lifecycle instead of implying Hermes coded secretly.
 
-## Wrapper-Assisted Chat Routing
+## Wrapper Backend Chat Routing
 
-Discord, Slack, or hosted Hermes wrappers can run `omh chat route` before dispatching a plain chat message to Hermes:
+Discord, Slack, or hosted Hermes wrappers can run `omh chat route` before dispatching a plain chat message to Hermes. This is an adapter/backend call, not end-user UX:
 
 ```sh
 omh chat route --source discord --record "risky refactor"
@@ -154,9 +161,9 @@ Use `route.routing_prompt_template` with `{{message}}` replaced by the received 
 
 This is a deterministic wrapper-side decision layer. By default, stdout and runtime artifacts avoid duplicating the raw prompt body. It does not patch Hermes core or require platform network access from `omh`.
 
-## Wrapper-Assisted Coding Delegation
+## Wrapper Backend Coding Delegation
 
-When a chat message is implementation-shaped and the wrapper wants a concrete executor handoff, run `omh coding delegate` after or instead of generic chat routing:
+When a chat message is implementation-shaped and the wrapper wants a concrete executor handoff, run `omh coding delegate` after or instead of generic chat routing. This prepares adapter data; Hermes still narrates the user-facing state:
 
 ```sh
 omh coding delegate --source discord --record "risky refactor"
@@ -168,7 +175,7 @@ With `--record`, `omh` writes `coding_delegation.json` under `.omh/runtime/runs/
 
 ## Hermes-Facing Planning
 
-For planning-shaped requests, wrappers or operators can run `omh hermes plan` to create a deterministic `hermes_plan/v1` planning scaffold:
+For planning-shaped requests, wrappers or operators can run `omh hermes plan` to create a deterministic `hermes_plan/v1` planning scaffold. In normal chat, Hermes can express this plan directly through the installed skill guidance:
 
 ```sh
 omh hermes plan --source discord --record "risky refactor with review"
