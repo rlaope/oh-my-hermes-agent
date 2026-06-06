@@ -82,6 +82,8 @@ Claim boundary: Preparation is not execution evidence.
 User-facing effect:
 
 - Prepared handoff is presented as ready to dispatch, not completed work.
+- The wrapper sends Codex the handoff's `$skill {message}` invocation, such as
+  `$ai-slop-cleaner {message}`, rather than asking the chat user to run it.
 - Execution, verification, CI, merge-readiness, and merge stay separate.
 - The wrapper can keep editing the same thread as evidence arrives.
 

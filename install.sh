@@ -75,4 +75,4 @@ else
 fi
 
 say "oh-my-hermes-agent is installed."
-say "Run 'omh list' to inspect installed skills, or 'omh setup' to reapply Hermes registration."
+say "Open Hermes Agent and use the installed OMH skills. Run 'omh doctor' for health checks or 'omh setup' to reapply Hermes registration."

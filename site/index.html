@@ -24,13 +24,13 @@
           <p class="eyebrow">Hermes-native workflow orchestration</p>
           <h1>OMH</h1>
           <p class="lead">
-            A local contract layer that helps Hermes turn chat messages into
+            A skill-first contract layer that helps Hermes turn chat messages into
             clarification, research, planning, status, or Codex-ready coding handoffs.
           </p>
-          <div class="hero-command" role="region" aria-label="Download OMH command" tabindex="0">
-            <span>Download OMH</span>
-            <code>curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
-omh setup</code>
+          <div class="hero-command" role="region" aria-label="Hermes skill install commands" tabindex="0">
+            <span>Install for Hermes</span>
+            <code>hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes</code>
           </div>
           <div class="hero-proof" aria-label="Core OMH contracts">
             <span>Natural chat routing</span>
@@ -48,15 +48,20 @@ omh setup</code>
         <div class="section__header">
           <h2>Architecture at a glance.</h2>
           <p>
-            OMH sits below the chat surface and above executor lanes: wrappers render UX,
-            Hermes keeps conversation and planning, and runtime artifacts decide what is
-            actually observed.
+            OMH starts as installed Hermes skills. Optional wrappers render UX,
+            backend contracts shape buttons and status, and runtime artifacts decide
+            what is actually observed.
           </p>
         </div>
         <div class="architecture-map" aria-label="OMH architecture diagram">
           <div class="arch-node arch-node--source">
             <span>User message</span>
-            <strong>Discord, Slack, hosted chat</strong>
+            <strong>Hermes, Discord, Slack, hosted chat</strong>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">-></div>
+          <div class="arch-node arch-node--hermes">
+            <span>Hermes Agent</span>
+            <strong>Clarify, research, plan, narrate</strong>
           </div>
           <div class="arch-arrow" aria-hidden="true">-></div>
           <div class="arch-node">
@@ -70,8 +75,8 @@ omh setup</code>
           </div>
           <div class="arch-branch" aria-hidden="true"></div>
           <div class="arch-node arch-node--hermes">
-            <span>Hermes Agent</span>
-            <strong>Clarify, research, plan, narrate</strong>
+            <span>Installed OMH skills</span>
+            <strong>Tap install or omh setup</strong>
           </div>
           <div class="arch-node arch-node--executor">
             <span>Codex-like executor</span>
@@ -88,9 +93,9 @@ omh setup</code>
         <div class="section__header">
           <h2>Situation playbooks for real wrapper work.</h2>
           <p>
-            OMH can describe the whole local pipeline for common situations:
-            research, deep interview, planning, safe coding handoff, status, and
-            release-readiness review.
+              Hermes sees the installed skills first. Wrapper operators can inspect the
+              same local pipeline contracts for research, deep interview, planning,
+              safe coding handoff, status, and release-readiness review.
           </p>
         </div>
         <div class="grid">
@@ -117,7 +122,8 @@ omh setup</code>
           </article>
         </div>
         <div class="command command--inline" role="region" aria-label="Playbook commands" tabindex="0">
-          <code>omh playbook recommend "I want to safely add a feature to this repo"
+          <code># operator/backend inspection
+omh playbook recommend "I want to safely add a feature to this repo"
 omh playbook inspect safe-feature-change</code>
         </div>
       </section>
@@ -248,8 +254,8 @@ omh playbook inspect safe-feature-change</code>
             <div class="step">
               <div class="step__num">2</div>
               <div>
-                <h3>Ask OMH for a contract</h3>
-                <p>Local CLI output tells the wrapper whether to answer, clarify, plan, or hand off. <code>omh demo orchestration</code> shows the full path.</p>
+                <h3>Ask the backend when needed</h3>
+                <p>Local contract output tells the wrapper whether to answer, clarify, plan, or hand off. <code>omh demo orchestration</code> shows the full path.</p>
               </div>
             </div>
             <div class="step">
@@ -266,10 +272,11 @@ omh playbook inspect safe-feature-change</code>
       <section class="section section--light" id="install">
         <div class="band">
           <div>
-            <h2>Install the preview channel.</h2>
+            <h2>Bootstrap when you need local operators.</h2>
             <p>
-              The installer writes managed Hermes skills, registers the skill directory,
-              and leaves runtime artifacts local and inspectable.
+              Hermes skill tap is the primary entry point. The installer writes managed
+              Hermes skills, registers the skill directory, and leaves runtime artifacts
+              local and inspectable for wrappers and maintainers.
             </p>
           </div>
           <div class="command" role="region" aria-label="Install command" tabindex="0">

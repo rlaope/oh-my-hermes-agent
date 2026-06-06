@@ -8,7 +8,15 @@ Hermes runtime behavior.
 
 ### Setup
 
-Install and apply the managed skill pack:
+Install the Hermes skill pack through Hermes' native skill surface:
+
+```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
+```
+
+If the deployment needs the managed bootstrap path, install and verify the same
+Hermes-visible state through OMH:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
@@ -81,9 +89,12 @@ router beyond Hermes' normal skill loading behavior.
 
 ### Setup
 
-Confirm the skill pack is installed and registered:
+Confirm the skill pack is installed through Hermes or registered through the
+OMH bootstrap path:
 
 ```sh
+hermes skills install deep-interview
+hermes skills install ralplan
 omh setup
 omh doctor
 ```
@@ -148,10 +159,12 @@ surface provides deeper state or goal integration.
 
 ### Setup
 
-Install the skill pack and make sure Hermes can read the same config that
-`omh apply` updated:
+Install the skill pack through Hermes, or make sure Hermes can read the same
+config that `omh apply` updated when using the bootstrap path:
 
 ```sh
+hermes skills tap add rlaope/oh-my-hermes-agent
+hermes skills install oh-my-hermes
 omh setup
 omh doctor
 ```
@@ -219,7 +232,9 @@ conversation.
 
 ### Setup
 
-No additional setup is required beyond a working `omh` command.
+No additional end-user setup is required beyond Hermes seeing the installed
+OMH skills. Wrapper operators can use a working `omh` command to inspect the
+same playbook contracts locally.
 
 ### User Prompt Shape
 
@@ -275,8 +290,11 @@ stage happened. Runtime status must still come from observed evidence records.
 Before using these cases as public release evidence, verify:
 
 - The one-command installer still works.
-- `omh setup` reports the managed skill directory and Hermes config
-  registration clearly.
+- `hermes skills tap add rlaope/oh-my-hermes-agent` and
+  `hermes skills install oh-my-hermes` are documented as the primary install
+  path when Hermes taps are available.
+- `omh setup` reports the managed skill directory, equivalent Hermes install
+  intent, and Hermes config registration clearly.
 - `omh doctor` reports the managed skill directory as healthy after setup.
 - The generated router includes the representative harness registry.
 - `omh docs workflows --json` exposes `harness_quality/v1` style quality data

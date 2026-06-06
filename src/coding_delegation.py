@@ -261,16 +261,44 @@ def _verification(intent: str, action: str) -> tuple[str, ...]:
 def _executor_handoff(executor_target: str, delegation: CodingDelegation) -> dict[str, object]:
     if executor_target != "codex":
         raise ValueError(f"unsupported coding delegate executor: {executor_target}")
+    codex_skill = _codex_skill_for_workflow(delegation.recommended_workflow)
     return {
         "schema_version": EXECUTOR_HANDOFF_SCHEMA_VERSION,
         "executor_target": "codex",
         "handoff_mode": "instruction_payload",
+        "codex_skill": codex_skill,
+        "codex_invocation": {
+            "syntax": "$skill",
+            "skill": codex_skill,
+            "dispatch_text_template": f"{codex_skill} {{message}}",
+            "message_placeholder": "{message}",
+            "wrapper_note": "Replace {message} only at dispatch time; do not persist the raw task in OMH artifacts.",
+        },
         "status": "prepared_not_observed",
         "recording_contract": "prepared_not_observed",
         "dispatch_contract": "wrapper_dispatches_to_codex; omh_does_not_execute_codex",
-        "prompt_template": _codex_prompt_template(delegation),
+        "prompt_template": _codex_prompt_template(delegation, codex_skill=codex_skill),
+        "execution_brief": {
+            "task_source": "original_message_at_dispatch_time",
+            "recommended_workflow": delegation.recommended_workflow,
+            "recommended_harness": delegation.recommended_harness,
+            "intent": delegation.intent,
+            "codex_owns": [
+                "repository inspection",
+                "code edits when needed",
+                "tests and verification",
+                "commits or PR updates when authorized",
+                "executor evidence report",
+            ],
+            "hermes_owns": [
+                "chat intake",
+                "plan and status narration",
+                "prepared versus observed evidence boundaries",
+            ],
+        },
         "scope": [
             "Use the original task message as the implementation request.",
+            f"Invoke the Codex-side workflow with `{codex_skill}` unless the executor has stronger local routing evidence.",
             "Respect the recommended OMHM workflow and harness metadata.",
             "Keep Hermes-facing status separate from Codex execution evidence.",
         ],
@@ -286,6 +314,30 @@ def _executor_handoff(executor_target: str, delegation: CodingDelegation) -> dic
             "workflow": delegation.review_workflow,
             "evidence_required": "Record separate wrapper/runtime evidence before marking review observed.",
         },
+        "report_contract": {
+            "allowed_statuses": ["completed", "blocked", "failed"],
+            "required_fields": [
+                "status",
+                "changed_files",
+                "commits",
+                "tests_run",
+                "blockers",
+                "evidence_refs",
+            ],
+            "review_fields": ["review_comments_addressed", "remaining_review_risks"],
+        },
+        "evidence_contract": {
+            "prepared_is_not": ["dispatch", "implementation", "verification", "review", "ci", "merge"],
+            "observed_required_for": [
+                "executor_dispatch",
+                "executor_result",
+                "verification",
+                "review",
+                "ci",
+                "merge_readiness",
+                "merge",
+            ],
+        },
         "harness_quality": harness_quality_contract(delegation.recommended_harness),
     }
 
@@ -297,10 +349,12 @@ def _public_harness_quality(harness: str, *, action: str, has_executor_handoff: 
     return with_wrapper_actions(contract, ("show_status",))
 
 
-def _codex_prompt_template(delegation: CodingDelegation) -> str:
+def _codex_prompt_template(delegation: CodingDelegation, *, codex_skill: str) -> str:
     return (
         "You are Codex, acting as the coding executor for a Hermes-orchestrated request.\n\n"
         "Executor target: codex\n"
+        "Use Codex skill: `{codex_skill}`\n"
+        "Codex invocation template: `{codex_skill} {{message}}`\n"
         "Recommended OMHM workflow: `{workflow}`\n"
         "Recommended harness: `{harness}`\n"
         "Intent: `{intent}`\n"
@@ -310,13 +364,20 @@ def _codex_prompt_template(delegation: CodingDelegation) -> str:
         "- Preserve unrelated behavior and user changes.\n"
         "- Run targeted verification and report exact evidence.\n"
         "- Do not say Hermes performed the implementation; Hermes prepared this handoff.\n\n"
+        "Report back with: status, changed_files, commits, tests_run, blockers, and evidence_refs.\n\n"
         "Task:\n{message}"
     ).format(
+        codex_skill=codex_skill,
         workflow=delegation.recommended_workflow,
         harness=delegation.recommended_harness,
         intent=delegation.intent,
         message="{message}",
     )
+
+
+def _codex_skill_for_workflow(workflow: str) -> str:
+    name = workflow.strip() or "oh-my-hermes"
+    return name if name.startswith("$") else f"${name}"
 
 
 def _delegation_prompt_template(action: str, intent: str, workflow: str, harness: str) -> str:

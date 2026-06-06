@@ -60,7 +60,9 @@ runtime run exists and the wrapper needs a compact progress card.
 4. If the response is a plan, wait for the user to accept or revise the plan
    before preparing a handoff.
 5. If a coding handoff is prepared, dispatch the `coding_executor_handoff/v1`
-   payload to the external executor outside OMH.
+   payload to the external executor outside OMH. For Codex targets, use
+   `codex_skill` and `codex_invocation.dispatch_text_template`; this is the
+   `$skill {message}` surface Codex actually receives.
 6. Record only evidence the wrapper actually observed: dispatch, executor
    result, verification, review, CI, merge readiness, and merge.
 7. Re-render status from OMH after each observed transition.

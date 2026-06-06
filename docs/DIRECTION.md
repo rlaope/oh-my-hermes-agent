@@ -40,7 +40,8 @@ The goal is parity of seriousness, not parity of implementation shape.
 
 OMHM is:
 
-- a local installer for managed Hermes skills
+- a Hermes-native skill pack with a tap-compatible `skills/` layout
+- a local bootstrap and maintenance tool for managed Hermes skills
 - a deterministic skill catalog and router contract
 - a wrapper-native chat contract for Discord, Slack, and hosted adapters
 - a Hermes-facing planning artifact generator
@@ -161,6 +162,12 @@ Split into separate PRs only when:
    packages that consume `chat_interaction/v1` without moving platform secrets
    or network behavior into core OMH.
 
+6. Skill-first distribution.
+   Lead with Hermes skill tap/install when the target Hermes environment
+   supports it. Keep `omh setup` as the bootstrap, repair, validation, and
+   wrapper/backend route that creates the same Hermes-visible skill state
+   through generated managed skills and `skills.external_dirs`.
+
 ## First-PR Vertical Slice Rule
 
 When a goal is broad, keep the PR coherent rather than artificially tiny. A good
@@ -168,7 +175,7 @@ first slice should carry one user-visible capability from contract to tests:
 
 - document the desired chat or handoff behavior
 - encode the deterministic schema or catalog metadata
-- expose the CLI or wrapper-facing surface
+- expose the Hermes skill, setup, or wrapper-facing surface
 - record local metadata-only artifacts when needed
 - add focused tests for the public contract
 - update README/docs so the capability is discoverable
