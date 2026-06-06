@@ -15,6 +15,7 @@
       <div class="brand">OMH</div>
       <nav class="nav" aria-label="Primary navigation">
         <a href="#architecture">Architecture</a>
+        <a href="#playbooks">Playbooks</a>
         <a href="#flow">Flow</a>
         <a href="#example">Example</a>
         <a href="#contracts">Contracts</a>
@@ -62,7 +63,7 @@
           <div class="arch-arrow" aria-hidden="true">-></div>
           <div class="arch-node arch-node--core">
             <span>OMH local contract layer</span>
-            <strong>Route, plan, handoff, status</strong>
+            <strong>Playbook, route, plan, handoff, status</strong>
           </div>
           <div class="arch-branch" aria-hidden="true"></div>
           <div class="arch-node arch-node--hermes">
@@ -77,6 +78,44 @@
             <span>Runtime artifacts</span>
             <strong>Observed evidence and status cards</strong>
           </div>
+        </div>
+      </section>
+
+      <section class="section" id="playbooks">
+        <div class="section__header">
+          <h2>Situation playbooks for real wrapper work.</h2>
+          <p>
+            OMH can describe the whole local pipeline for common situations:
+            research, deep interview, planning, safe coding handoff, status, and
+            release-readiness review.
+          </p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>Research first</h3>
+            <p>
+              Keep source-backed questions with Hermes until evidence, confidence,
+              and uncertainty are clear.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Plan before handoff</h3>
+            <p>
+              Turn broad goals into one-question interviews, clarified briefs,
+              accepted plans, and only then prepared coding handoffs.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Status without overclaiming</h3>
+            <p>
+              Show handoff, execution, verification, review, CI, and merge-readiness
+              as separate observed states.
+            </p>
+          </article>
+        </div>
+        <div class="command command--inline" role="region" aria-label="Playbook commands" tabindex="0">
+          <code>omh playbook recommend "I want to safely add a feature to this repo"
+omh playbook inspect safe-feature-change</code>
         </div>
       </section>
 

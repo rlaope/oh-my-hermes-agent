@@ -85,6 +85,52 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertIn("recommend --limit must be at least 1", stderr)
 
+    def test_playbook_list_exposes_situation_pipelines(self) -> None:
+        status, stdout, stderr = run_cli(["playbook", "list"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        self.assertEqual(payload["schema_version"], "playbook_catalog/v1")
+        playbooks = {playbook["id"]: playbook for playbook in payload["playbooks"]}
+        self.assertIn("safe-feature-change", playbooks)
+        self.assertIn("source-backed-research", playbooks)
+        self.assertIn("local-pipeline-buildout", playbooks)
+        self.assertIn("prepare_handoff", playbooks["safe-feature-change"]["pipeline"])
+        self.assertIn("status_card", playbooks["safe-feature-change"]["pipeline"])
+
+    def test_playbook_inspect_shows_owners_and_evidence_boundaries(self) -> None:
+        status, stdout, stderr = run_cli(["playbook", "inspect", "safe-feature-change"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        playbook = json.loads(stdout)["playbook"]
+        self.assertEqual(playbook["id"], "safe-feature-change")
+        owners = {stage["owner"] for stage in playbook["stages"]}
+        self.assertTrue({"hermes", "omh", "wrapper"} <= owners)
+        self.assertIn("implementation", " ".join(playbook["delegated_to_executor"]))
+        boundaries = " ".join(stage["evidence_boundary"] for stage in playbook["stages"])
+        self.assertIn("not executor dispatch", boundaries)
+
+    def test_playbook_recommend_routes_feature_and_research_situations(self) -> None:
+        status, stdout, stderr = run_cli(["playbook", "recommend", "I", "want", "to", "safely", "add", "a", "feature", "to", "this", "repo"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        feature = json.loads(stdout)["recommendations"][0]
+        self.assertEqual(feature["id"], "safe-feature-change")
+        self.assertEqual(feature["confidence"], "high")
+        self.assertIn("executor_dispatch", feature["not_evidence_until_observed"])
+
+        status, stdout, stderr = run_cli(["playbook", "recommend", "research", "latest", "official", "sources"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        research = json.loads(stdout)["recommendations"][0]
+        self.assertEqual(research["id"], "source-backed-research")
+        self.assertEqual(research["delegated_to_executor"], [])
+        self.assertIn("source selection", " ".join(research["retained_by_hermes"]))
+
     def test_chat_route_dispatches_plain_chat_message(self) -> None:
         status, stdout, stderr = run_cli(["chat", "route", "--source", "discord", "risky", "refactor"])
 

@@ -29,6 +29,7 @@
         <a href="#chat">Chat wrappers</a>
         <a href="#demo">Demo</a>
         <a href="#architecture">Architecture</a>
+        <a href="#playbooks">Playbooks</a>
         <a href="#discord-example">Chat example</a>
         <a href="#contracts">Contracts</a>
         <a href="#delegation">Delegation</a>
@@ -121,7 +122,7 @@ uv run python examples/slack-adapter-shim.py</code>
             <div class="arch-arrow" aria-hidden="true">-></div>
             <div class="arch-node arch-node--core">
               <span>OMH local contract layer</span>
-              <strong>Route, plan, handoff, status</strong>
+              <strong>Playbook, route, plan, handoff, status</strong>
             </div>
             <div class="arch-branch" aria-hidden="true"></div>
             <div class="arch-node arch-node--hermes">
@@ -141,6 +142,25 @@ uv run python examples/slack-adapter-shim.py</code>
             Prepared handoff is only a ready-to-dispatch state. Execution,
             verification, review, CI, and merge readiness stay separate until
             runtime evidence is observed.
+          </p>
+        </section>
+
+        <section class="docs-section" id="playbooks">
+          <h2>Playbooks</h2>
+          <p>
+            Playbooks sit above individual skills. They describe situation-level
+            pipelines for source-backed research, deep interview to plan, safe
+            coding handoff, local pipeline buildout, and release-readiness review.
+          </p>
+          <div class="command" role="region" aria-label="Playbook commands" tabindex="0">
+            <code>omh playbook list
+omh playbook inspect safe-feature-change
+omh playbook recommend "research latest official sources"</code>
+          </div>
+          <p>
+            Use playbooks when wrappers need to know which stages stay with
+            Hermes, which stages become executor handoffs, and which claims are
+            not evidence until runtime observations exist.
           </p>
         </section>
 

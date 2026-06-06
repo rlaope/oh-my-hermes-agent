@@ -50,6 +50,7 @@ delegate coding, or report status.
 | Managed skills | Generated Hermes skill guidance under `~/.omh/skills`. |
 | Local installer | Reversible install, update, apply, doctor, and uninstall commands. |
 | Skill catalog | Deterministic routing metadata from `src/skills/catalog.py`. |
+| Playbooks | Situation-level pipelines for research, planning, wrapper UX, and coding handoff flows. |
 | Harness quality | Machine-readable quality bars, evidence ladders, wrapper actions, and overclaim guards. |
 | Wrapper contract | `chat_interaction/v1` responses for Discord, Slack, and hosted adapters. |
 | Planning artifacts | Hermes-facing Markdown plans under `~/.hermes/plans`. |
@@ -93,6 +94,16 @@ omh demo orchestration
 The demo is deterministic and transport-free. It shows the full
 recommend -> chat response -> Hermes plan -> Codex handoff -> status card path
 without calling an LLM, bot SDK, network API, or Hermes core patch.
+
+**Step 5: Pick a situation playbook**
+
+```sh
+omh playbook recommend "I want to safely add a feature to this repo"
+```
+
+Playbooks describe the wrapper-visible pipeline for situations such as
+source-backed research, deep interview to plan, safe feature change,
+release-readiness review, and local pipeline buildout.
 
 ### Stable Install
 
@@ -234,6 +245,8 @@ instead of presented as the first path.
 | Update | `omh update && omh apply && omh doctor` |
 | Inspect installed skills | `omh list` |
 | Pick a workflow locally | `omh recommend <task>` |
+| Pick a situation pipeline | `omh playbook recommend <task>` |
+| Inspect a pipeline | `omh playbook inspect <id>` |
 | Demo wrapper orchestration | `omh demo orchestration` |
 | Inspect workflow quality JSON | `omh docs workflows --json` |
 | Drive a chat wrapper turn | `omh chat interact <message>` |
@@ -253,6 +266,7 @@ fixtures, reapply, wrapper lifecycle, redacted export, and uninstall details.
 | Install, update, reapply, uninstall | [Installation](docs/INSTALLATION.md) |
 | Architecture and module ownership | [Architecture](docs/ARCHITECTURE.md) |
 | Delegation lifecycle completeness | [Delegation-First Completeness](docs/DELEGATION_FIRST_COMPLETENESS.md) |
+| Situation playbooks | [Playbooks](docs/PLAYBOOKS.md) |
 | Discord-style wrapper examples | [Chat Wrapper Examples](docs/CHAT_WRAPPER_EXAMPLES.md) |
 | Harness quality contracts | [Harness Quality Contract](docs/HARNESS_QUALITY.md) |
 | Representative workflows | [Application Cases](docs/APPLICATION_CASES.md) |

@@ -212,6 +212,61 @@ If Hermes delegation is unavailable, the harness still improves response
 quality by making Hermes run the specialist checks sequentially in the current
 conversation.
 
+## Case 4: Situation Playbook Pipeline
+
+### Setup
+
+No additional setup is required beyond a working `omh` command.
+
+### User Prompt Shape
+
+Use this flow when a wrapper or maintainer wants to decide the whole pipeline
+for a natural request before choosing low-level commands.
+
+Strong signals include:
+
+- a safe feature or refactor request
+- a request for current source-backed research
+- an ambiguous goal that needs interview before planning
+- a recurring process or pipeline buildout
+- release-readiness, QA, CI, or merge-readiness review
+
+### Expected Hermes-Facing Behavior
+
+The playbook layer picks a situation-level path above individual skills:
+
+- `safe-feature-change` for plan-first coding handoff
+- `source-backed-research` for Hermes-owned research
+- `deep-interview-to-plan` for ambiguity reduction
+- `local-pipeline-buildout` for repeatable wrapper process design
+- `release-readiness-review` for review, QA, CI, and merge-readiness status
+
+The playbook response names which stages stay with Hermes, which stages become
+executor handoffs, and which claims must stay pending until evidence is
+observed.
+
+### Verification
+
+Inspect the playbook catalog:
+
+```sh
+omh playbook list
+omh playbook inspect safe-feature-change
+omh playbook recommend "I want to safely add a feature to this repo"
+```
+
+Repository maintainers can verify playbook behavior through tests:
+
+```sh
+PYTHONPATH=tests python3 -m unittest tests/test_cli.py -v
+```
+
+### Current Limit
+
+Playbooks are deterministic local contracts. They do not post messages,
+authenticate transport bots, launch coding executors, or prove that a later
+stage happened. Runtime status must still come from observed evidence records.
+
 ## Release Review Checklist
 
 Before using these cases as public release evidence, verify:
@@ -222,8 +277,12 @@ Before using these cases as public release evidence, verify:
 - The generated router includes the representative harness registry.
 - `omh docs workflows --json` exposes `harness_quality/v1` style quality data
   for wrapper rendering and status decisions.
-- The three cases above match actual generated skill behavior.
-- The three cases above can create `.omh/runtime/runs/<run-id>/` artifacts.
+- `omh playbook recommend` returns situation-level pipelines for safe coding,
+  source-backed research, deep interview to plan, local pipeline buildout, and
+  release-readiness review.
+- The four cases above match actual generated skill and playbook behavior.
+- Runtime-backed cases above can create `.omh/runtime/runs/<run-id>/`
+  artifacts.
 - `delegation.json` separates requested delegation from observed delegation.
 - `omh probe` output is captured before any native hook, plugin, app, MCP, or
   internal routing claim is made.
