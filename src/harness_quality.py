@@ -13,6 +13,8 @@ HARNESS_QUALITY_KEYS = (
     "wrapper_actions",
     "overclaim_guards",
 )
+HARNESS_PROGRESS_SCHEMA_VERSION = "harness_progress/v1"
+HARNESS_PROGRESS_STATES = ("pending", "complete", "blocked", "not_required")
 
 
 def build_harness_quality_contract(
@@ -56,3 +58,31 @@ def with_wrapper_actions(contract: dict[str, object], allowed_actions: Iterable[
     adjusted = dict(contract)
     adjusted["wrapper_actions"] = actions
     return adjusted
+
+
+def build_harness_progress(contract: dict[str, object], step_states: dict[str, str]) -> dict[str, object]:
+    ladder = contract.get("evidence_ladder", [])
+    ladder_steps = [step for step in ladder if isinstance(step, str) and step]
+    steps = [
+        {
+            "id": step,
+            "state": _progress_state(step_states.get(step, "pending")),
+        }
+        for step in ladder_steps
+    ]
+    completed = sum(1 for step in steps if step["state"] in {"complete", "not_required"})
+    next_step = next((str(step["id"]) for step in steps if step["state"] in {"blocked", "pending"}), "")
+    return {
+        "schema_version": HARNESS_PROGRESS_SCHEMA_VERSION,
+        "harness": contract.get("harness", "unknown"),
+        "quality_tier": contract.get("quality_tier", "unknown"),
+        "steps": steps,
+        "completed": completed,
+        "total": len(steps),
+        "complete": bool(steps) and completed == len(steps),
+        "next_step": next_step,
+    }
+
+
+def _progress_state(value: str) -> str:
+    return value if value in HARNESS_PROGRESS_STATES else "pending"

@@ -465,6 +465,9 @@ class CliTests(unittest.TestCase):
             self.assertFalse(summary["execution"]["observed"])
             self.assertEqual(summary["execution"]["status"], "not_observed")
             self.assertEqual(summary["next_action"], "dispatch_to_executor")
+            self.assertEqual(summary["harness_progress"]["schema_version"], "harness_progress/v1")
+            self.assertEqual(summary["harness_progress"]["next_step"], "executor_dispatch_observed")
+            self.assertEqual(summary["harness_progress"]["completed"], 1)
             self.assertTrue(summary["integrity"]["ok"])
             self.assertIn("not execution evidence", " ".join(summary["overclaim_guard"]))
 
@@ -1430,6 +1433,42 @@ class CliTests(unittest.TestCase):
         status, _, stderr = run_cli(["docs", "workflows", "--json", "--check"])
         self.assertEqual(status, 2)
         self.assertIn("cannot be combined", stderr)
+
+    def test_harness_cli_lists_inspects_and_validates_contracts(self) -> None:
+        status, stdout, stderr = run_cli(["harness", "list"])
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+
+        listed = json.loads(stdout)
+        self.assertEqual(listed["schema_version"], "harness_list/v1")
+        self.assertTrue(listed["validation"]["ok"])
+        harnesses = {harness["name"]: harness for harness in listed["harnesses"]}
+        self.assertIn("deep-interview", harnesses)
+        self.assertIn("blocking_question_asked", harnesses["deep-interview"]["evidence_ladder"])
+        self.assertIn("ralplan", harnesses["planning"]["primary_skills"])
+
+        status, stdout, stderr = run_cli(["harness", "inspect", "research"])
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        inspected = json.loads(stdout)
+        self.assertEqual(inspected["schema_version"], "harness_inspect/v1")
+        self.assertEqual(inspected["harness_quality"]["schema_version"], "harness_quality/v1")
+        self.assertIn("primary_sources_checked", inspected["harness_quality"]["evidence_ladder"])
+        self.assertTrue(inspected["validation"]["ok"])
+
+        status, stdout, stderr = run_cli(["harness", "validate"])
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        validation = json.loads(stdout)
+        self.assertEqual(validation["schema_version"], "catalog_validation/v1")
+        self.assertTrue(validation["ok"])
+        self.assertEqual(validation["errors"], [])
+
+    def test_harness_inspect_rejects_unknown_harness(self) -> None:
+        status, _, stderr = run_cli(["harness", "inspect", "not-a-harness"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("unknown harness", stderr)
 
     def test_runtime_record_rejects_unknown_names(self) -> None:
         with TemporaryDirectory() as tmp:

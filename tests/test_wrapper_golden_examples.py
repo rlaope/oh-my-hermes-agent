@@ -7,6 +7,8 @@ from pathlib import Path
 from _local_package import load_local_package
 
 load_local_package()
+from omh.coding_delegation import build_coding_delegation_payload
+from omh.hermes_planning import build_hermes_plan_payload
 from omh.skills.render import workflow_reference_payload
 
 
@@ -102,21 +104,38 @@ class WrapperGoldenExampleTests(unittest.TestCase):
         self.assertIn("send_to_codex", examples["coding_handoff_quality"]["expected_quality"]["wrapper_actions"])
         self.assertIn("executor_result_observed", examples["coding_handoff_quality"]["expected_quality"]["evidence_ladder"])
         self.assertIn("accept_plan", examples["planning_quality"]["expected_quality"]["wrapper_actions"])
-        self.assertIn("sources_checked", examples["research_quality"]["expected_quality"]["evidence_ladder"])
+        self.assertIn("primary_sources_checked", examples["research_quality"]["expected_quality"]["evidence_ladder"])
         self.assertIn("answer:clarify", examples["clarification_quality"]["expected_quality"]["wrapper_actions"])
 
-        workflow_catalog = workflow_reference_payload()
-        catalog_harnesses = {harness["name"]: harness["harness_quality"] for harness in workflow_catalog["harnesses"]}
         for item in payload["examples"]:
             serialized = json.dumps(item).lower()
             self.assertTrue(item["user_visible_upgrade"])
             self.assertTrue(item["claim_boundary"])
             self.assertNotIn("token", serialized)
             self.assertNotIn("omh ", serialized)
-            if item["source_payload"] == "workflow_catalog/v1.harnesses[].harness_quality":
-                source_quality = catalog_harnesses[item["harness"]]
+
+    def test_harness_quality_golden_examples_match_live_contract_sources(self) -> None:
+        payload = json.loads(Path("examples/wrapper-golden/harness-quality.json").read_text(encoding="utf-8"))
+
+        for item in payload["examples"]:
+            with self.subTest(item["scenario"]):
+                source_quality = self._source_harness_quality(item)
                 for key, value in item["expected_quality"].items():
                     self.assertEqual(source_quality[key], value)
+
+    def _source_harness_quality(self, item: dict[str, object]) -> dict[str, object]:
+        source = item["source_payload"]
+        if source == "coding_delegation/v1.harness_quality":
+            payload = build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex")
+            return payload["harness_quality"]
+        if source == "hermes_plan/v1.wrapper_contract.harness_quality":
+            payload = build_hermes_plan_payload("implementation plan with review", source="discord")
+            return payload["wrapper_contract"]["harness_quality"]
+        if source == "workflow_catalog/v1.harnesses[].harness_quality":
+            workflow_catalog = workflow_reference_payload()
+            catalog_harnesses = {harness["name"]: harness["harness_quality"] for harness in workflow_catalog["harnesses"]}
+            return catalog_harnesses[item["harness"]]
+        self.fail(f"unsupported golden source payload: {source}")
 
 
 if __name__ == "__main__":
