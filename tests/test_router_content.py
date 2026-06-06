@@ -7,8 +7,9 @@ from _local_package import load_local_package
 
 load_local_package()
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
-from omh.skills.catalog import primary_harness_for_skill
-from omh.skills.render import workflow_reference_markdown
+from omh.runtime.records import validate_harness_quality
+from omh.skills.catalog import harness_quality_contract, primary_harness_for_skill
+from omh.skills.render import workflow_reference_markdown, workflow_reference_payload
 
 
 class RouterContentTests(unittest.TestCase):
@@ -71,6 +72,11 @@ class RouterContentTests(unittest.TestCase):
             self.assertIn(f"`{harness}`", router.content)
         self.assertIn("Inputs:", router.content)
         self.assertIn("Outputs:", router.content)
+        self.assertIn("Quality tier:", router.content)
+        self.assertIn("Quality Bar:", router.content)
+        self.assertIn("Evidence Ladder:", router.content)
+        self.assertIn("Wrapper Actions:", router.content)
+        self.assertIn("Overclaim Guards:", router.content)
         self.assertIn("Verification:", router.content)
         self.assertIn("Runtime Evidence:", router.content)
         self.assertIn("Delegation:", router.content)
@@ -80,6 +86,8 @@ class RouterContentTests(unittest.TestCase):
         for definition in builtin_definitions():
             self.assertTrue(definition.category, definition.name)
             self.assertTrue(definition.phase, definition.name)
+            self.assertTrue(definition.quality_tier, definition.name)
+            self.assertGreaterEqual(len(definition.quality_bar), 1, definition.name)
             self.assertGreaterEqual(len(definition.required_inputs), 1, definition.name)
             self.assertGreaterEqual(len(definition.expected_outputs), 1, definition.name)
             self.assertGreaterEqual(len(definition.artifact_expectations), 1, definition.name)
@@ -118,6 +126,42 @@ class RouterContentTests(unittest.TestCase):
             self.assertGreaterEqual(len(harness.artifact_events), 1)
             self.assertEqual(harness.privacy_default, "metadata_only")
             self.assertIn("Record", harness.delegation_expectation)
+            self.assertTrue(harness.quality_tier)
+            self.assertGreaterEqual(len(harness.quality_bar), 1)
+            self.assertGreaterEqual(len(harness.evidence_ladder), 3)
+            self.assertGreaterEqual(len(harness.wrapper_actions), 1)
+            self.assertGreaterEqual(len(harness.overclaim_guards), 1)
+
+    def test_workflow_reference_payload_exposes_quality_contracts(self) -> None:
+        payload = workflow_reference_payload()
+
+        self.assertEqual(payload["schema_version"], "workflow_catalog/v1")
+        skills = {skill["name"]: skill for skill in payload["skills"]}
+        harnesses = {harness["name"]: harness for harness in payload["harnesses"]}
+
+        self.assertEqual(skills["oh-my-hermes"]["quality_tier"], "routing-gated")
+        self.assertIn("Keep users command-agnostic", " ".join(skills["oh-my-hermes"]["quality_bar"]))
+        self.assertEqual(harnesses["coding-handling"]["quality_tier"], "handoff-gated")
+        self.assertIn("coding_delegation_prepared", harnesses["coding-handling"]["evidence_ladder"])
+        self.assertIn("send_to_codex", harnesses["coding-handling"]["wrapper_actions"])
+        self.assertIn("prepared", " ".join(harnesses["coding-handling"]["overclaim_guards"]).lower())
+        quality = harnesses["coding-handling"]["harness_quality"]
+        self.assertEqual(quality, harness_quality_contract("coding-handling"))
+        self.assertEqual(quality["schema_version"], "harness_quality/v1")
+        self.assertEqual(validate_harness_quality(quality), [])
+
+        for harness in payload["harnesses"]:
+            self.assertIn("harness_quality", harness)
+            self.assertEqual(validate_harness_quality(harness["harness_quality"]), [])
+
+    def test_unknown_harness_quality_contract_is_safe_to_render(self) -> None:
+        contract = harness_quality_contract("not-installed-harness")
+
+        self.assertEqual(contract["schema_version"], "harness_quality/v1")
+        self.assertEqual(contract["quality_tier"], "unknown")
+        self.assertIn("operator_review_required", contract["evidence_ladder"])
+        self.assertEqual(contract["wrapper_actions"], ["show_status"])
+        self.assertIn("do not infer runtime capability", contract["overclaim_guards"][0].lower())
 
     def test_generated_workflow_reference_matches_catalog(self) -> None:
         reference = Path("docs/WORKFLOWS.md").read_text(encoding="utf-8")
@@ -129,12 +173,18 @@ class RouterContentTests(unittest.TestCase):
             self.assertIn(f"- Category: `{definition.category}`", reference)
             self.assertIn(f"- Phase: `{definition.phase}`", reference)
             self.assertIn(f"- Hermes role: `{definition.hermes_role}`", reference)
+            self.assertIn(f"- Quality tier: `{definition.quality_tier}`", reference)
             self.assertIn(f"- Handoff policy: {definition.handoff_policy}", reference)
         for harness in builtin_harnesses():
             self.assertIn(f"### {harness.name}", reference)
+            self.assertIn(f"- Quality tier: `{harness.quality_tier}`", reference)
             for event in harness.artifact_events:
                 self.assertIn(f"`{event}`", reference)
+            for step in harness.evidence_ladder:
+                self.assertIn(f"`{step}`", reference)
         self.assertIn("coding_delegation_recorded", reference)
+        self.assertIn("Evidence ladder", reference)
+        self.assertIn("Overclaim guards", reference)
 
     def test_generated_public_content_avoids_external_runtime_branding(self) -> None:
         forbidden = ("om" + "x", "oh-my-" + "co" + "dex")
@@ -176,6 +226,7 @@ class RouterContentTests(unittest.TestCase):
             Path("AGENTS.md"),
             Path("docs/README.md"),
             Path("docs/DIRECTION.md"),
+            Path("docs/HARNESS_QUALITY.md"),
             Path("docs/INSTALLATION.md"),
             Path("docs/APPLICATION_CASES.md"),
             Path("docs/RELEASE.md"),
@@ -201,6 +252,7 @@ class RouterContentTests(unittest.TestCase):
         installation = Path("docs/INSTALLATION.md").read_text(encoding="utf-8")
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         release = Path("docs/RELEASE.md").read_text(encoding="utf-8")
+        harness_quality = Path("docs/HARNESS_QUALITY.md").read_text(encoding="utf-8")
 
         self.assertIn("curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh", readme)
         self.assertIn("[Documentation](docs/README.md)", readme)
@@ -209,10 +261,15 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("OMH_CHANNEL=stable OMH_VERSION=0.1.0", readme)
         self.assertIn("Most users should start with one health check", readme)
         self.assertIn("## Command Surface", readme)
+        self.assertIn("omh docs workflows --json", readme)
         self.assertIn("Root README intentionally shows the small public surface", readme)
         self.assertNotIn("Useful local and wrapper-debug commands", readme)
         self.assertIn("Chat Wrapper Flow", installation)
         self.assertIn("omh chat interact", installation)
+        self.assertIn("harness_quality/v1", installation)
+        self.assertIn("omh docs workflows --json", installation)
+        self.assertIn("wrapper_actions", harness_quality)
+        self.assertIn("overclaim_guards", harness_quality)
         self.assertIn("python -m unittest discover -s tests", ci)
         self.assertIn("python -m compileall src", ci)
         self.assertIn("docs workflows --check", ci)
@@ -238,6 +295,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("This directory is the public operating map", docs_index)
         self.assertIn("prepared versus observed evidence", docs_index)
         self.assertIn("Chat users should remain command-agnostic.", docs_index)
+        self.assertIn("Harness Quality Contract", docs_index)
         self.assertIn("Do not turn OMHM into a hidden Hermes runtime patch", agents)
         self.assertIn("One user goal should normally produce one PR.", agents)
         self.assertIn("review feedback or small follow-up fixes", agents)
@@ -258,6 +316,9 @@ class RouterContentTests(unittest.TestCase):
 
         for harness in ("coding-handling", "goal-execution", "planning", "research", "deep-interview", "architect", "critic", "qa-specialist", "docs-specialist"):
             self.assertIn(harness, text)
+        self.assertIn("quality tier", text)
+        self.assertIn("evidence ladder", text)
+        self.assertIn("omh docs workflows --json", text)
         self.assertIn("omh probe", text)
 
     def test_discord_example_uses_wrapper_native_flow(self) -> None:

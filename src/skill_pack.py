@@ -9,7 +9,10 @@ from .skills import (
     builtin_definitions,
     builtin_harnesses,
     builtin_skill_templates,
+    harness_definition,
+    harness_quality_contract,
     router_skill,
+    workflow_reference_payload,
     workflow_skill,
 )
 
@@ -22,6 +25,9 @@ __all__ = [
     "builtin_definitions",
     "builtin_harnesses",
     "builtin_skill_templates",
+    "harness_definition",
+    "harness_quality_contract",
     "router_skill",
+    "workflow_reference_payload",
     "workflow_skill",
 ]

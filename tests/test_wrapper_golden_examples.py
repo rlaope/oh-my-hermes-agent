@@ -4,6 +4,11 @@ import json
 import unittest
 from pathlib import Path
 
+from _local_package import load_local_package
+
+load_local_package()
+from omh.skills.render import workflow_reference_payload
+
 
 class WrapperGoldenExampleTests(unittest.TestCase):
     def test_status_ladder_golden_examples_cover_required_scenarios(self) -> None:
@@ -83,6 +88,35 @@ class WrapperGoldenExampleTests(unittest.TestCase):
         self.assertEqual(interview["question_style"], "one_question")
         self.assertIn("target outcome", interview["missing_decisions"])
         self.assertEqual(interview["after_answer_next_action"], "rerun_hermes_plan")
+
+    def test_harness_quality_examples_cover_wrapper_visible_quality_gates(self) -> None:
+        payload = json.loads(Path("examples/wrapper-golden/harness-quality.json").read_text(encoding="utf-8"))
+        self.assertEqual(payload["schema_version"], "harness_quality_examples/v1")
+        examples = {item["scenario"]: item for item in payload["examples"]}
+
+        self.assertEqual(
+            set(examples),
+            {"coding_handoff_quality", "planning_quality", "research_quality", "clarification_quality"},
+        )
+        self.assertEqual(examples["coding_handoff_quality"]["expected_quality"]["schema_version"], "harness_quality/v1")
+        self.assertIn("send_to_codex", examples["coding_handoff_quality"]["expected_quality"]["wrapper_actions"])
+        self.assertIn("executor_result_observed", examples["coding_handoff_quality"]["expected_quality"]["evidence_ladder"])
+        self.assertIn("accept_plan", examples["planning_quality"]["expected_quality"]["wrapper_actions"])
+        self.assertIn("sources_checked", examples["research_quality"]["expected_quality"]["evidence_ladder"])
+        self.assertIn("answer:clarify", examples["clarification_quality"]["expected_quality"]["wrapper_actions"])
+
+        workflow_catalog = workflow_reference_payload()
+        catalog_harnesses = {harness["name"]: harness["harness_quality"] for harness in workflow_catalog["harnesses"]}
+        for item in payload["examples"]:
+            serialized = json.dumps(item).lower()
+            self.assertTrue(item["user_visible_upgrade"])
+            self.assertTrue(item["claim_boundary"])
+            self.assertNotIn("token", serialized)
+            self.assertNotIn("omh ", serialized)
+            if item["source_payload"] == "workflow_catalog/v1.harnesses[].harness_quality":
+                source_quality = catalog_harnesses[item["harness"]]
+                for key, value in item["expected_quality"].items():
+                    self.assertEqual(source_quality[key], value)
 
 
 if __name__ == "__main__":

@@ -229,6 +229,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(delegation["executor_profile"], "coding-agent")
         self.assertTrue(delegation["review_required"])
         self.assertIn("{message}", delegation["delegation_prompt_template"])
+        self.assertEqual(payload["harness_quality"]["schema_version"], "harness_quality/v1")
+        self.assertEqual(payload["harness_quality"]["harness"], "coding-handling")
+        self.assertIn("coding_delegation_prepared", payload["harness_quality"]["evidence_ladder"])
+        self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
         self.assertNotIn("suggested_prompt", json.dumps(payload))
         self.assertNotIn("risky refactor", json.dumps(payload))
 
@@ -278,6 +282,8 @@ class CliTests(unittest.TestCase):
         self.assertEqual(handoff["status"], "prepared_not_observed")
         self.assertEqual(handoff["recording_contract"], "prepared_not_observed")
         self.assertIn("{message}", handoff["prompt_template"])
+        self.assertIn("send_to_codex", payload["harness_quality"]["wrapper_actions"])
+        self.assertIn("send_to_codex", handoff["harness_quality"]["wrapper_actions"])
         self.assertNotIn(hostile, json.dumps(handoff))
         self.assertNotIn(hostile, json.dumps(payload))
 
@@ -300,6 +306,9 @@ class CliTests(unittest.TestCase):
                 payload = json.loads(stdout)
                 self.assertEqual(payload["delegation"]["action"], action)
                 self.assertNotIn("executor_handoff", payload)
+                self.assertEqual(payload["harness_quality"]["schema_version"], "harness_quality/v1")
+                self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
+                self.assertNotIn("send_to_codex", payload["harness_quality"]["wrapper_actions"])
 
     def test_coding_delegate_weak_query_falls_back(self) -> None:
         status, stdout, stderr = run_cli(["coding", "delegate", "zzzzunknownphrase"])
@@ -404,6 +413,9 @@ class CliTests(unittest.TestCase):
             handoff = record["executor_handoff"]
             self.assertEqual(handoff["executor_target"], "codex")
             self.assertIn("{message}", handoff["prompt_template"])
+            self.assertEqual(record["harness_quality"]["quality_tier"], "handoff-gated")
+            self.assertEqual(handoff["harness_quality"]["schema_version"], "harness_quality/v1")
+            self.assertIn("executor_result_observed", handoff["harness_quality"]["evidence_ladder"])
             self.assertNotIn(hostile, json.dumps(record))
 
             status, stdout, stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "show", run_id])
@@ -944,6 +956,9 @@ class CliTests(unittest.TestCase):
         self.assertFalse(contract["plan_artifact"]["recorded"])
         self.assertTrue(contract["decision_gate"]["required"])
         self.assertEqual(contract["quality_gate"]["readiness"], "ready_for_acceptance")
+        self.assertEqual(contract["harness_quality"]["schema_version"], "harness_quality/v1")
+        self.assertEqual(contract["harness_quality"]["harness"], "planning")
+        self.assertIn("acceptance_recorded", contract["harness_quality"]["evidence_ladder"])
         self.assertFalse(contract["deep_interview"]["required"])
         coding_delegate = contract["coding_delegate"]
         self.assertTrue(coding_delegate["available"])
@@ -1395,6 +1410,26 @@ class CliTests(unittest.TestCase):
             status, _, stderr = run_cli(["docs", "workflows", "--output", str(output), "--check"])
             self.assertEqual(status, 2)
             self.assertIn("workflow docs are stale", stderr)
+
+    def test_docs_workflows_json_exposes_machine_readable_quality_contract(self) -> None:
+        status, stdout, stderr = run_cli(["docs", "workflows", "--json"])
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+
+        payload = json.loads(stdout)
+        self.assertEqual(payload["schema_version"], "workflow_catalog/v1")
+        harnesses = {harness["name"]: harness for harness in payload["harnesses"]}
+        self.assertEqual(harnesses["coding-handling"]["quality_tier"], "handoff-gated")
+        self.assertIn("coding_delegation_prepared", harnesses["coding-handling"]["evidence_ladder"])
+        self.assertIn("send_to_codex", harnesses["coding-handling"]["wrapper_actions"])
+        quality = harnesses["coding-handling"]["harness_quality"]
+        self.assertEqual(quality["schema_version"], "harness_quality/v1")
+        self.assertEqual(quality["harness"], "coding-handling")
+        self.assertIn("send_to_codex", quality["wrapper_actions"])
+
+        status, _, stderr = run_cli(["docs", "workflows", "--json", "--check"])
+        self.assertEqual(status, 2)
+        self.assertIn("cannot be combined", stderr)
 
     def test_runtime_record_rejects_unknown_names(self) -> None:
         with TemporaryDirectory() as tmp:

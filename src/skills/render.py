@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .catalog import DESCRIPTIONS, HarnessDefinition, SkillDefinition, builtin_definitions, builtin_harnesses, primary_harness_for_skill
+from .catalog import (
+    DESCRIPTIONS,
+    HarnessDefinition,
+    SkillDefinition,
+    builtin_definitions,
+    builtin_harnesses,
+    harness_quality_contract,
+    primary_harness_for_skill,
+)
 
 
 @dataclass(frozen=True)
@@ -20,7 +28,8 @@ def _frontmatter(name: str, description: str) -> str:
         f"---\nname: {name}\ndescription: {description}\nmetadata:\n"
         f"  hermes:\n    tags: [workflow, oh-my-hermes, {category}]\n"
         f"    category: {category}\n    phase: {phase}\n"
-        f"    role: {definition.hermes_role if definition else 'hybrid-guidance'}\n---\n"
+        f"    role: {definition.hermes_role if definition else 'hybrid-guidance'}\n"
+        f"    quality_tier: {definition.quality_tier if definition else 'evidence-gated'}\n---\n"
     )
 
 
@@ -39,14 +48,21 @@ def _harness_summary(harness: HarnessDefinition) -> str:
     outputs = ", ".join(harness.expected_outputs[:3])
     verification = ", ".join(harness.verification[:2])
     artifact_events = ", ".join(f"`{event}`" for event in harness.artifact_events[:3])
+    evidence_ladder = " -> ".join(f"`{step}`" for step in harness.evidence_ladder)
+    wrapper_actions = ", ".join(f"`{action}`" for action in harness.wrapper_actions)
     return (
         f"- `{harness.name}`: {harness.purpose}\n"
         f"  - Use when: {harness.use_when}\n"
+        f"  - Quality tier: `{harness.quality_tier}`\n"
         f"  - Inputs: {inputs}\n"
         f"  - Outputs: {outputs}\n"
+        f"  - Quality Bar: {' '.join(harness.quality_bar)}\n"
+        f"  - Evidence Ladder: {evidence_ladder}\n"
+        f"  - Wrapper Actions: {wrapper_actions}\n"
         f"  - Verification: {verification}\n"
         f"  - Runtime Evidence: events {artifact_events}; privacy `{harness.privacy_default}`\n"
         f"  - Delegation: {harness.delegation_expectation}\n"
+        f"  - Overclaim Guards: {' '.join(harness.overclaim_guards)}\n"
         f"  - Fallback: {harness.fallback}"
     )
 
@@ -72,6 +88,11 @@ def _skill_metadata_block(definition: SkillDefinition) -> str:
     return f"""Category: `{definition.category}`
 Phase: `{definition.phase}`
 Hermes role: `{definition.hermes_role}`
+Quality tier: `{definition.quality_tier}`
+
+Quality bar:
+
+{_tuple_list(definition.quality_bar)}
 
 Handoff policy:
 
@@ -303,9 +324,12 @@ def workflow_reference_markdown() -> str:
                 f"- Category: `{definition.category}`",
                 f"- Phase: `{definition.phase}`",
                 f"- Hermes role: `{definition.hermes_role}`",
+                f"- Quality tier: `{definition.quality_tier}`",
                 f"- Handoff policy: {definition.handoff_policy}",
                 f"- Use when: {definition.use_when}",
                 f"- Strong routing signals: {triggers}",
+                "- Quality bar:",
+                *[f"  - {item}" for item in definition.quality_bar],
                 "- Required inputs:",
                 *[f"  - {item}" for item in definition.required_inputs],
                 "- Expected outputs:",
@@ -326,6 +350,9 @@ def workflow_reference_markdown() -> str:
                 harness.purpose,
                 "",
                 f"- Use when: {harness.use_when}",
+                f"- Quality tier: `{harness.quality_tier}`",
+                "- Quality bar:",
+                *[f"  - {item}" for item in harness.quality_bar],
                 "- Inputs:",
                 *[f"  - {item}" for item in harness.required_inputs],
                 "- Outputs:",
@@ -334,12 +361,72 @@ def workflow_reference_markdown() -> str:
                 *[f"  - {item}" for item in harness.stop_conditions],
                 "- Verification:",
                 *[f"  - {item}" for item in harness.verification],
+                "- Evidence ladder:",
+                *[f"  - `{item}`" for item in harness.evidence_ladder],
+                "- Wrapper actions:",
+                *[f"  - `{item}`" for item in harness.wrapper_actions],
                 "- Artifact events:",
                 *[f"  - `{item}`" for item in harness.artifact_events],
                 f"- Delegation expectation: {harness.delegation_expectation}",
                 f"- Privacy default: `{harness.privacy_default}`",
+                "- Overclaim guards:",
+                *[f"  - {item}" for item in harness.overclaim_guards],
                 f"- Fallback: {harness.fallback}",
                 "",
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def workflow_reference_payload() -> dict[str, object]:
+    return {
+        "schema_version": "workflow_catalog/v1",
+        "description": (
+            "Deterministic Hermes-native skill and harness metadata. This payload is local guidance, "
+            "not proof of hidden Hermes runtime behavior."
+        ),
+        "skills": [_skill_payload(definition) for definition in builtin_definitions()],
+        "harnesses": [_harness_payload(harness) for harness in builtin_harnesses()],
+    }
+
+
+def _skill_payload(definition: SkillDefinition) -> dict[str, object]:
+    return {
+        "name": definition.name,
+        "description": definition.description,
+        "use_when": definition.use_when,
+        "category": definition.category,
+        "phase": definition.phase,
+        "triggers": list(definition.triggers),
+        "primary_harness": primary_harness_for_skill(definition.name),
+        "hermes_role": definition.hermes_role,
+        "handoff_policy": definition.handoff_policy,
+        "quality_tier": definition.quality_tier,
+        "quality_bar": list(definition.quality_bar),
+        "required_inputs": list(definition.required_inputs),
+        "expected_outputs": list(definition.expected_outputs),
+        "artifact_expectations": list(definition.artifact_expectations),
+        "safety_rules": list(definition.safety_rules),
+    }
+
+
+def _harness_payload(harness: HarnessDefinition) -> dict[str, object]:
+    return {
+        "name": harness.name,
+        "purpose": harness.purpose,
+        "use_when": harness.use_when,
+        "quality_tier": harness.quality_tier,
+        "quality_bar": list(harness.quality_bar),
+        "required_inputs": list(harness.required_inputs),
+        "expected_outputs": list(harness.expected_outputs),
+        "stop_conditions": list(harness.stop_conditions),
+        "verification": list(harness.verification),
+        "evidence_ladder": list(harness.evidence_ladder),
+        "wrapper_actions": list(harness.wrapper_actions),
+        "artifact_events": list(harness.artifact_events),
+        "delegation_expectation": harness.delegation_expectation,
+        "privacy_default": harness.privacy_default,
+        "overclaim_guards": list(harness.overclaim_guards),
+        "fallback": harness.fallback,
+        "harness_quality": harness_quality_contract(harness.name),
+    }
