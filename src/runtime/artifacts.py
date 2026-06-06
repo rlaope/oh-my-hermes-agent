@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ..harness_quality import build_harness_progress
 from ..local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, read_json_object_result, utc_now
 from ..paths import OmhPaths
 from .records import (
@@ -348,6 +349,18 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
     ci_status = _ci_status_summary(ci_required, ci_record)
     merge_required = bool(merge_record) or ci_status["status"] == "passed"
     merge_status = _merge_status_summary(merge_required, merge_record)
+    harness_quality = _object_or_empty(coding.get("harness_quality") or handoff.get("harness_quality"))
+    harness_progress = _delegated_harness_progress(
+        harness_quality,
+        prepared=prepared,
+        prompt_dispatched=prompt_dispatched,
+        execution_observed=execution_observed,
+        execution_status=execution_status,
+        verification_observed=verification_observed,
+        review_status=review_status,
+        ci_status=ci_status,
+        merge_status=merge_status,
+    )
 
     next_action = _delegated_status_next_action(
         prepared=prepared,
@@ -384,6 +397,8 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
             "handoff_available": handoff_available,
             "handoff_schema_version": handoff.get("schema_version"),
         },
+        "harness_quality": harness_quality,
+        "harness_progress": harness_progress,
         "execution": {
             "observed": execution_observed,
             "status": execution_status,
@@ -438,6 +453,54 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
             "Review, verification, CI, and merge status require separate observed evidence.",
         ],
     }
+
+
+def _delegated_harness_progress(
+    harness_quality: dict[str, Any],
+    *,
+    prepared: bool,
+    prompt_dispatched: bool,
+    execution_observed: bool,
+    execution_status: str,
+    verification_observed: bool,
+    review_status: dict[str, Any],
+    ci_status: dict[str, Any],
+    merge_status: dict[str, Any],
+) -> dict[str, Any]:
+    if not harness_quality:
+        return {}
+    step_states = {
+        "coding_delegation_prepared": "complete" if prepared else "pending",
+        "executor_dispatch_observed": "complete" if prompt_dispatched else "pending",
+        "executor_result_observed": _executor_progress_state(execution_observed, execution_status),
+        "verification_recorded": "complete" if verification_observed else "pending",
+        "review_ci_merge_recorded_when_required": _downstream_gate_progress_state(review_status, ci_status, merge_status),
+    }
+    return build_harness_progress(harness_quality, step_states)
+
+
+def _executor_progress_state(observed: bool, status: str) -> str:
+    if not observed:
+        return "pending"
+    if status in {"blocked", "failed"}:
+        return "blocked"
+    return "complete"
+
+
+def _downstream_gate_progress_state(
+    review_status: dict[str, Any],
+    ci_status: dict[str, Any],
+    merge_status: dict[str, Any],
+) -> str:
+    for status in (review_status, ci_status, merge_status):
+        if status.get("status") in {"blocked", "failed"}:
+            return "blocked"
+    downstream_required = bool(review_status.get("required")) or bool(ci_status.get("required")) or bool(merge_status.get("required"))
+    if not downstream_required:
+        return "not_required"
+    if review_status.get("satisfied") and ci_status.get("satisfied") and merge_status.get("satisfied"):
+        return "complete"
+    return "pending"
 
 
 def _object_or_empty(value: Any) -> dict[str, Any]:

@@ -465,6 +465,9 @@ class CliTests(unittest.TestCase):
             self.assertFalse(summary["execution"]["observed"])
             self.assertEqual(summary["execution"]["status"], "not_observed")
             self.assertEqual(summary["next_action"], "dispatch_to_executor")
+            self.assertEqual(summary["harness_progress"]["schema_version"], "harness_progress/v1")
+            self.assertEqual(summary["harness_progress"]["next_step"], "executor_dispatch_observed")
+            self.assertEqual(summary["harness_progress"]["completed"], 1)
             self.assertTrue(summary["integrity"]["ok"])
             self.assertIn("not execution evidence", " ".join(summary["overclaim_guard"]))
 

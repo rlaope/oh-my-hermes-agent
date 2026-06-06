@@ -373,7 +373,7 @@ def build_status_card_from_status(status_payload: dict[str, Any]) -> dict[str, o
         next_action,
         ("status", "I have a conservative status update.", str(status_payload.get("safe_summary", "")), "Only observed evidence can support completion claims."),
     )
-    return {
+    card: dict[str, object] = {
         "schema_version": STATUS_CARD_SCHEMA_VERSION,
         "run_id": str(status_payload.get("run_id", "")),
         "kind": kind,
@@ -385,6 +385,10 @@ def build_status_card_from_status(status_payload: dict[str, Any]) -> dict[str, o
         "steps": _status_card_steps(status_payload, next_action),
         "claim_boundary": claim_boundary,
     }
+    harness_progress = status_payload.get("harness_progress")
+    if isinstance(harness_progress, dict) and harness_progress:
+        card["harness_progress"] = harness_progress
+    return card
 
 
 def _base_interaction(

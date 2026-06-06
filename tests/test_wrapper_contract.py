@@ -125,6 +125,31 @@ class WrapperContractTests(unittest.TestCase):
         self.assertEqual(steps["ci"], "pending")
         self.assertEqual(steps["merge_ready"], "pending")
 
+    def test_status_card_preserves_harness_ladder_progress(self) -> None:
+        card = build_status_card_from_status(
+            {
+                "run_id": "run-1",
+                "next_action": "dispatch_to_executor",
+                "prepared": {"handoff_available": True},
+                "harness_progress": {
+                    "schema_version": "harness_progress/v1",
+                    "harness": "coding-handling",
+                    "quality_tier": "handoff-gated",
+                    "steps": [
+                        {"id": "coding_delegation_prepared", "state": "complete"},
+                        {"id": "executor_dispatch_observed", "state": "pending"},
+                    ],
+                    "completed": 1,
+                    "total": 2,
+                    "complete": False,
+                    "next_step": "executor_dispatch_observed",
+                },
+            }
+        )
+
+        self.assertEqual(card["harness_progress"]["schema_version"], "harness_progress/v1")
+        self.assertEqual(card["harness_progress"]["next_step"], "executor_dispatch_observed")
+
 
 if __name__ == "__main__":
     unittest.main()

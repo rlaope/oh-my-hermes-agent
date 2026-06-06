@@ -610,6 +610,58 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertIn("ci not_required cannot downgrade required CI evidence", errors)
             self.assertIn("ci not_required status requires checks to be empty or not_required", errors)
 
+    def test_status_reader_calculates_harness_quality_ladder_progress(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_prepared_coding_delegation_run(
+                paths,
+                {"skill": "ai-slop-cleaner", "harness": "coding-handling"},
+            )
+            run_dir = paths.runtime_runs_dir / run["run_id"]
+            write_coding_delegation(
+                run_dir,
+                build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex", include_message=True),
+            )
+
+            summary = summarize_delegated_coding_status(paths, run["run_id"])
+            progress = summary["harness_progress"]
+            states = {step["id"]: step["state"] for step in progress["steps"]}
+
+            self.assertEqual(progress["schema_version"], "harness_progress/v1")
+            self.assertEqual(progress["harness"], "coding-handling")
+            self.assertEqual(progress["completed"], 1)
+            self.assertFalse(progress["complete"])
+            self.assertEqual(progress["next_step"], "executor_dispatch_observed")
+            self.assertEqual(states["coding_delegation_prepared"], "complete")
+            self.assertEqual(states["executor_dispatch_observed"], "pending")
+            self.assertEqual(states["review_ci_merge_recorded_when_required"], "pending")
+
+            write_wrapper_contract(
+                run_dir,
+                {
+                    "prompt_dispatched": True,
+                    "hermes_response_observed": True,
+                    "verification_observed": True,
+                    "completion_status": "completed",
+                },
+            )
+            write_delegation(run_dir, {"requested": True, "observed": True, "result": "completed"})
+            write_review_record(run_dir, {"status": "passed", "reviewer": "code-review", "evidence_refs": ["review"]})
+            write_ci_record(run_dir, {"status": "passed", "provider": "local", "checks": ["unit:passed"]})
+            write_merge_record(run_dir, {"status": "ready", "target_branch": "main", "evidence_refs": ["ci"], "summary": "ready"})
+
+            summary = summarize_delegated_coding_status(paths, run["run_id"])
+            progress = summary["harness_progress"]
+            states = {step["id"]: step["state"] for step in progress["steps"]}
+
+            self.assertTrue(progress["complete"])
+            self.assertEqual(progress["completed"], progress["total"])
+            self.assertEqual(progress["next_step"], "")
+            self.assertEqual(states["executor_dispatch_observed"], "complete")
+            self.assertEqual(states["executor_result_observed"], "complete")
+            self.assertEqual(states["verification_recorded"], "complete")
+            self.assertEqual(states["review_ci_merge_recorded_when_required"], "complete")
+
     def test_export_runtime_redacts_sensitive_text_and_preserves_evidence_booleans(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
