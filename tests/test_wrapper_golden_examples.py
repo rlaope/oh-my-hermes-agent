@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -122,6 +124,45 @@ class WrapperGoldenExampleTests(unittest.TestCase):
                 source_quality = self._source_harness_quality(item)
                 for key, value in item["expected_quality"].items():
                     self.assertEqual(source_quality[key], value)
+
+    def test_transport_free_adapter_shims_render_fixture_events(self) -> None:
+        cases = (
+            (
+                "examples/discord-adapter-shim.py",
+                "examples/wrapper-events/discord-safe-feature.json",
+                "discord",
+                "I want to safely add a feature to this repo",
+            ),
+            (
+                "examples/slack-adapter-shim.py",
+                "examples/wrapper-events/slack-risky-refactor.json",
+                "slack",
+                "risky refactor with review",
+            ),
+        )
+
+        for script, fixture, source, raw_message in cases:
+            with self.subTest(script=script):
+                result = subprocess.run(
+                    [sys.executable, script, fixture],
+                    cwd=Path.cwd(),
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(result.returncode, 0)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["schema_version"], "wrapper_adapter_shim/v1")
+                self.assertEqual(payload["source"], source)
+                self.assertEqual(payload["redaction_policy"], "metadata_only")
+                self.assertEqual(payload["response"]["kind"], "plan")
+                self.assertTrue(payload["response"]["headline"])
+                self.assertIn("not execution evidence", payload["response"]["claim_boundary"])
+                self.assertIn("accept_plan", {action["id"] for action in payload["actions"]})
+                self.assertIn("executor_result", payload["not_evidence_until_observed"])
+                self.assertNotIn(raw_message, result.stdout)
 
     def _source_harness_quality(self, item: dict[str, object]) -> dict[str, object]:
         source = item["source_payload"]

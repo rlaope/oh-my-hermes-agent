@@ -39,6 +39,9 @@ class Recommendation:
     confidence: str
     matched: tuple[str, ...]
     why: str
+    next_action: str
+    evidence_boundary: str
+    wrapper_guidance: str
     suggested_prompt: str
 
     def to_dict(self) -> dict[str, object]:
@@ -121,6 +124,9 @@ def _score_definition(
         confidence=_confidence(score),
         matched=matched_tuple,
         why=_why(matched_tuple),
+        next_action=_next_action(definition),
+        evidence_boundary=_evidence_boundary(definition),
+        wrapper_guidance=_wrapper_guidance(definition),
         suggested_prompt=_suggested_prompt(definition.name, original_query),
     )
 
@@ -144,6 +150,9 @@ def _fallback_recommendations(definitions: list[SkillDefinition], query: str) ->
                 confidence="low",
                 matched=(),
                 why=_FALLBACK_WHY,
+                next_action=_next_action(definition),
+                evidence_boundary=_evidence_boundary(definition),
+                wrapper_guidance=_wrapper_guidance(definition),
                 suggested_prompt=_suggested_prompt(definition.name, query),
             )
         )
@@ -180,3 +189,54 @@ def _why(matched: tuple[str, ...]) -> str:
 
 def _suggested_prompt(skill: str, query: str) -> str:
     return f"Use {skill} for: {query}"
+
+
+def _next_action(definition: SkillDefinition) -> str:
+    if definition.category == "planning":
+        return "present_plan"
+    if definition.category == "clarification":
+        return "ask_clarification"
+    if definition.category == "research":
+        return "run_hermes_research"
+    if definition.category == "review":
+        return "prepare_review_or_followup_handoff"
+    if definition.hermes_role == "codex-handoff-guidance":
+        return "prepare_coding_handoff"
+    if definition.category == "operator":
+        return "run_local_operator_check"
+    if definition.category == "router":
+        return "clarify_or_route"
+    return "show_workflow_guidance"
+
+
+def _evidence_boundary(definition: SkillDefinition) -> str:
+    if definition.category == "planning":
+        return "A recommendation or draft plan is not execution evidence."
+    if definition.category == "clarification":
+        return "A clarification question is not routing, planning, or execution evidence."
+    if definition.category == "research":
+        return "Research guidance is not implementation or verification evidence."
+    if definition.category == "review":
+        return "A review recommendation is not a completed review or fix evidence."
+    if definition.hermes_role == "codex-handoff-guidance":
+        return "A prepared coding handoff is not execution, review, CI, merge-readiness, or merge evidence."
+    if definition.category == "operator":
+        return "Local operator guidance is not a completed health check until command output is observed."
+    return "Routing guidance is not execution evidence."
+
+
+def _wrapper_guidance(definition: SkillDefinition) -> str:
+    next_action = _next_action(definition)
+    if next_action == "present_plan":
+        return "Show an Accept plan / Revise plan choice; keep Prepare handoff disabled until the plan is accepted."
+    if next_action == "ask_clarification":
+        return "Ask one blocking question in the same thread before selecting a workflow."
+    if next_action == "run_hermes_research":
+        return "Keep this in Hermes as source-backed research and summarize evidence before any later handoff."
+    if next_action == "prepare_review_or_followup_handoff":
+        return "Surface findings separately from any code changes; fixes need their own executor evidence."
+    if next_action == "prepare_coding_handoff":
+        return "Prepare a Codex-style handoff, expose Send to Codex / Show status actions, and mark it prepared_not_observed."
+    if next_action == "run_local_operator_check":
+        return "Run or display the local check result directly; record only observed command evidence."
+    return "Route conservatively and show the missing decision before claiming work started."

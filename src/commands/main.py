@@ -22,6 +22,7 @@ from ..wrapper.lifecycle import (
     start_codex_delegation_lifecycle,
 )
 from ..config_adapter import ensure_external_dir, read_config, remove_external_dir, write_config
+from ..demo import DEFAULT_ORCHESTRATION_MESSAGE, build_orchestration_demo
 from ..doctor import doctor_ok, run_doctor
 from ..hashutil import sha256_file
 from ..hermes_planning import attach_plan_artifact_to_wrapper_contract, build_hermes_plan_payload, write_hermes_plan
@@ -901,6 +902,15 @@ def cmd_probe(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_demo_orchestration(args: argparse.Namespace) -> int:
+    message = " ".join(args.message).strip() or DEFAULT_ORCHESTRATION_MESSAGE
+    try:
+        _print_json(build_orchestration_demo(message, source=args.source, limit=args.limit))
+    except ValueError as exc:
+        raise OmhError(str(exc)) from exc
+    return 0
+
+
 def _add_common_install_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--from-skills-dir", default=None, help="Import skills from a local skill directory.")
     p.add_argument("--source", default=None, help="Mockable local source directory for install/update.")
@@ -979,6 +989,21 @@ def _add_harness_commands(sub) -> None:
 
     harness_validate = harness_sub.add_parser("validate")
     harness_validate.set_defaults(func=cmd_harness_validate)
+
+
+def _add_demo_commands(sub) -> None:
+    demo = sub.add_parser("demo")
+    demo_sub = demo.add_subparsers(dest="demo_command", required=True)
+
+    orchestration = demo_sub.add_parser("orchestration")
+    orchestration.add_argument(
+        "message",
+        nargs="*",
+        help="Optional natural-language request for the deterministic orchestration demo.",
+    )
+    orchestration.add_argument("--source", choices=CHAT_SOURCES, default="discord")
+    orchestration.add_argument("--limit", type=int, default=3)
+    orchestration.set_defaults(func=cmd_demo_orchestration)
 
 
 def _add_chat_commands(sub) -> None:
@@ -1345,6 +1370,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_top_level_commands(sub)
     _add_docs_commands(sub)
     _add_harness_commands(sub)
+    _add_demo_commands(sub)
     _add_chat_commands(sub)
     _add_coding_commands(sub)
     _add_hermes_commands(sub)

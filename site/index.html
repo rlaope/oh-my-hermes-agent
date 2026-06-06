@@ -14,7 +14,9 @@
     <header class="topbar" aria-label="Primary">
       <div class="brand">OMH</div>
       <nav class="nav" aria-label="Primary navigation">
+        <a href="#architecture">Architecture</a>
         <a href="#flow">Flow</a>
+        <a href="#example">Example</a>
         <a href="#contracts">Contracts</a>
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
@@ -34,6 +36,46 @@
           <div class="actions" aria-label="Primary actions">
             <a class="button button--primary" href="#install">Install</a>
             <a class="button" href="docs/">Read docs</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--light" id="architecture">
+        <div class="section__header">
+          <h2>Architecture at a glance.</h2>
+          <p>
+            OMH sits below the chat surface and above executor lanes: wrappers render UX,
+            Hermes keeps conversation and planning, and runtime artifacts decide what is
+            actually observed.
+          </p>
+        </div>
+        <div class="architecture-map" aria-label="OMH architecture diagram">
+          <div class="arch-node arch-node--source">
+            <span>User message</span>
+            <strong>Discord, Slack, hosted chat</strong>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">-></div>
+          <div class="arch-node">
+            <span>Wrapper adapter</span>
+            <strong>Buttons, threads, edits</strong>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">-></div>
+          <div class="arch-node arch-node--core">
+            <span>OMH local contract layer</span>
+            <strong>Route, plan, handoff, status</strong>
+          </div>
+          <div class="arch-branch" aria-hidden="true"></div>
+          <div class="arch-node arch-node--hermes">
+            <span>Hermes Agent</span>
+            <strong>Clarify, research, plan, narrate</strong>
+          </div>
+          <div class="arch-node arch-node--executor">
+            <span>Codex-like executor</span>
+            <strong>Implementation after dispatch</strong>
+          </div>
+          <div class="arch-node arch-node--runtime">
+            <span>Runtime artifacts</span>
+            <strong>Observed evidence and status cards</strong>
           </div>
         </div>
       </section>
@@ -71,6 +113,71 @@
         </div>
       </section>
 
+      <section class="section" id="example">
+        <div class="section__header">
+          <h2>What Hermes Agent can say in chat.</h2>
+          <p>
+            The local Discord shim turns a natural request into a wrapper-native response
+            with actions and honest status boundaries.
+          </p>
+        </div>
+        <div class="site-example">
+          <div class="discord-frame" aria-label="Discord-style Hermes Agent example">
+            <div class="discord-channel"># repo-planning</div>
+            <div class="discord-message">
+              <div class="avatar avatar--user">M</div>
+              <div class="message-body">
+                <div class="message-meta"><strong>maintainer-1</strong></div>
+                <p>I want to safely add a feature to this repo</p>
+              </div>
+            </div>
+            <div class="discord-message">
+              <div class="avatar avatar--bot">H</div>
+              <div class="message-body bot-response">
+                <div class="message-meta"><strong>Hermes Agent</strong> <span>BOT</span></div>
+                <h3>I routed this to <code>plan</code> because it needs a safe plan first.</h3>
+                <p>
+                  Accept or revise the plan first; the handoff button stays disabled until
+                  acceptance. A draft plan is still only planning evidence.
+                </p>
+                <div class="button-row" aria-label="Wrapper actions">
+                  <button type="button">Accept plan</button>
+                  <button type="button">Revise plan</button>
+                  <button type="button" disabled>Prepare handoff</button>
+                </div>
+                <p class="claim-boundary">A draft plan is not execution evidence.</p>
+              </div>
+            </div>
+            <div class="status-preview">
+              <div>
+                <strong>A Codex handoff is ready.</strong>
+                <p>I have prepared the handoff, but executor dispatch is not observed yet.</p>
+              </div>
+              <ol>
+                <li><span class="state state--ready">ready</span> Handoff</li>
+                <li><span class="state">pending</span> Execution</li>
+                <li><span class="state">pending</span> Verification</li>
+                <li><span class="state state--na">n/a</span> Review</li>
+                <li><span class="state">pending</span> CI</li>
+                <li><span class="state">pending</span> Merge Ready</li>
+              </ol>
+              <p class="claim-boundary">Preparation is not execution evidence.</p>
+            </div>
+          </div>
+          <aside class="example-note" aria-label="Example provenance">
+            <h3>Fixture-backed, not mocked by hand.</h3>
+            <p>
+              This site example mirrors the deterministic output from
+              <code>uv run python examples/discord-adapter-shim.py</code>.
+            </p>
+            <p>
+              The wrapper can render the buttons, phase, next action, and evidence
+              boundary without asking the user to know an OMH command.
+            </p>
+          </aside>
+        </div>
+      </section>
+
       <section class="section" id="contracts">
         <div class="band">
           <div>
@@ -100,7 +207,7 @@
               <div class="step__num">2</div>
               <div>
                 <h3>Ask OMH for a contract</h3>
-                <p>Local CLI output tells the wrapper whether to answer, clarify, plan, or hand off.</p>
+                <p>Local CLI output tells the wrapper whether to answer, clarify, plan, or hand off. <code>omh demo orchestration</code> shows the full path.</p>
               </div>
             </div>
             <div class="step">
@@ -126,7 +233,7 @@
           <div class="command" role="region" aria-label="Install command" tabindex="0">
             <code>curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
 omh doctor
-omh chat interact --source discord "risky refactor"</code>
+omh demo orchestration</code>
           </div>
         </div>
       </section>

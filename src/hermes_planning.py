@@ -672,10 +672,15 @@ def _clarification_question(task: str) -> str:
 
 
 def _is_coding_shaped(task: str) -> bool:
+    lowered = task.lower()
     return bool(
         re.search(
             r"\b(code|coding|implement|implementation|fix|fixed|fixes|debug|debugging|test|tests|testing|refactor|refactoring|bug)\b",
-            task.lower(),
+            lowered,
+        )
+        or re.search(
+            r"\b(add|change|modify)\s+(?:a\s+)?(?:new\s+)?(feature|code|test|tests|endpoint|api|command|cli|workflow|harness|module|function)\b",
+            lowered,
         )
     )
 

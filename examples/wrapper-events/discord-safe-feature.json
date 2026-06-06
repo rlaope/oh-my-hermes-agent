@@ -1,0 +1,13 @@
+{
+  "id": "discord-fixture-001",
+  "channel_id": "repo-planning",
+  "message": {
+    "id": "discord-message-001",
+    "channel": "repo-planning",
+    "content": "I want to safely add a feature to this repo",
+    "author": {
+      "id": "maintainer-1"
+    },
+    "timestamp": "2026-06-06T10:30:00Z"
+  }
+}

@@ -275,19 +275,32 @@ def build_chat_response_from_plan(plan_payload: dict[str, object], *, thread_key
     coding_delegate = _nested(contract, "coding_delegate")
     if coding_delegate.get("available"):
         actions.append(_action("prepare_handoff", "Prepare handoff", "secondary", enabled=False))
+    selected = str(plan.get("recommended_workflow", "plan"))
+    next_copy = (
+        "Accept or revise the plan first; the handoff button stays disabled until acceptance."
+        if coding_delegate.get("available")
+        else "Accept or revise the plan before this moves to the selected workflow."
+    )
     return _chat_response(
         kind="plan",
-        headline="I drafted a plan for this request.",
-        body="Please accept or revise the plan before any coding handoff is prepared.",
+        headline=f"I routed this to `{selected}` because it needs a safe plan first.",
+        body=f"{next_copy} A draft plan is still only planning evidence.",
         phase="planning",
         next_action="accept_or_revise_plan",
         thread_key=thread_key,
         actions=actions,
         claim_boundary="A draft plan is not execution evidence.",
         extra_state={
+            "selected_workflow": selected,
             "plan_status": plan.get("status", "draft"),
             "review_gate": plan.get("review_gate", {}),
             "coding_delegate_available": bool(coding_delegate.get("available", False)),
+            "evidence_not_observed": [
+                "plan acceptance",
+                "executor dispatch",
+                "executor result",
+                "verification",
+            ],
         },
     )
 
