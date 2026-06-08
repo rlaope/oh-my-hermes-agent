@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 import unittest
 
 from _local_package import load_local_package
 
 load_local_package()
+from omh.routing import recommend as recommend_module
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
 from omh.runtime.records import validate_harness_quality
 from omh.skills.catalog import harness_quality_contract, primary_harness_for_skill
@@ -55,6 +57,28 @@ class RouterContentTests(unittest.TestCase):
             "code-review",
         }:
             self.assertIn(expected, names)
+
+    def test_recommendation_policies_are_data_driven_for_business_categories(self) -> None:
+        expected = {
+            "research": "run_hermes_research",
+            "strategy": "prepare_strategy_brief",
+            "meeting": "prepare_meeting_brief",
+            "triage": "triage_feedback",
+            "operations": "prepare_ops_review",
+        }
+
+        for category, next_action in expected.items():
+            with self.subTest(category=category):
+                self.assertEqual(recommend_module._CATEGORY_POLICIES[category].next_action, next_action)
+
+        for helper in (
+            recommend_module._next_action,
+            recommend_module._evidence_boundary,
+            recommend_module._wrapper_guidance,
+        ):
+            source = inspect.getsource(helper)
+            self.assertIn("_policy_for", source)
+            self.assertNotIn("if definition.category", source)
 
     def test_repo_root_tap_skills_match_generated_templates(self) -> None:
         templates = {template.name: template for template in builtin_skill_templates()}
