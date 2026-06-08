@@ -43,6 +43,8 @@ user says a plain request in Hermes
 > **GitHub Follow**
 > Follow [@rlaope](https://github.com/rlaope) on GitHub for OMH updates and
 > related Hermes-native workflow projects.
+> Explore [ArtEngine Lab](https://rlaope.github.io/artengine-lab/) for the
+> Art & Engineering studio behind OMH.
 
 ---
 
