@@ -26,7 +26,7 @@ questions:
 | Hermes Agent | Chat continuity, clarification, research, planning, and status narration. | Platform auth, SDK posting, hidden coding execution, or CI/merge proof. |
 | Wrapper adapter | Discord/Slack or hosted-chat events, buttons, threads, edits, notifications, and adapter-local event/thread caches. | OMH-owned session or run records, or deciding that prepared artifacts prove execution. |
 | OMH | Deterministic local routing, playbook, planning, handoff, session, status, and fixture contracts. | Hermes core patches, platform SDKs, network calls, LLM calls, or executor launch. |
-| Codex-like executor | Main implementation work, verification output, review fixes, and execution evidence after dispatch. | Chat UX or OMH contract generation. |
+| Selected coding executor | Main implementation work, verification output, review fixes, and execution evidence after dispatch or prompt handoff. | Chat UX or OMH contract generation. |
 | Runtime artifacts | Metadata-only observed evidence for dispatch, result, verification, review, CI, merge readiness, and merge. | Raw chat secrets or unobserved assumptions. |
 
 ## Contract Surfaces

@@ -34,7 +34,7 @@ Quality bar:
 
 Handoff policy:
 
-Run directly as local health inspection; propose Codex work only when a repo fix is required.
+Run directly as local health inspection; propose executor work only when a repo fix is required.
 
 Required inputs:
 

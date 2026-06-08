@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Keep durable research in Hermes-managed artifacts; do not convert to Codex unless the research produces an accepted coding task.
+Keep durable research in Hermes-managed artifacts; do not convert to executor handoff unless the research produces an accepted coding task.
 
 Required inputs:
 

@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Hermes can own baselines, benchmark plans, and status; optimization code changes should be Codex handoffs.
+Hermes can own baselines, benchmark plans, and status; optimization code changes should be selected executor handoffs.
 
 Required inputs:
 

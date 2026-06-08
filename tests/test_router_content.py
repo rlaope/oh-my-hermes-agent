@@ -35,7 +35,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("advisory wrapper guidance", router.content)
         self.assertIn("This role metadata is advisory", router.content)
         self.assertIn("Hermes should retain routing, web/source research, deep interview, planning, status, and evidence narration", router.content)
-        self.assertIn("prepare a Codex handoff", router.content)
+        self.assertIn("selected executor profile", router.content)
         self.assertIn("prepared_not_observed", router.content)
         self.assertIn("skills_list", router.content)
         self.assertIn("skill_view", router.content)
@@ -160,7 +160,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertEqual(definitions["ralplan"].hermes_role, "retained-cognition")
         self.assertEqual(definitions["ultrawork"].hermes_role, "codex-handoff-guidance")
         self.assertEqual(definitions["ai-slop-cleaner"].hermes_role, "codex-handoff-guidance")
-        self.assertIn("Codex", definitions["ultrawork"].handoff_policy)
+        self.assertIn("selected executor", definitions["ultrawork"].handoff_policy)
         self.assertEqual(primary_harness_for_skill("web-research"), "research")
         self.assertEqual(primary_harness_for_skill("research-brief"), "business-research")
         self.assertEqual(primary_harness_for_skill("strategy-brief"), "strategy-synthesis")
@@ -262,15 +262,15 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("Evidence ladder", reference)
         self.assertIn("Overclaim guards", reference)
 
-    def test_generated_public_content_avoids_external_runtime_branding(self) -> None:
-        forbidden = ("om" + "x", "oh-my-" + "co" + "dex")
+    def test_generated_public_content_avoids_legacy_product_branding(self) -> None:
+        forbidden = ("oh-my-" + "co" + "dex",)
         combined = "\n".join(skill.content for skill in builtin_skill_templates()).lower()
 
         for term in forbidden:
             self.assertNotIn(term, combined)
 
-    def test_public_project_files_avoid_external_runtime_branding(self) -> None:
-        forbidden = ("om" + "x", "oh-my-" + "co" + "dex")
+    def test_public_project_files_avoid_legacy_product_branding(self) -> None:
+        forbidden = ("oh-my-" + "co" + "dex",)
         paths = [
             Path("README.md"),
             Path("pyproject.toml"),
@@ -432,7 +432,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("Raise the product's capability level by strengthening contracts", direction)
         self.assertIn("Hermes owns:", direction)
         self.assertIn("OMH owns:", direction)
-        self.assertIn("Codex-like executors own:", direction)
+        self.assertIn("Selected coding executors own:", direction)
         self.assertIn("prepared_not_observed", direction)
         self.assertIn("One user goal should normally produce one PR.", direction)
         self.assertIn("Keep users command-agnostic in chat.", direction)

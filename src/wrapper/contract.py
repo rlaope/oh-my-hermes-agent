@@ -6,6 +6,7 @@ from typing import Any
 from ..ingress import CHAT_SOURCES, compact_source_metadata, extract_message_text, extract_source_metadata
 from ..routing.chat import public_route_payload, route_chat_message
 from ..coding_delegation import build_coding_delegation_payload
+from ..executors import executor_label
 from ..hermes_planning import build_hermes_plan_payload
 from ..skills.catalog import retained_delegation_skill_names
 
@@ -19,6 +20,10 @@ VISIBLE_ACTIONS = (
     "accept_plan",
     "revise_plan",
     "prepare_handoff",
+    "choose_executor",
+    "show_prompt_handoff",
+    "copy_prompt_handoff",
+    "send_to_executor",
     "send_to_codex",
     "show_status",
     "cancel",
@@ -58,7 +63,7 @@ _STATUS_COPY = {
     ),
     "dispatch_to_executor": (
         "handoff",
-        "A Codex handoff is ready.",
+        "An executor handoff is ready.",
         "I have prepared the handoff, but executor dispatch is not observed yet.",
         "Preparation is not execution evidence.",
     ),
@@ -145,7 +150,7 @@ def build_chat_interaction_payload(
     limit: int = 3,
     min_confidence: str = "high",
     include_message: bool = False,
-    executor_target: str = "codex",
+    executor_target: str = "choose",
     source_metadata: dict[str, str] | None = None,
 ) -> dict[str, object]:
     if source not in CHAT_SOURCES:
@@ -184,7 +189,11 @@ def build_chat_interaction_payload(
         base["delegation"] = delegation
         action = str(_nested(delegation, "delegation").get("action", "fallback"))
         if action == "delegate" and delegation.get("executor_handoff"):
-            base["next_action"] = "send_to_codex"
+            base["next_action"] = "send_to_executor"
+        elif action == "delegate" and delegation.get("prompt_handoff"):
+            base["next_action"] = "show_prompt_handoff"
+        elif action == "delegate" and _nested(delegation, "executor_selection").get("choice_required"):
+            base["next_action"] = "choose_executor"
         elif action == "clarify":
             base["next_action"] = "answer_clarification"
         else:
@@ -358,19 +367,74 @@ def build_chat_response_from_delegation(delegation_payload: dict[str, object], *
     delegation = _nested(delegation_payload, "delegation")
     action = str(delegation.get("action", "fallback"))
     if action == "delegate" and delegation_payload.get("executor_handoff"):
+        handoff = _nested(delegation_payload, "executor_handoff")
+        executor = str(handoff.get("selected_executor_profile") or handoff.get("executor_target") or "executor")
+        label = executor_label(executor)
         return _chat_response(
             kind="handoff",
-            headline="A Codex handoff is ready.",
-            body="I can send this to Codex, but I will not claim implementation until executor evidence is observed.",
+            headline="A coding-agent handoff is ready.",
+            body=f"I can send this to {label}, but I will not claim implementation until executor evidence is observed.",
             phase="handoff_prepared",
-            next_action="send_to_codex",
+            next_action="send_to_executor",
             thread_key=thread_key,
-            actions=[_action("send_to_codex", "Send to Codex", "primary"), _action("show_status", "Show status", "secondary")],
+            actions=[
+                _action("send_to_executor", "Send to executor", "primary", payload={"selected_executor_profile": executor}),
+                _action("send_to_codex", "Send to Codex", "secondary", payload={"compatibility_alias": True}),
+                _action("show_status", "Show status", "secondary"),
+            ],
             claim_boundary="Prepared handoff is not execution evidence.",
             extra_state={
                 "delegation_action": action,
                 "intent": delegation.get("intent", "unknown"),
-                "executor_target": _nested(delegation_payload, "executor_handoff").get("executor_target", "codex"),
+                "work_owner_mode": delegation_payload.get("work_owner_mode", "external_executor"),
+                "selected_executor_profile": delegation_payload.get("selected_executor_profile", "codex"),
+                "dispatch_policy": delegation_payload.get("dispatch_policy", "ask_before_dispatch"),
+                "executor_target": handoff.get("executor_target", "codex"),
+            },
+        )
+    if action == "delegate" and delegation_payload.get("prompt_handoff"):
+        prompt_handoff = _nested(delegation_payload, "prompt_handoff")
+        selected = str(prompt_handoff.get("selected_executor_profile") or "executor")
+        return _chat_response(
+            kind="handoff",
+            headline="A prompt handoff is ready.",
+            body=f"I prepared a copyable {selected} prompt. This is not dispatch, execution, review, CI, or merge evidence.",
+            phase="prompt_handoff_prepared",
+            next_action="show_prompt_handoff",
+            thread_key=thread_key,
+            actions=[
+                _action("show_prompt_handoff", "Show prompt", "primary", payload={"selected_executor_profile": selected}),
+                _action("copy_prompt_handoff", "Copy prompt", "secondary", payload={"selected_executor_profile": selected}),
+                _action("choose_executor", "Change executor", "secondary"),
+                _action("show_status", "Show status", "secondary"),
+            ],
+            claim_boundary="Prompt handoff is prepared only; OMHM has not dispatched it to an executor.",
+            extra_state={
+                "delegation_action": action,
+                "intent": delegation.get("intent", "unknown"),
+                "work_owner_mode": "prompt_only_handoff",
+                "selected_executor_profile": selected,
+                "dispatch_policy": "prepare_only",
+                "dispatchable": False,
+            },
+        )
+    if action == "delegate" and _nested(delegation_payload, "executor_selection").get("choice_required"):
+        return _chat_response(
+            kind="handoff",
+            headline="Choose who should own the coding work.",
+            body="I can keep this with Hermes, prepare a prompt for another coding agent, or prepare a Codex lifecycle handoff.",
+            phase="executor_choice_required",
+            next_action="choose_executor",
+            thread_key=thread_key,
+            actions=[_action("choose_executor", "Choose executor", "primary"), _action("show_status", "Show status", "secondary")],
+            claim_boundary="Executor choice is not dispatch or implementation evidence.",
+            extra_state={
+                "delegation_action": action,
+                "intent": delegation.get("intent", "unknown"),
+                "work_owner_mode": "external_executor",
+                "selected_executor_profile": None,
+                "dispatchable": False,
+                "executor_options": _nested(delegation_payload, "executor_selection").get("options", []),
             },
         )
     if action == "clarify":
@@ -423,7 +487,9 @@ def build_chat_response_from_status(status_payload: dict[str, Any], *, thread_ke
     )
     actions = [_action("show_status", "Show status", "secondary")]
     if next_action == "dispatch_to_executor":
-        actions.insert(0, _action("send_to_codex", "Send to Codex", "primary"))
+        actions.insert(0, _action("send_to_executor", "Send to executor", "primary"))
+        if str(_nested(status_payload, "prepared").get("executor_target", "")) == "codex":
+            actions.insert(1, _action("send_to_codex", "Send to Codex", "secondary", payload={"compatibility_alias": True}))
     return _chat_response(
         kind=kind,
         headline=headline,
@@ -460,7 +526,7 @@ def build_status_card_from_status(status_payload: dict[str, Any]) -> dict[str, o
         "headline": headline,
         "summary": body,
         "next_action": next_action,
-        "primary_action": "send_to_codex" if next_action == "dispatch_to_executor" else "show_status",
+        "primary_action": "send_to_executor" if next_action == "dispatch_to_executor" else "show_status",
         "steps": _status_card_steps(status_payload, next_action),
         "claim_boundary": claim_boundary,
     }
@@ -704,7 +770,7 @@ def _default_overclaim_guard() -> list[str]:
     return [
         "Prepared handoff is not execution evidence.",
         "Review, verification, CI, and merge status require separate observed evidence.",
-        "Hermes orchestrates; Codex-like executors perform main coding work.",
+        "Hermes orchestrates; selected coding executors perform main coding work.",
     ]
 
 

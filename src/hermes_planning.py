@@ -361,7 +361,11 @@ def _plan_for(task: str, top: dict[str, object]) -> HermesPlan:
 
     workflow = "ralplan" if review_shaped else "plan"
     harness = "planning"
-    handoff = "Use `omh coding delegate --record` after this plan is accepted." if coding_shaped else "Use the selected Hermes workflow only after the plan is accepted."
+    handoff = (
+        "Use `omh coding delegate --executor codex --record` after this plan is accepted for a run-backed Codex handoff."
+        if coding_shaped
+        else "Use the selected Hermes workflow only after the plan is accepted."
+    )
     return HermesPlan(
         status="draft",
         task_statement=task,
@@ -546,6 +550,8 @@ def _wrapper_contract(plan: HermesPlan, *, source: str, source_metadata: dict[st
                         "omh",
                         "coding",
                         "delegate",
+                        "--executor",
+                        "codex",
                         "--source",
                         source,
                         "--record",

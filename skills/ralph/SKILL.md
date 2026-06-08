@@ -30,12 +30,12 @@ Quality tier: `handoff-gated`
 Quality bar:
 
 - Do not enter a finish-until-done loop until scope, acceptance criteria, and verification commands are concrete.
-- For coding edits, prepare and track Codex-like executor evidence instead of implying Hermes implemented the changes.
+- For coding edits, prepare and track selected executor evidence instead of implying Hermes implemented the changes.
 - Report completion only from observed execution and verification evidence.
 
 Handoff policy:
 
-Keep as compatibility guidance; for implementation, ask the wrapper to prepare/track a Codex lifecycle instead of making Hermes the coder.
+Keep as compatibility guidance; for implementation, ask the wrapper to prepare/track the selected executor path instead of making Hermes the hidden coder.
 
 Required inputs:
 

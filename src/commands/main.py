@@ -35,6 +35,7 @@ from ..plugin_pack import PluginPackError, install_plugin_bundle
 from ..probe import probe_capabilities
 from ..routing.recommend import recommend_skills
 from ..release import RELEASE_CHANNELS, package_url_for
+from ..setup_profiles import build_setup_profile, read_setup_profile, write_setup_profile
 from ..runtime.artifacts import (
     CI_STATUSES,
     DELEGATION_RESULTS,
@@ -80,6 +81,7 @@ from ..wrapper.sessions import (
     list_wrapper_sessions,
     prepare_wrapper_session_handoff,
     record_plan_decision,
+    select_wrapper_session_executor,
     show_wrapper_session,
 )
 
@@ -220,6 +222,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
         steps["apply"] = _apply_result(args)
     if args.with_plugin:
         steps["plugin"] = _plugin_setup_result(args, paths)
+    steps["profile"] = _setup_profile_result(args, paths)
     if args.dry_run:
         bootstrap_final_state = (
             "dry run would install generated skills and register the managed OMH skills directory for Hermes discovery"
@@ -265,6 +268,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
                     "ok": True,
                     "apply_skipped": bool(args.skip_apply),
                     "hermes_native": hermes_native,
+                    "setup_profile": steps["profile"],
                 }
             },
         )
@@ -283,6 +287,14 @@ def _plugin_setup_result(args: argparse.Namespace, paths) -> dict[str, object]:
     if not args.dry_run:
         update_state(paths, {"last_plugin_distribution": result})
     return result
+
+
+def _setup_profile_result(args: argparse.Namespace, paths) -> dict[str, object]:
+    if args.dry_run:
+        profile = build_setup_profile(args.profile)
+        return {**profile, "dry_run": True, "written": False, "path": str(paths.setup_profile_path)}
+    profile = write_setup_profile(paths, args.profile)
+    return {**profile, "dry_run": False, "written": True, "path": str(paths.setup_profile_path)}
 
 
 def cmd_recommend(args: argparse.Namespace) -> int:
@@ -375,7 +387,7 @@ def cmd_chat_interact(args: argparse.Namespace) -> int:
                 limit=args.limit,
                 min_confidence=args.min_confidence,
                 include_message=args.include_message,
-                executor_target=args.executor,
+                executor_target=_resolved_executor(args, default="choose"),
                 source_metadata=source_metadata,
             )
     except FileNotFoundError as exc:
@@ -396,6 +408,7 @@ def cmd_chat_session_start(args: argparse.Namespace) -> int:
             limit=args.limit,
             min_confidence=args.min_confidence,
             source_metadata=source_metadata,
+            executor_target=_resolved_executor(args, default="choose"),
         )
     except (OSError, json.JSONDecodeError, ValueError, WrapperSessionError) as exc:
         raise OmhError(str(exc)) from exc
@@ -423,12 +436,23 @@ def cmd_chat_session_prepare_handoff(args: argparse.Namespace) -> int:
             limit=args.limit,
             include_message=args.include_message,
             source_metadata=source_metadata,
+            executor_target=args.executor,
         )
     except FileNotFoundError as exc:
         raise OmhError(f"wrapper session not found: {args.session_id}") from exc
     except (OSError, json.JSONDecodeError, ValueError, WrapperSessionError) as exc:
         raise OmhError(str(exc)) from exc
     _print_json(payload)
+    return 0
+
+
+def cmd_chat_session_select_executor(args: argparse.Namespace) -> int:
+    try:
+        _print_json(select_wrapper_session_executor(_paths(args), args.session_id, args.executor))
+    except FileNotFoundError as exc:
+        raise OmhError(f"wrapper session not found: {args.session_id}") from exc
+    except WrapperSessionError as exc:
+        raise OmhError(str(exc)) from exc
     return 0
 
 
@@ -476,9 +500,16 @@ def cmd_coding_delegate(args: argparse.Namespace) -> int:
             limit=args.limit,
             include_message=args.include_message,
             source_metadata=source_metadata,
-            executor_target=args.executor,
+            executor_target=_resolved_executor(args, default="generic"),
         )
-        if args.record:
+        runtime_skip_reason = _coding_delegate_runtime_skip_reason(payload) if args.record else ""
+        if runtime_skip_reason:
+            payload["runtime"] = {
+                "recorded": False,
+                "reason": runtime_skip_reason,
+                "run_created": False,
+            }
+        elif args.record:
             delegation = payload["delegation"]
             if not isinstance(delegation, dict):
                 raise OmhError("coding delegation payload is missing delegation")
@@ -506,9 +537,24 @@ def cmd_coding_delegate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _coding_delegate_runtime_skip_reason(payload: dict[str, object]) -> str:
+    selection = payload.get("executor_selection")
+    if isinstance(selection, dict) and selection.get("choice_required") is True:
+        return "executor_choice_required"
+    if payload.get("work_owner_mode") == "prompt_only_handoff":
+        return "prompt_only_handoff_is_wrapper_session_only"
+    if payload.get("work_owner_mode") == "retained_hermes":
+        return "retained_hermes_has_no_executor_handoff"
+    if payload.get("selected_executor_profile") != "codex" or not isinstance(payload.get("executor_handoff"), dict):
+        return "codex_executor_handoff_required_for_runtime_record"
+    return ""
+
+
 def cmd_coding_lifecycle_start(args: argparse.Namespace) -> int:
     if not args.record:
         raise OmhError("coding lifecycle start requires --record")
+    if args.executor != "codex":
+        raise OmhError("coding lifecycle is Codex-only in Phase 1; use coding delegate for prompt-only handoffs")
     try:
         event_or_message, source_metadata = _chat_input_and_metadata(args)
         message = extract_message_text(event_or_message)
@@ -623,6 +669,21 @@ def _explicit_source_metadata(args: argparse.Namespace) -> dict[str, str]:
         }.items()
         if value
     }
+
+
+def _resolved_executor(args: argparse.Namespace, *, default: str) -> str:
+    explicit = getattr(args, "executor", None)
+    if explicit:
+        return str(explicit)
+    try:
+        profile = read_setup_profile(_paths(args))
+    except (OSError, json.JSONDecodeError, ValueError):
+        profile = None
+    if isinstance(profile, dict):
+        executor = str(profile.get("default_executor", ""))
+        if executor:
+            return executor
+    return default
 
 
 def _chat_input_and_metadata(args: argparse.Namespace) -> tuple[dict[str, object] | str, dict[str, str]]:
@@ -1061,6 +1122,12 @@ def _add_top_level_commands(sub) -> None:
     _add_common_install_options(setup)
     setup.add_argument("--skip-apply", action="store_true", help="Install skills without registering them in Hermes config.")
     setup.add_argument(
+        "--profile",
+        action="append",
+        default=[],
+        help="Setup profile category to record by number or id. Repeat for multiple categories; choices are listed in setup output.",
+    )
+    setup.add_argument(
         "--with-plugin",
         action="store_true",
         help="Also install the optional OMHM Hermes plugin bundle under ~/.hermes/plugins/omhm.",
@@ -1223,8 +1290,8 @@ def _add_chat_commands(sub) -> None:
     interact.add_argument(
         "--executor",
         choices=CODING_EXECUTOR_TARGETS,
-        default="codex",
-        help="Executor target for delegate-mode handoff payloads.",
+        default=None,
+        help="Executor target for delegate-mode handoff payloads. Defaults to setup profile or explicit choice required.",
     )
     interact.add_argument("--stdin", action="store_true", help="Read the raw chat message from stdin.")
     interact.add_argument(
@@ -1256,6 +1323,7 @@ def _add_chat_commands(sub) -> None:
     session_start.add_argument("--source-event-id", default="")
     session_start.add_argument("--channel-ref", default="")
     session_start.add_argument("--user-ref", default="")
+    session_start.add_argument("--executor", choices=CODING_EXECUTOR_TARGETS, default=None)
     session_start.set_defaults(func=cmd_chat_session_start)
 
     session_accept = session_sub.add_parser("accept-plan")
@@ -1270,6 +1338,11 @@ def _add_chat_commands(sub) -> None:
     session_cancel.add_argument("session_id")
     session_cancel.set_defaults(func=cmd_chat_session_decision, decision="cancel")
 
+    session_select = session_sub.add_parser("select-executor")
+    session_select.add_argument("session_id")
+    session_select.add_argument("executor", choices=tuple(value for value in CODING_EXECUTOR_TARGETS if value != "choose"))
+    session_select.set_defaults(func=cmd_chat_session_select_executor)
+
     session_prepare = session_sub.add_parser("prepare-handoff")
     session_prepare.add_argument("session_id")
     session_prepare.add_argument("message", nargs="*", help="Original or clarified task text for the prepared handoff.")
@@ -1280,6 +1353,7 @@ def _add_chat_commands(sub) -> None:
     session_prepare.add_argument("--source-event-id", default="")
     session_prepare.add_argument("--channel-ref", default="")
     session_prepare.add_argument("--user-ref", default="")
+    session_prepare.add_argument("--executor", choices=tuple(value for value in CODING_EXECUTOR_TARGETS if value != "choose"), default=None)
     session_prepare.set_defaults(func=cmd_chat_session_prepare_handoff)
 
     session_status = session_sub.add_parser("status")
@@ -1310,7 +1384,7 @@ def _add_coding_commands(sub) -> None:
     delegate.add_argument(
         "--executor",
         choices=CODING_EXECUTOR_TARGETS,
-        default="generic",
+        default=None,
         help="Optional coding executor target for wrapper handoff payloads.",
     )
     delegate.add_argument("--stdin", action="store_true", help="Read the raw coding task from stdin.")
@@ -1342,7 +1416,7 @@ def _add_coding_commands(sub) -> None:
         help="Source surface that received the coding request.",
     )
     lifecycle_start.add_argument("--limit", type=int, default=3, help="Maximum catalog recommendations to include.")
-    lifecycle_start.add_argument("--executor", choices=("codex",), default="codex", help="Coding executor target.")
+    lifecycle_start.add_argument("--executor", choices=CODING_EXECUTOR_TARGETS, default="codex", help="Coding executor target.")
     lifecycle_start.add_argument("--record", action="store_true", help="Record a metadata-only prepared lifecycle run.")
     lifecycle_start.add_argument("--stdin", action="store_true", help="Read the raw coding task from stdin.")
     lifecycle_start.add_argument(

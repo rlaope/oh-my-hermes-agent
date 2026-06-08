@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Run directly in Hermes or the chat wrapper; produce a clarified brief before any Codex handoff is prepared.
+Run directly in Hermes or the chat wrapper; produce a clarified brief before any coding handoff is prepared.
 
 Required inputs:
 

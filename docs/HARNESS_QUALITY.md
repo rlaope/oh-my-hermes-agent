@@ -50,7 +50,7 @@ contract shaped like this:
     "verification_recorded",
     "review_ci_merge_recorded_when_required"
   ],
-  "wrapper_actions": ["accept_plan", "send_to_codex", "show_status", "record_result"],
+  "wrapper_actions": ["accept_plan", "show_prompt_handoff", "copy_prompt_handoff", "choose_executor", "send_to_executor", "send_to_codex", "show_status", "record_result"],
   "overclaim_guards": [
     "A prepared coding_delegation.json is not implementation evidence.",
     "Executor completion is not review, CI, merge-readiness, or merge evidence."
@@ -67,7 +67,12 @@ contract shaped like this:
   prepared executor handoff.
 - `omh coding delegate --executor codex` includes the dispatch-capable contract
   in both the public payload and `executor_handoff` when the request is specific
-  enough to delegate.
+  enough to delegate. The primary action is `send_to_executor`; `send_to_codex`
+  remains a compatibility alias only for Codex-selected flows.
+- `omh coding delegate --executor claude-code`, `--executor omx-runtime`, or
+  `--executor generic` returns a prompt-only handoff. It can expose
+  `show_prompt_handoff`, `copy_prompt_handoff`, and `choose_executor`, but it
+  must not create a lifecycle run or observed execution evidence.
 - `omh hermes plan` includes `wrapper_contract.harness_quality` so wrappers can
   render accept/revise/cancel and handoff readiness from the plan contract.
 - Runtime records preserve the contract in `coding_delegation.json` when present.

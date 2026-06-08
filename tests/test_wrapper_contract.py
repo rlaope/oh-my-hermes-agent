@@ -63,14 +63,38 @@ class WrapperContractTests(unittest.TestCase):
         self.assertNotIn("send_to_codex", actions)
         self.assertNotIn("executor_handoff", json.dumps(payload))
 
-    def test_delegate_mode_exposes_send_to_codex_only_for_executor_handoff(self) -> None:
+    def test_delegate_mode_exposes_executor_neutral_action_for_codex_handoff(self) -> None:
+        payload = build_chat_interaction_payload("risky refactor", mode="delegate", source="discord", executor_target="codex")
+
+        actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
+        self.assertEqual(payload["next_action"], "send_to_executor")
+        self.assertEqual(payload["delegation"]["executor_handoff"]["schema_version"], "coding_executor_handoff/v1")
+        self.assertEqual(payload["delegation"]["executor_handoff"]["send_action"], "send_to_executor")
+        self.assertTrue(payload["delegation"]["executor_handoff"]["codex_skill"].startswith("$"))
+        self.assertIn("send_to_executor", actions)
+        self.assertIn("send_to_codex", actions)
+
+    def test_delegate_mode_defaults_to_executor_choice(self) -> None:
         payload = build_chat_interaction_payload("risky refactor", mode="delegate", source="discord")
 
         actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
-        self.assertEqual(payload["next_action"], "send_to_codex")
-        self.assertEqual(payload["delegation"]["executor_handoff"]["schema_version"], "coding_executor_handoff/v1")
-        self.assertTrue(payload["delegation"]["executor_handoff"]["codex_skill"].startswith("$"))
-        self.assertIn("send_to_codex", actions)
+        self.assertEqual(payload["next_action"], "choose_executor")
+        self.assertEqual(payload["delegation"]["executor_selection"]["status"], "executor_choice_required")
+        self.assertTrue(payload["delegation"]["executor_selection"]["choice_required"])
+        self.assertNotIn("executor_handoff", payload["delegation"])
+        self.assertIn("choose_executor", actions)
+
+    def test_delegate_mode_can_prepare_prompt_only_handoff(self) -> None:
+        payload = build_chat_interaction_payload("risky refactor", mode="delegate", source="discord", executor_target="claude-code")
+
+        actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
+        self.assertEqual(payload["next_action"], "show_prompt_handoff")
+        self.assertEqual(payload["delegation"]["work_owner_mode"], "prompt_only_handoff")
+        self.assertFalse(payload["delegation"]["dispatchable"])
+        self.assertEqual(payload["delegation"]["prompt_handoff"]["schema_version"], "coding_prompt_handoff/v1")
+        self.assertNotIn("executor_handoff", payload["delegation"])
+        self.assertIn("show_prompt_handoff", actions)
+        self.assertIn("copy_prompt_handoff", actions)
 
     def test_route_mode_surfaces_recommendation_policy_actions(self) -> None:
         payload = build_chat_interaction_payload(

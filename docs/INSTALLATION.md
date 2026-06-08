@@ -159,18 +159,20 @@ The backend flow is:
    the same thread and calls `omh chat interact` again with the updated message.
 6. If the interaction presents a plan, the wrapper waits for the user to accept
    or revise it before preparing any coding handoff.
-7. If the accepted interaction exposes `send_to_codex`, the wrapper starts a
-   Codex lifecycle run, dispatches the handoff to the external Codex-like
-   executor, and records only what it actually observes.
+7. If the accepted interaction exposes executor selection or a handoff action,
+   the wrapper uses the chosen executor profile. Codex can use the run-backed
+   lifecycle path; Claude Code, OMH-style runtime profiles, generic agents, and
+   Hermes-retained work use prompt-only or retained handoff paths in Phase 1.
+   The wrapper records only what it actually observes.
 8. Status updates use `omh coding lifecycle report` or
    `omh chat interact --run <run-id>` and stay in the same thread.
 9. Hermes still starts with its normal config and reads `skills.external_dirs`;
    `omh apply` makes sure `~/.omh/skills` is included in that discovery list.
 
 `omh` does not replace the Discord bot, modify Slack commands, open network
-connections, invoke Codex, or patch Hermes internals. It prepares deterministic
-local contracts that a wrapper can render, dispatch, and later update with
-observed evidence.
+connections, invoke coding executors, or patch Hermes internals. It prepares
+deterministic local contracts that a wrapper can render, dispatch, and later
+update with observed evidence.
 
 For a hosted bot, the practical bootstrap shape is usually:
 
@@ -190,13 +192,21 @@ omh chat interact --source slack "risky refactor"
 printf '%s' "$SLACK_TEXT" | omh chat interact --source slack --stdin
 ```
 
-Codex lifecycle calls after the wrapper has an accepted coding handoff:
+Choose an executor profile for an accepted coding handoff:
+
+```sh
+omh chat session select-executor "$session_id" codex
+omh chat session select-executor "$session_id" claude-code
+omh chat session select-executor "$session_id" generic
+```
+
+Codex lifecycle calls after the wrapper has an accepted Codex coding handoff:
 
 ```sh
 start_json="$(omh coding lifecycle start --executor codex --record "risky refactor")"
 run_id="$(printf '%s' "$start_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["run"]["run_id"])')"
 
-# Dispatch to the external Codex-like executor outside OMHM, then record the
+# Dispatch to the external Codex executor outside OMHM, then record the
 # wrapper-observed transition.
 omh coding lifecycle dispatch --run "$run_id"
 omh coding lifecycle result --run "$run_id" --result completed --evidence-ref codex-log
@@ -218,6 +228,7 @@ Lower-level debug surfaces remain available when an adapter needs them:
 omh chat route --source discord --record "risky refactor"
 omh hermes plan --source discord --record "risky refactor with review"
 omh coding delegate --executor codex --source discord --record "risky refactor"
+omh coding delegate --executor claude-code --source discord --record "risky refactor"
 omh runtime delegation-status --run <run-id>
 ```
 
@@ -274,17 +285,24 @@ Before calling the bot integration ready, verify these points:
   `chat_interaction/v1` envelope with a renderable `chat_response/v1`.
 - The rendered `chat_response` does not expose `omh`, argv arrays, or shell
   command text to the end user.
-- Clarification and fallback interactions do not expose `send_to_codex`.
+- Clarification and fallback interactions do not expose `send_to_executor` or
+  `send_to_codex`.
 - `omh chat route --source discord --record "<message>"` returns a route action
   and writes `routing.json` in the same runtime context as the wrapper when the
   lower-level route command is used.
-- `omh coding delegate --source discord --record "<message>"` returns a
-  `coding_delegation/v1` payload and writes `coding_delegation.json` with
-  status `prepared_not_observed` for implementation-shaped requests when the
-  lower-level delegate command is used.
+- `omh coding delegate --executor codex --source discord --record "<message>"`
+  returns a `coding_delegation/v1` payload and writes `coding_delegation.json`
+  with status `prepared_not_observed` when the payload contains a real Codex
+  `executor_handoff`.
 - `omh coding lifecycle start --executor codex --record "<message>"` creates a
   prepared Codex handoff lifecycle without storing the raw prompt body by
   default.
+- `omh coding delegate --executor claude-code --record "<message>"` and other
+  non-Codex profiles return a `coding_prompt_handoff/v1` prompt-only payload
+  without creating a lifecycle run.
+- Executor-choice, retained-Hermes, clarify, fallback, and prompt-only handoffs
+  return `runtime.recorded=false`; wrappers should not expect
+  `runtime.run.run_id` for those paths.
 - Codex handoff payloads expose `codex_skill` plus
   `codex_invocation.dispatch_text_template`, for example
   `$ai-slop-cleaner {message}`. The wrapper replaces `{message}` only when it
@@ -305,8 +323,9 @@ Before calling the bot integration ready, verify these points:
   presentation.
 - For implementation-shaped draft plans, the stdout
   `wrapper_contract.coding_delegate.argv_template` is the handoff bridge to
-  `omh coding delegate --record`; run it only after plan acceptance and with the
-  original message preserved.
+  `omh coding delegate --executor codex --record`; run it only after plan
+  acceptance and with the original message preserved when the wrapper wants a
+  run-backed Codex handoff.
 - A chat message that strongly names a workflow reaches Hermes with installed
   skill descriptions available after the wrapper dispatches to Hermes.
 - `omh runtime record` can create a run and `omh runtime show <run-id>` can read
@@ -316,11 +335,12 @@ Before calling the bot integration ready, verify these points:
 - If skills do not appear, run `omh setup`, then `omh doctor`, then restart the
   bot again.
 
-Current limitation: actual Discord, Slack, Hermes, Codex, GitHub, CI, and merge
-operations still happen outside OMHM. `omh chat interact`, `omh chat route`,
-`omh coding delegate`, and `omh coding lifecycle` choose contracts and record
-local metadata, but the wrapper adapter must render messages, dispatch to Hermes
-or Codex-like executors, and record only evidence it actually observed.
+Current limitation: actual Discord, Slack, Hermes, coding executors, GitHub, CI,
+and merge operations still happen outside OMHM. `omh chat interact`,
+`omh chat route`, `omh coding delegate`, and `omh coding lifecycle` choose
+contracts and record local metadata, but the wrapper adapter must render
+messages, dispatch to Hermes or the selected coding executor, and record only
+evidence it actually observed.
 
 ## Update
 

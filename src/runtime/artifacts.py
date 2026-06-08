@@ -747,6 +747,25 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
         coding_delegation_path = run_dir / "coding_delegation.json"
         if run.get("artifact_kind") == "prepared_coding_delegation" and not coding_delegation_path.exists():
             errors.append(f"{coding_delegation_path}: missing coding_delegation.json for prepared_coding_delegation run")
+        if run.get("artifact_kind") == "prepared_coding_delegation" and coding_delegation_path.exists():
+            try:
+                coding = read_json_object(coding_delegation_path)
+            except (OSError, JSONDecodeError, ValueError) as exc:
+                coding = None
+                errors.append(f"{coding_delegation_path}: {exc}")
+            if isinstance(coding, dict):
+                selection = coding.get("executor_selection")
+                choice_required = isinstance(selection, dict) and selection.get("choice_required") is True
+                if choice_required:
+                    errors.append(f"{coding_delegation_path}: executor choice must not be stored as a prepared runtime run")
+                if coding.get("work_owner_mode") == "prompt_only_handoff":
+                    errors.append(f"{coding_delegation_path}: prompt-only handoff must not be stored as a prepared runtime run")
+                if (
+                    coding.get("work_owner_mode") != "external_executor"
+                    or coding.get("selected_executor_profile") != "codex"
+                    or not isinstance(coding.get("executor_handoff"), dict)
+                ):
+                    errors.append(f"{coding_delegation_path}: prepared runtime run requires a Codex executor_handoff")
     events_path = run_dir / "events.jsonl"
     if events_path.exists():
         try:

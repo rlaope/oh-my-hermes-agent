@@ -13,7 +13,7 @@ from _local_package import load_local_package
 load_local_package()
 from omh.paths import resolve_paths
 from omh.chat_router import route_chat_message, routing_record_payload
-from omh.coding_delegation import build_coding_delegation_payload
+from omh.coding_delegation import build_coding_delegation_payload, coding_delegation_record_payload
 from omh.runtime_artifacts import (
     create_prepared_coding_delegation_run,
     create_run,
@@ -211,7 +211,10 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertEqual(coding_delegation["harness_quality"]["schema_version"], "harness_quality/v1")
             self.assertEqual(coding_delegation["harness_quality"]["harness"], "coding-handling")
             self.assertIn("coding_delegation_prepared", coding_delegation["harness_quality"]["evidence_ladder"])
-            self.assertEqual(coding_delegation["harness_quality"]["wrapper_actions"], ["show_status"])
+            self.assertEqual(
+                coding_delegation["harness_quality"]["wrapper_actions"],
+                ["show_prompt_handoff", "copy_prompt_handoff", "choose_executor", "show_status"],
+            )
             self.assertTrue(coding_delegation["acceptance_criteria"])
             self.assertTrue(coding_delegation["verification"])
             self.assertTrue(validate_runtime(paths, run["run_id"])["ok"])
@@ -225,7 +228,7 @@ class RuntimeArtifactTests(unittest.TestCase):
             )
             record = write_coding_delegation(
                 paths.runtime_runs_dir / run["run_id"],
-                build_coding_delegation_payload("risky refactor", source="discord", include_message=True),
+                build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex", include_message=True),
             )
             record["message"] = "risky refactor"
 
@@ -246,6 +249,46 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertFalse(result["ok"])
             self.assertTrue(any("missing coding_delegation.json" in error for error in result["runs"][0]["errors"]))
 
+    def test_validate_runtime_rejects_prompt_only_handoff_in_prepared_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_prepared_coding_delegation_run(
+                paths,
+                {"skill": "ai-slop-cleaner", "harness": "coding-handling"},
+            )
+            run_dir = paths.runtime_runs_dir / run["run_id"]
+            payload = build_coding_delegation_payload("risky refactor", source="discord", executor_target="claude-code")
+            write_coding_delegation(
+                run_dir,
+                coding_delegation_record_payload(payload, "risky refactor"),
+            )
+
+            result = validate_runtime(paths, run["run_id"])
+
+            self.assertFalse(result["ok"])
+            self.assertIn("prompt-only handoff must not be stored as a prepared runtime run", "\n".join(result["runs"][0]["errors"]))
+
+    def test_validate_runtime_rejects_choice_required_payload_in_prepared_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_prepared_coding_delegation_run(
+                paths,
+                {"skill": "ai-slop-cleaner", "harness": "coding-handling"},
+            )
+            run_dir = paths.runtime_runs_dir / run["run_id"]
+            payload = build_coding_delegation_payload("risky refactor", source="discord", executor_target="choose")
+            write_coding_delegation(
+                run_dir,
+                coding_delegation_record_payload(payload, "risky refactor"),
+            )
+
+            result = validate_runtime(paths, run["run_id"])
+
+            self.assertFalse(result["ok"])
+            errors = "\n".join(result["runs"][0]["errors"])
+            self.assertIn("executor choice must not be stored as a prepared runtime run", errors)
+            self.assertIn("prepared runtime run requires a Codex executor_handoff", errors)
+
     def test_validate_runtime_rejects_raw_top_level_coding_delegation_key(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
@@ -256,7 +299,7 @@ class RuntimeArtifactTests(unittest.TestCase):
             run_dir = paths.runtime_runs_dir / run["run_id"]
             write_coding_delegation(
                 run_dir,
-                build_coding_delegation_payload("risky refactor", source="discord", include_message=True),
+                build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex", include_message=True),
             )
             artifact_path = run_dir / "coding_delegation.json"
             artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
@@ -493,7 +536,10 @@ class RuntimeArtifactTests(unittest.TestCase):
                 {"skill": "ai-slop-cleaner", "harness": "coding-handling"},
             )
             run_dir = paths.runtime_runs_dir / run["run_id"]
-            write_coding_delegation(run_dir, build_coding_delegation_payload("risky refactor", source="discord", include_message=True))
+            write_coding_delegation(
+                run_dir,
+                build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex", include_message=True),
+            )
             write_wrapper_contract(
                 run_dir,
                 {
@@ -541,7 +587,10 @@ class RuntimeArtifactTests(unittest.TestCase):
                 {"skill": "ai-slop-cleaner", "harness": "coding-handling"},
             )
             run_dir = paths.runtime_runs_dir / run["run_id"]
-            write_coding_delegation(run_dir, build_coding_delegation_payload("risky refactor", source="discord", include_message=True))
+            write_coding_delegation(
+                run_dir,
+                build_coding_delegation_payload("risky refactor", source="discord", executor_target="codex", include_message=True),
+            )
             write_wrapper_contract(
                 run_dir,
                 {

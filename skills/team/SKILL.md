@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Use Hermes for lane framing and status; implementation lanes should become Codex handoff tasks unless they are research, interview, planning, or status-only.
+Use Hermes for lane framing and status; implementation lanes should become selected executor handoff tasks unless they are research, interview, planning, or status-only.
 
 Required inputs:
 

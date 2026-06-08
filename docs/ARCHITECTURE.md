@@ -17,8 +17,8 @@ The architecture favors:
 - generated skill text from testable catalog data
 - explicit compatibility contracts
 - conservative routing behavior
-- delegation-first coding, where Hermes plans and narrates while Codex-like
-  executors perform main implementation work
+- delegation-first coding, where Hermes plans and narrates while the selected
+  coding executor performs main implementation work
 
 ## System View
 
@@ -35,7 +35,7 @@ flowchart LR
   wrapper["Wrapper adapter\nbuttons, threads, edits"]
   omh["OMH local contract layer\nplaybooks, routing, plan, handoff, status"]
   hermes["Hermes Agent\nclarify, research, plan, narrate"]
-  executor["Codex-like executor\nimplementation, verification"]
+  executor["Selected coding executor\nimplementation, verification"]
   runtime["Local runtime artifacts\nprepared and observed evidence"]
   site["Docs and status UI\ncards, examples, reports"]
 
@@ -235,14 +235,18 @@ custom wrappers to forward, with raw-message prompt expansion available only
 through `--include-message`. Coding delegation returns a
 `delegation_prompt_template`, recommended workflow, harness, acceptance
 criteria, verification expectations, and optional metadata-only
-`coding_delegation.json` evidence. With `--executor codex`, it also returns a
-`coding_executor_handoff/v1` instruction payload that names Codex as the
-executor target without launching Codex. Codex handoffs include `codex_skill`
-and `codex_invocation.dispatch_text_template`, so a wrapper can turn a Hermes
-workflow into the Codex `$skill {message}` surface while still keeping the raw
-message out of persisted OMH artifacts. That record stores a compact snapshot
-of the generated acceptance criteria, verification expectations, report
-contract, and evidence contract, but not the raw prompt body. With `--record`,
+`coding_delegation.json` evidence. With `--executor choose`, it returns a
+human-in-the-loop executor-choice contract. With `--executor codex`, it also
+returns a `coding_executor_handoff/v1` instruction payload that names Codex as
+the executor target without launching Codex. Codex handoffs include
+`codex_skill` and `codex_invocation.dispatch_text_template`, so a wrapper can
+turn a Hermes workflow into the Codex `$skill {message}` surface while still
+keeping the raw message out of persisted OMH artifacts. With non-Codex
+profiles, it returns a `coding_prompt_handoff/v1` prompt-only payload that must
+not create a lifecycle run or observed execution evidence. That record stores a
+compact snapshot of the generated acceptance criteria, verification
+expectations, report contract, and evidence contract, but not the raw prompt
+body. With `--record`,
 the companion `run.json` is marked as
 `artifact_kind: prepared_coding_delegation`, `phase: prepared`, and
 `observation_status: prepared_not_observed`; validation treats the run envelope
@@ -265,9 +269,11 @@ The machine-readable planning bridge is stdout JSON, not the Markdown file. Each
 step, decision gate, optional recorded plan artifact path, and coding-delegation
 handoff template. For implementation-shaped draft plans,
 `wrapper_contract.coding_delegate.argv_template` is the adapter contract for
-calling `omh coding delegate --record` after plan acceptance. Blocked or
-non-coding plans keep `coding_delegate.available` false so wrappers do not infer
-execution from presentation text.
+calling `omh coding delegate --executor codex --record` after plan acceptance
+when the wrapper wants a run-backed Codex handoff and a future
+`runtime.run.run_id`. Blocked or non-coding plans keep
+`coding_delegate.available` false so wrappers do not infer execution from
+presentation text.
 
 `omh chat session` is the recovery layer for adapters that need button/thread
 state to survive restarts. The session id is derived from `thread_key`. Session
@@ -373,12 +379,15 @@ Bot wrappers can call `omh chat route --record` before invoking Hermes. The
 record stores the selected skill, confidence, score, message length, and message
 hash without storing the raw prompt body.
 
-Bot wrappers can call `omh coding delegate --record` for implementation-shaped
-messages. The record stores source metadata, action, intent, recommended
-workflow and harness, acceptance criteria, verification expectations,
-recommendation evidence, `message_sha256`, `message_length`, and status
-`prepared_not_observed`. That status means a handoff was prepared; the companion run envelope is also marked
+Bot wrappers can call `omh coding delegate --executor codex --record` for
+implementation-shaped messages when they want a run-backed Codex handoff. The
+record stores source metadata, action, intent, recommended workflow and harness,
+acceptance criteria, verification expectations, recommendation evidence,
+`message_sha256`, `message_length`, and status `prepared_not_observed`. That
+status means a handoff was prepared; the companion run envelope is also marked
 `prepared_coding_delegation`, not proof that Hermes executed the task.
+Executor-choice, retained-Hermes, clarify, fallback, and prompt-only handoffs
+return `runtime.recorded=false` and should stay in wrapper/session state.
 
 Bot wrappers can still call `omh runtime delegate` after the response if
 delegation metadata is available. If not, they should record `not_observed`

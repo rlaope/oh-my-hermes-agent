@@ -63,7 +63,21 @@ class WrapperGoldenExampleTests(unittest.TestCase):
         payload = json.loads(Path("examples/wrapper-golden/status-ladder.json").read_text(encoding="utf-8"))
         action_ids = {action_id for item in payload["scenarios"] for action_id in item["expected_response"]["action_ids"]}
 
-        self.assertLessEqual(action_ids, {"answer:clarify", "accept_plan", "revise_plan", "send_to_codex", "show_status", "cancel"})
+        self.assertLessEqual(
+            action_ids,
+            {
+                "answer:clarify",
+                "accept_plan",
+                "revise_plan",
+                "choose_executor",
+                "show_prompt_handoff",
+                "copy_prompt_handoff",
+                "send_to_executor",
+                "send_to_codex",
+                "show_status",
+                "cancel",
+            },
+        )
         self.assertIn("show_status", action_ids)
 
     def test_contradictory_fixture_names_upstream_blocker(self) -> None:
@@ -105,7 +119,7 @@ class WrapperGoldenExampleTests(unittest.TestCase):
             {"coding_handoff_quality", "planning_quality", "research_quality", "clarification_quality"},
         )
         self.assertEqual(examples["coding_handoff_quality"]["expected_quality"]["schema_version"], "harness_quality/v1")
-        self.assertIn("send_to_codex", examples["coding_handoff_quality"]["expected_quality"]["wrapper_actions"])
+        self.assertIn("send_to_executor", examples["coding_handoff_quality"]["expected_quality"]["wrapper_actions"])
         self.assertIn("executor_result_observed", examples["coding_handoff_quality"]["expected_quality"]["evidence_ladder"])
         self.assertIn("accept_plan", examples["planning_quality"]["expected_quality"]["wrapper_actions"])
         self.assertIn("primary_sources_checked", examples["research_quality"]["expected_quality"]["evidence_ladder"])

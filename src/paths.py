@@ -35,6 +35,10 @@ class OmhPaths:
         return self.runtime_dir / "wrapper_sessions"
 
     @property
+    def setup_profile_path(self) -> Path:
+        return self.omh_home / "setup-profile.json"
+
+    @property
     def workflow_state_dir(self) -> Path:
         return self.omh_home / "state"
 

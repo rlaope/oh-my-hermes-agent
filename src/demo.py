@@ -70,7 +70,7 @@ def build_orchestration_demo(
             },
             {
                 "id": "handoff",
-                "title": "Prepare Codex handoff",
+                "title": "Prepare selected executor handoff",
                 "next_action": handoff.get("next_action", ""),
                 "evidence_boundary": _claim_boundary(handoff),
                 "payload": {
@@ -94,7 +94,7 @@ def build_orchestration_demo(
         "claim_boundary": [
             "Recommendation is not routing, planning, or execution evidence.",
             "Draft plan is not accepted plan or implementation evidence.",
-            "Prepared Codex handoff is not executor dispatch, executor result, review, CI, merge-readiness, or merge evidence.",
+            "Prepared executor handoff is not executor dispatch, executor result, review, CI, merge-readiness, or merge evidence.",
         ],
         "not_observed": [
             "executor_dispatch",
@@ -137,7 +137,6 @@ def _prepared_status_from_handoff(handoff: dict[str, object], *, source: str) ->
         "review": {
             "required": review_required,
             "observed": False,
-            "status": review_status,
             "workflow": delegation.get("review_workflow"),
             "evidence_refs": [],
             "satisfied": not review_required,
@@ -156,7 +155,7 @@ def _prepared_status_from_handoff(handoff: dict[str, object], *, source: str) ->
         "harness_progress": progress,
         "integrity": {"ok": True, "warnings": []},
         "next_action": "dispatch_to_executor" if executor_handoff else "route_coding_request",
-        "safe_summary": "A Codex handoff is prepared, but wrapper dispatch is not observed yet.",
+        "safe_summary": "A selected executor handoff is prepared, but wrapper dispatch is not observed yet.",
         "overclaim_guard": [
             "Prepared coding delegation is not execution evidence.",
             "Hermes should not claim it implemented code from this demo artifact.",

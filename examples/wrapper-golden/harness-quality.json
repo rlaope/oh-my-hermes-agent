@@ -16,7 +16,7 @@
           "verification_recorded",
           "review_ci_merge_recorded_when_required"
         ],
-        "wrapper_actions": ["accept_plan", "send_to_codex", "show_status", "record_result"]
+        "wrapper_actions": ["send_to_executor", "send_to_codex", "show_status"]
       },
       "user_visible_upgrade": "The wrapper can show that a coding handoff is ready while still saying execution, review, CI, and merge evidence are not observed yet.",
       "claim_boundary": "Prepared handoff is not implementation evidence."

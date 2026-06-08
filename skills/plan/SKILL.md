@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Keep planning in Hermes; if the accepted plan requires code edits, prepare a Codex handoff after acceptance.
+Keep planning in Hermes; if the accepted plan requires code edits, prepare a selected executor handoff after acceptance.
 
 Required inputs:
 
