@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from .config_adapter import external_dirs, read_config
 from .hashutil import sha256_file
@@ -136,6 +137,27 @@ def run_doctor(paths: OmhPaths) -> list[Check]:
                     observed=False,
                 ),
             ]
+        )
+    profile_installs = state.get("last_team_profile_install") if isinstance(state, dict) else None
+    if not profile_installs:
+        checks.append(Check("team_profile_packs", True, f"optional OMHM team profile packs are not installed at {paths.hermes_agents_dir}"))
+    else:
+        expected_files: list[str] = []
+        if isinstance(profile_installs, list):
+            for install in profile_installs:
+                if isinstance(install, dict) and isinstance(install.get("files"), list):
+                    expected_files.extend(str(item) for item in install["files"])
+        missing = [path for path in expected_files if not Path(path).exists()]
+        checks.append(
+            Check(
+                "team_profile_packs",
+                not missing,
+                (
+                    f"{len(expected_files)} optional team profile file(s) installed under {paths.hermes_agents_dir}"
+                    if not missing
+                    else f"missing optional team profile files: {', '.join(missing)}"
+                ),
+            )
         )
     return checks
 

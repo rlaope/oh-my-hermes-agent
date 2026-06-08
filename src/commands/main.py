@@ -36,6 +36,12 @@ from ..probe import probe_capabilities
 from ..routing.recommend import recommend_skills
 from ..release import RELEASE_CHANNELS, package_url_for
 from ..setup_profiles import build_setup_profile, read_setup_profile, write_setup_profile
+from ..team_profiles import (
+    TeamProfileError,
+    inspect_team_profile_pack,
+    install_team_profile_pack,
+    list_team_profile_packs,
+)
 from ..runtime.artifacts import (
     CI_STATUSES,
     DELEGATION_RESULTS,
@@ -228,6 +234,8 @@ def cmd_setup(args: argparse.Namespace) -> int:
         steps["apply"] = _apply_result(args)
     if args.with_plugin:
         steps["plugin"] = _plugin_setup_result(args, paths)
+    if args.profile_pack:
+        steps["team_profiles"] = _team_profile_setup_result(args, paths)
     steps["profile"] = _setup_profile_result(args, paths)
     if args.dry_run:
         bootstrap_final_state = (
@@ -275,12 +283,15 @@ def cmd_setup(args: argparse.Namespace) -> int:
                     "apply_skipped": bool(args.skip_apply),
                     "hermes_native": hermes_native,
                     "setup_profile": steps["profile"],
+                    "team_profiles": steps.get("team_profiles", []),
                 }
             },
         )
     payload: dict[str, object] = {"ok": True, "steps": steps, "dry_run": args.dry_run, "hermes_native": hermes_native}
     if args.with_plugin:
         payload["plugin_distribution"] = steps["plugin"]
+    if args.profile_pack:
+        payload["team_profiles"] = steps["team_profiles"]
     _print_json(payload)
     return 0
 
@@ -301,6 +312,32 @@ def _setup_profile_result(args: argparse.Namespace, paths) -> dict[str, object]:
         return {**profile, "dry_run": True, "written": False, "path": str(paths.setup_profile_path)}
     profile = write_setup_profile(paths, args.profile)
     return {**profile, "dry_run": False, "written": True, "path": str(paths.setup_profile_path)}
+
+
+def _team_profile_setup_result(args: argparse.Namespace, paths) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for pack_id in args.profile_pack:
+        try:
+            result = install_team_profile_pack(paths, pack_id, force=args.force, dry_run=args.dry_run)
+        except TeamProfileError as exc:
+            raise OmhError(str(exc)) from exc
+        results.append(result)
+    if not args.dry_run:
+        update_state(paths, {"last_team_profile_install": results})
+    return results
+
+
+def cmd_profile_list(args: argparse.Namespace) -> int:
+    _print_json(list_team_profile_packs())
+    return 0
+
+
+def cmd_profile_inspect(args: argparse.Namespace) -> int:
+    try:
+        _print_json(inspect_team_profile_pack(args.id))
+    except TeamProfileError as exc:
+        raise OmhError(str(exc)) from exc
+    return 0
 
 
 def cmd_recommend(args: argparse.Namespace) -> int:
@@ -1138,6 +1175,12 @@ def _add_top_level_commands(sub) -> None:
         action="store_true",
         help="Also install the optional OMHM Hermes plugin bundle under ~/.hermes/plugins/omhm.",
     )
+    setup.add_argument(
+        "--profile-pack",
+        action="append",
+        default=[],
+        help="Install an optional Hermes agent/profile pack such as startup-delivery, engineering-delivery, research-strategy, or cto-loop.",
+    )
     setup.set_defaults(func=cmd_setup)
 
     install = sub.add_parser("install")
@@ -1181,6 +1224,14 @@ def _add_top_level_commands(sub) -> None:
 
     probe = sub.add_parser("probe")
     probe.set_defaults(func=cmd_probe)
+
+    profile = sub.add_parser("profile")
+    profile_sub = profile.add_subparsers(dest="profile_command", required=True)
+    profile_list = profile_sub.add_parser("list")
+    profile_list.set_defaults(func=cmd_profile_list)
+    profile_inspect = profile_sub.add_parser("inspect")
+    profile_inspect.add_argument("id")
+    profile_inspect.set_defaults(func=cmd_profile_inspect)
 
 
 def _add_docs_commands(sub) -> None:

@@ -1691,6 +1691,85 @@ class CliTests(unittest.TestCase):
             self.assertFalse(payload["delegation"]["dispatchable"])
             self.assertNotIn("executor_handoff", payload["delegation"])
 
+    def test_optional_team_profile_packs_are_listed_and_installed_on_request(self) -> None:
+        status, stdout, stderr = run_cli(["profile", "list"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        catalog = json.loads(stdout)
+        packs = {pack["id"]: pack for pack in catalog["packs"]}
+        self.assertIn("cto-loop", packs)
+        self.assertIn("startup-delivery", packs)
+        self.assertEqual(catalog["default_install"], "none")
+
+        status, stdout, stderr = run_cli(["profile", "inspect", "cto-loop"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        profile = json.loads(stdout)["pack"]
+        self.assertEqual(profile["id"], "cto-loop")
+        self.assertIn("cto", [role["id"] for role in profile["roles"]])
+        self.assertIn("pm", [role["id"] for role in profile["roles"]])
+        self.assertIn("omh setup --profile-pack cto-loop", profile["install_command"])
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+
+            status, stdout, stderr = run_cli(base + ["setup"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            default_setup = json.loads(stdout)
+            self.assertNotIn("team_profiles", default_setup["steps"])
+            self.assertFalse((hermes_home / "agents").exists())
+
+            status, stdout, stderr = run_cli(base + ["setup", "--profile-pack", "research-strategy", "--dry-run"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            dry_run_setup = json.loads(stdout)
+            dry_run_install = dry_run_setup["team_profiles"][0]
+            self.assertEqual(dry_run_install["pack_id"], "research-strategy")
+            self.assertFalse(dry_run_install["observed"])
+            self.assertEqual(dry_run_install["written"], [])
+            self.assertFalse((hermes_home / "agents").exists())
+            self.assertFalse((omh_home / "team-profile-packs" / "research-strategy.json").exists())
+
+            status, stdout, stderr = run_cli(base + ["setup", "--profile-pack", "cto-loop"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            setup = json.loads(stdout)
+            installed = setup["team_profiles"][0]
+            self.assertEqual(installed["schema_version"], "omhm_team_profile_pack/v1")
+            self.assertEqual(installed["pack_id"], "cto-loop")
+            self.assertTrue(installed["observed"])
+            self.assertTrue(installed["requires_hermes_profile_activation"])
+            cto_file = hermes_home / "agents" / "omhm-cto-loop-cto.md"
+            pm_file = hermes_home / "agents" / "omhm-cto-loop-pm.md"
+            self.assertTrue(cto_file.exists())
+            self.assertTrue(pm_file.exists())
+            self.assertIn("Chief Technology Officer", cto_file.read_text(encoding="utf-8"))
+            self.assertIn("Product Manager", pm_file.read_text(encoding="utf-8"))
+
+            cto_file.write_text("local operator edit\n", encoding="utf-8")
+            status, _stdout, stderr = run_cli(base + ["setup", "--profile-pack", "cto-loop"])
+            self.assertEqual(status, 2)
+            self.assertIn("refusing to overwrite without --force", stderr)
+
+            status, stdout, stderr = run_cli(base + ["setup", "--profile-pack", "cto-loop", "--force"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertIn("Chief Technology Officer", cto_file.read_text(encoding="utf-8"))
+
+            doctor_status, doctor_stdout, doctor_stderr = run_cli(base + ["doctor"])
+            self.assertEqual(doctor_stderr, "")
+            self.assertEqual(doctor_status, 0)
+            checks = {check["name"]: check for check in json.loads(doctor_stdout)["checks"]}
+            self.assertTrue(checks["team_profile_packs"]["ok"])
+
     def test_setup_dry_run_marks_bootstrap_state_unobserved(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
