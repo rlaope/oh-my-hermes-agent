@@ -7,6 +7,7 @@ from ..ingress import CHAT_SOURCES, compact_source_metadata, extract_message_tex
 from ..routing.chat import public_route_payload, route_chat_message
 from ..coding_delegation import build_coding_delegation_payload
 from ..hermes_planning import build_hermes_plan_payload
+from ..skills.catalog import retained_delegation_skill_names
 
 
 CHAT_INTERACTION_SCHEMA_VERSION = "chat_interaction/v1"
@@ -24,13 +25,9 @@ VISIBLE_ACTIONS = (
 )
 _ROUTE_TO_MODE = {"dispatch": "plan", "clarify": "clarify", "fallback": "clarify"}
 _CLARIFICATION_SKILLS = {"deep-interview"}
+_RETAINED_DELEGATION_SKILLS = set(retained_delegation_skill_names())
 _DIRECT_WORKFLOW_SKILLS = {
     "web-research",
-    "research-brief",
-    "strategy-brief",
-    "meeting-brief",
-    "feedback-triage",
-    "ops-review",
     "ultraqa",
     "code-review",
     "best-practice-research",
@@ -38,7 +35,8 @@ _DIRECT_WORKFLOW_SKILLS = {
     "doctor",
     "skill",
     "wiki",
-}
+    *_RETAINED_DELEGATION_SKILLS,
+} - (_CLARIFICATION_SKILLS | {"cancel"})
 _STATUS_COPY = {
     "prepare_coding_delegation": (
         "handoff",
@@ -353,6 +351,23 @@ def build_chat_response_from_delegation(delegation_payload: dict[str, object], *
             },
         )
     if action == "clarify":
+        workflow = str(delegation.get("recommended_workflow", ""))
+        if workflow in _RETAINED_DELEGATION_SKILLS:
+            return _chat_response(
+                kind="clarification",
+                headline="I need one clarification before starting this Hermes workflow.",
+                body="This stays with Hermes; I will clarify scope and evidence boundaries before preparing the retained brief.",
+                phase="clarifying",
+                next_action="answer_clarification",
+                thread_key=thread_key,
+                actions=[_action("answer:clarify", "Answer clarification", "primary"), _action("cancel", "Cancel", "secondary")],
+                claim_boundary="Retained Hermes guidance is not observed work.",
+                extra_state={
+                    "delegation_action": action,
+                    "intent": delegation.get("intent", "unknown"),
+                    "recommended_workflow": workflow,
+                },
+            )
         return _chat_response(
             kind="clarification",
             headline="I need one clarification before sending this to an executor.",

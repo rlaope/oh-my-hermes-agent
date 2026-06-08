@@ -14,6 +14,7 @@ class SkillDefinition:
     category: str = "workflow"
     phase: str = "general"
     hermes_role: str = "hybrid-guidance"
+    delegation_boundary: str = "default"
     handoff_policy: str = "Use Hermes-native guidance directly; prepare a Codex handoff only when the accepted request requires code edits."
     required_inputs: tuple[str, ...] = ("task statement", "available Hermes context")
     expected_outputs: tuple[str, ...] = ("workflow-shaped response", "verification or explicit gap")
@@ -251,6 +252,7 @@ _DEFINITIONS = [
         category="clarification",
         phase="discovery",
         hermes_role="retained-cognition",
+        delegation_boundary="retained",
         handoff_policy="Run directly in Hermes or the chat wrapper; produce a clarified brief before any Codex handoff is prepared.",
         required_inputs=("initial request", "known repo facts", "current ambiguity"),
         expected_outputs=("clarified brief", "non-goals", "decision boundaries"),
@@ -335,6 +337,7 @@ _DEFINITIONS = [
         category="research",
         phase="current-evidence",
         hermes_role="retained-cognition",
+        delegation_boundary="retained",
         handoff_policy="Run as a Hermes-side research lane when web access is available; summarize evidence before any coding handoff and never treat research as implementation.",
         required_inputs=("research question", "source boundaries", "recency or jurisdiction constraints"),
         expected_outputs=("source-backed synthesis", "links or citations", "confidence and residual uncertainty"),
@@ -375,6 +378,7 @@ _DEFINITIONS = [
         category="research",
         phase="business-brief",
         hermes_role="retained-cognition",
+        delegation_boundary="retained-catalog-intent",
         handoff_policy="Keep business research in Hermes; prepare Codex handoff only after a later accepted plan requires code changes.",
         required_inputs=("business question", "source boundary", "recency or market scope"),
         expected_outputs=("evidence table", "inference summary", "confidence and uncertainty"),
@@ -414,6 +418,7 @@ _DEFINITIONS = [
         category="strategy",
         phase="brief",
         hermes_role="retained-cognition",
+        delegation_boundary="retained-catalog-intent",
         handoff_policy="Keep strategy synthesis in Hermes; do not create implementation handoff until a decision is accepted and code work is explicit.",
         required_inputs=("goal", "known evidence", "constraints", "decision owner"),
         expected_outputs=("options", "tradeoffs", "recommended direction", "decision note"),
@@ -454,6 +459,7 @@ _DEFINITIONS = [
         category="meeting",
         phase="preparation",
         hermes_role="retained-cognition",
+        delegation_boundary="retained-catalog-intent",
         handoff_policy="Run meeting preparation in Hermes; only create follow-up coding handoff from observed decisions or accepted plans.",
         required_inputs=("meeting goal", "audience", "known context", "decision topics"),
         expected_outputs=("agenda", "discussion prompts", "decisions needed", "action-item template"),
@@ -495,6 +501,7 @@ _DEFINITIONS = [
         category="triage",
         phase="feedback",
         hermes_role="retained-cognition",
+        delegation_boundary="retained-catalog-intent",
         handoff_policy="Keep feedback triage in Hermes; recommend the next workflow and prepare Codex handoff only after explicit coding intent or accepted plan evidence.",
         required_inputs=("feedback items or summary", "source boundary", "product area"),
         expected_outputs=("clusters", "severity or opportunity ranking", "next workflow recommendation"),
@@ -536,6 +543,7 @@ _DEFINITIONS = [
         category="operations",
         phase="status-review",
         hermes_role="retained-cognition",
+        delegation_boundary="retained-catalog-intent",
         handoff_policy="Keep operating review and status narration in Hermes; delegate code fixes only from explicit accepted follow-up items.",
         required_inputs=("status evidence", "scope", "time window", "known risks"),
         expected_outputs=("status summary", "risks", "blockers", "priorities", "follow-up actions"),
@@ -574,6 +582,7 @@ _DEFINITIONS = [
         category="verification",
         phase="qa",
         hermes_role="hybrid-verification",
+        delegation_boundary="retained",
         handoff_policy="Hermes can design scenarios and report observed results; code fixes discovered by QA should become Codex handoffs.",
         required_inputs=("changed behavior", "acceptance criteria", "known risk areas"),
         expected_outputs=("adversarial scenarios", "pass/fail evidence", "fix recommendations"),
@@ -760,6 +769,7 @@ _DEFINITIONS = [
         category="research",
         phase="evidence",
         hermes_role="retained-cognition",
+        delegation_boundary="retained",
         handoff_policy="Run as Hermes-side evidence gathering; hand coding to Codex only after source-backed guidance is summarized.",
         required_inputs=("chosen technology", "question", "version or environment constraints"),
         expected_outputs=("source-backed guidance", "applicability notes", "residual uncertainty"),
@@ -779,6 +789,7 @@ _DEFINITIONS = [
         category="research",
         phase="durable-research",
         hermes_role="retained-cognition",
+        delegation_boundary="retained",
         handoff_policy="Keep durable research in Hermes-managed artifacts; do not convert to Codex unless the research produces an accepted coding task.",
         required_inputs=("research objective", "validator criteria", "source boundaries"),
         expected_outputs=("research artifact", "validator result", "next questions"),
@@ -817,6 +828,7 @@ _DEFINITIONS = [
         category="knowledge",
         phase="capture",
         hermes_role="retained-knowledge",
+        delegation_boundary="retained",
         handoff_policy="Run directly in Hermes as knowledge capture unless the note reveals a separate coding task.",
         required_inputs=("project fact", "source evidence", "target topic"),
         expected_outputs=("markdown note", "retrieval hint", "staleness warning when needed"),
@@ -854,6 +866,7 @@ _DEFINITIONS = [
         category="operator",
         phase="state-cleanup",
         hermes_role="retained-operator",
+        delegation_boundary="retained",
         handoff_policy="Run directly in Hermes/runtime state; never delegate cancellation to Codex.",
         required_inputs=("active workflow state", "cancellation intent"),
         expected_outputs=("cleared state", "safe stop summary"),
@@ -867,6 +880,7 @@ _DEFINITIONS = [
         category="operator",
         phase="skill-management",
         hermes_role="retained-operator",
+        delegation_boundary="retained",
         handoff_policy="Use Hermes for inventory and guidance; delegate only repository code changes to Codex.",
         required_inputs=("skill action", "target skill name or directory"),
         expected_outputs=("skill inventory or mutation result", "verification note"),
@@ -1367,6 +1381,22 @@ def coding_skills_for_intent(intent: str) -> tuple[str, ...]:
 
 def coding_terms_for_intent(intent: str) -> tuple[str, ...]:
     return CODING_INTENT_TERMS.get(intent, ())
+
+
+def retained_delegation_skill_names() -> tuple[str, ...]:
+    return tuple(
+        definition.name
+        for definition in _DEFINITIONS
+        if definition.delegation_boundary in {"retained", "retained-catalog-intent"}
+    )
+
+
+def catalog_intent_delegation_skill_names() -> tuple[str, ...]:
+    return tuple(
+        definition.name
+        for definition in _DEFINITIONS
+        if definition.delegation_boundary == "retained-catalog-intent"
+    )
 
 
 CORE_SKILLS = [definition.name for definition in _DEFINITIONS]

@@ -302,6 +302,29 @@ class CliTests(unittest.TestCase):
                 self.assertNotEqual(payload["delegation"]["recommended_harness"], "coding-handling")
                 self.assertNotIn(message, json.dumps(payload))
 
+    def test_chat_interact_delegate_mode_keeps_retained_business_copy_executor_free(self) -> None:
+        cases = (
+            ("prepare a meeting agenda and record template for leadership sync", "meeting-brief"),
+            ("prepare weekly ops review from customer feedback and release risks", "ops-review"),
+        )
+
+        for message, workflow in cases:
+            with self.subTest(message=message):
+                status, stdout, stderr = run_cli(["chat", "interact", "--mode", "delegate", "--source", "discord", message])
+
+                self.assertEqual(stderr, "")
+                self.assertEqual(status, 0)
+                payload = json.loads(stdout)
+                self.assertEqual(payload["delegation"]["delegation"]["action"], "clarify")
+                self.assertEqual(payload["delegation"]["delegation"]["recommended_workflow"], workflow)
+                self.assertEqual(payload["next_action"], "answer_clarification")
+                self.assertEqual(payload["chat_response"]["state"]["recommended_workflow"], workflow)
+                rendered_response = json.dumps(payload["chat_response"]).lower()
+                self.assertIn("hermes", rendered_response)
+                self.assertNotIn("codex", rendered_response)
+                self.assertNotIn("executor", rendered_response)
+                self.assertNotIn("handoff", rendered_response)
+
     def test_playbook_recommend_routes_grounded_operator_examples(self) -> None:
         cases = (
             ("결제 실패 이슈가 자주 나와", "safe-feature-change"),

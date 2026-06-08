@@ -10,7 +10,12 @@ load_local_package()
 from omh.routing import recommend as recommend_module
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
 from omh.runtime.records import validate_harness_quality
-from omh.skills.catalog import harness_quality_contract, primary_harness_for_skill
+from omh.skills.catalog import (
+    catalog_intent_delegation_skill_names,
+    harness_quality_contract,
+    primary_harness_for_skill,
+    retained_delegation_skill_names,
+)
 from omh.skills.render import workflow_reference_markdown, workflow_reference_payload
 
 
@@ -140,10 +145,13 @@ class RouterContentTests(unittest.TestCase):
             self.assertGreaterEqual(len(definition.artifact_expectations), 1, definition.name)
             self.assertGreaterEqual(len(definition.safety_rules), 1, definition.name)
             self.assertTrue(definition.hermes_role, definition.name)
+            self.assertIn(definition.delegation_boundary, {"default", "retained", "retained-catalog-intent"}, definition.name)
             self.assertTrue(definition.handoff_policy, definition.name)
 
     def test_catalog_marks_retained_and_codex_handoff_skills(self) -> None:
         definitions = {definition.name: definition for definition in builtin_definitions()}
+        retained = set(retained_delegation_skill_names())
+        catalog_intent_retained = set(catalog_intent_delegation_skill_names())
 
         self.assertEqual(definitions["deep-interview"].hermes_role, "retained-cognition")
         self.assertEqual(definitions["web-research"].hermes_role, "retained-cognition")
@@ -159,6 +167,20 @@ class RouterContentTests(unittest.TestCase):
         self.assertEqual(primary_harness_for_skill("ops-review"), "ops-review")
         self.assertEqual(primary_harness_for_skill("best-practice-research"), "research")
         self.assertEqual(primary_harness_for_skill("autoresearch-goal"), "research")
+        self.assertIn("deep-interview", retained)
+        self.assertIn("web-research", retained)
+        self.assertIn("ultraqa", retained)
+        self.assertIn("skill", retained)
+        self.assertIn("wiki", retained)
+        self.assertTrue(
+            {
+                "research-brief",
+                "strategy-brief",
+                "meeting-brief",
+                "feedback-triage",
+                "ops-review",
+            }.issubset(catalog_intent_retained)
+        )
 
     def test_workflow_skills_refer_to_harness_discipline(self) -> None:
         skills = {skill.name: skill for skill in builtin_skill_templates()}

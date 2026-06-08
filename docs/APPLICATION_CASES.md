@@ -362,9 +362,9 @@ source evidence before Hermes can claim data was actually reviewed.
 
 ## Grounded UltraQA Scenario Matrix
 
-These scenarios were run through the deterministic local contract, not written
-as aspirational examples. The exact command shape used for each natural
-message was:
+These scenarios are grounded in deterministic local contract behavior, not
+written as aspirational examples. Operators can reproduce each natural message
+with:
 
 ```sh
 omh chat interact --source discord "<message>"
