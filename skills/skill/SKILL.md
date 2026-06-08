@@ -34,7 +34,7 @@ Quality bar:
 
 Handoff policy:
 
-Use Hermes for inventory and guidance; delegate only repository code changes to Codex.
+Use Hermes for inventory and guidance; delegate only repository code changes to the selected coding executor.
 
 Required inputs:
 

@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Hermes may frame and summarize review evidence; fixes or code mutations found during review should be delegated to Codex.
+Hermes may frame and summarize review evidence; fixes or code mutations found during review should be delegated to the selected coding executor.
 
 Required inputs:
 

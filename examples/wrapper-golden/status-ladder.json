@@ -84,9 +84,9 @@
       "expected_response": {
         "schema_version": "chat_response/v1",
         "kind": "handoff",
-        "headline": "A Codex handoff is ready.",
+        "headline": "A coding-agent handoff is ready.",
         "body": "The handoff is prepared, but executor dispatch is not observed yet.",
-        "action_ids": ["send_to_codex", "show_status"]
+        "action_ids": ["send_to_executor", "show_status"]
       },
       "claim_boundary": "Prepared handoff is not execution evidence.",
       "observed_evidence": [

@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Keep feedback triage in Hermes; recommend the next workflow and prepare Codex handoff only after explicit coding intent or accepted plan evidence.
+Keep feedback triage in Hermes; recommend the next workflow and prepare a selected executor handoff only after explicit coding intent or accepted plan evidence.
 
 Required inputs:
 
@@ -55,7 +55,7 @@ Artifact expectations:
 
 Safety rules:
 
-- Do not turn feedback into a roadmap, implementation plan, or Codex handoff by default.
+- Do not turn feedback into a roadmap, implementation plan, or coding handoff by default.
 - Separate bug signal, feature ask, severity, opportunity, and missing evidence.
 - Route code changes only after explicit user intent or accepted planning evidence.
 

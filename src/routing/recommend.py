@@ -114,8 +114,8 @@ _HERMES_ROLE_POLICIES = {
             "A prepared coding handoff is not execution, review, CI, merge-readiness, or merge evidence."
         ),
         wrapper_guidance=(
-            "Prepare a Codex-style handoff, expose Send to Codex / Show status actions, and mark it "
-            "prepared_not_observed."
+            "Ask for or apply the selected executor profile, expose executor-neutral handoff/status actions, "
+            "and mark prepared work as prepared_not_observed."
         ),
     ),
 }

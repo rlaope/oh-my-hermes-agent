@@ -167,6 +167,8 @@ class PluginDistributionTests(unittest.TestCase):
                     "coding",
                     "delegate",
                     "--record",
+                    "--executor",
+                    "codex",
                     "Safely add feature without overclaiming.",
                 ]
             )

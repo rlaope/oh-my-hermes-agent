@@ -32,10 +32,11 @@ OMHM is a Hermes-native wrapper orchestration layer.
 
 The product should make chat surfaces feel capable without hiding who did what.
 Hermes should own intake, clarification, research, business briefs, meeting
-prep, feedback triage, planning, status narration, and handoff UX. Codex-like
-executors should own main coding work. OMH should own the deterministic local
-contract between those worlds: generated skill guidance, playbooks, wrapper
-sessions, prepared handoff payloads, and evidence records.
+prep, feedback triage, planning, status narration, and handoff UX. The selected
+coding executor should own main coding work when work leaves Hermes. OMH should
+own the deterministic local contract between those worlds: generated skill
+guidance, playbooks, wrapper sessions, prepared handoff payloads, and evidence
+records.
 
 The most important boundary is prepared versus observed evidence. A prepared
 handoff is useful, but it is not execution, review, CI, merge readiness, or a

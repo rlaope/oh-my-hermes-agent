@@ -31,11 +31,11 @@ Quality bar:
 
 - Generate hostile scenarios from changed behavior and known risk areas.
 - Report pass/fail evidence separately from proposed fixes.
-- Delegate code mutations discovered by QA to Codex-like executors.
+- Delegate code mutations discovered by QA to the selected coding executor.
 
 Handoff policy:
 
-Hermes can design scenarios and report observed results; code fixes discovered by QA should become Codex handoffs.
+Hermes can design scenarios and report observed results; code fixes discovered by QA should become selected executor handoffs.
 
 Required inputs:
 

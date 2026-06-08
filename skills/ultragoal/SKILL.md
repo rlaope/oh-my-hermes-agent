@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Use Hermes to maintain durable goal/checkpoint state; delegate coding milestones to Codex and report only observed runtime evidence.
+Use Hermes to maintain durable goal/checkpoint state; delegate coding milestones to the selected coding executor and report only observed runtime evidence.
 
 Required inputs:
 

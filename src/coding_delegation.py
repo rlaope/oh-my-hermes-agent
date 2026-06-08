@@ -4,7 +4,13 @@ from dataclasses import asdict, dataclass
 import hashlib
 from typing import Any
 
-from .coding_contracts import CODING_EXECUTOR_TARGETS, EXECUTOR_HANDOFF_SCHEMA_VERSION
+from .coding_contracts import CODING_EXECUTOR_TARGETS, EXECUTOR_HANDOFF_SCHEMA_VERSION, PROMPT_HANDOFF_SCHEMA_VERSION
+from .executors import (
+    executor_label,
+    executor_selection_for_target,
+    prompt_invocation_for_profile,
+    public_executor_options,
+)
 from .harness_quality import with_wrapper_actions
 from .ingress import CHAT_SOURCES, extract_message_text, extract_source_metadata
 from .routing.recommend import recommend_skills
@@ -97,12 +103,31 @@ def build_coding_delegation_payload(
         "delegation": delegation.to_dict(),
         "recommendations": recommendations,
     }
-    if executor_target != "generic" and delegation.action == "delegate":
+    selection = executor_selection_for_target(executor_target, action=delegation.action)
+    payload.update(
+        {
+            "work_owner_mode": selection.work_owner_mode,
+            "selected_executor_profile": selection.selected_executor_profile,
+            "dispatch_policy": selection.dispatch_policy,
+            "dispatchable": selection.dispatchable,
+            "executor_selection": {
+                "status": selection.status,
+                "choice_required": selection.choice_required,
+                "options": public_executor_options() if selection.choice_required else [],
+            },
+        }
+    )
+    if selection.selected_executor_profile == "codex" and delegation.action == "delegate":
         payload["executor_handoff"] = _executor_handoff(executor_target, delegation)
+    elif selection.work_owner_mode == "prompt_only_handoff" and selection.selected_executor_profile and delegation.action == "delegate":
+        payload["prompt_handoff"] = _prompt_handoff(selection.selected_executor_profile, delegation)
     payload["harness_quality"] = _public_harness_quality(
         harness,
         action=delegation.action,
+        work_owner_mode=selection.work_owner_mode,
         has_executor_handoff="executor_handoff" in payload,
+        has_prompt_handoff="prompt_handoff" in payload,
+        choice_required=selection.choice_required,
     )
     metadata = {key: value for key, value in (source_metadata or {}).items() if value}
     if metadata:
@@ -113,6 +138,9 @@ def build_coding_delegation_payload(
         handoff = payload.get("executor_handoff")
         if isinstance(handoff, dict) and "prompt_template" in handoff:
             payload["executor_handoff_prompt"] = str(handoff["prompt_template"]).replace("{message}", message)
+        prompt_handoff = payload.get("prompt_handoff")
+        if isinstance(prompt_handoff, dict) and "prompt_template" in prompt_handoff:
+            payload["prompt_handoff_prompt"] = str(prompt_handoff["prompt_template"]).replace("{message}", message)
     return payload
 
 
@@ -155,6 +183,11 @@ def coding_delegation_record_payload(
         "recommended_workflow": delegation.get("recommended_workflow", "oh-my-hermes"),
         "recommended_harness": delegation.get("recommended_harness", "coding-handling"),
         "executor_profile": delegation.get("executor_profile", "router"),
+        "work_owner_mode": payload.get("work_owner_mode", "retained_hermes"),
+        "selected_executor_profile": payload.get("selected_executor_profile"),
+        "dispatch_policy": payload.get("dispatch_policy", "prepare_only"),
+        "dispatchable": bool(payload.get("dispatchable", False)),
+        "executor_selection": payload.get("executor_selection", {}),
         "review_required": bool(delegation.get("review_required", False)),
         "review_workflow": delegation.get("review_workflow"),
         "message_sha256": hashlib.sha256(message.encode("utf-8")).hexdigest(),
@@ -163,6 +196,7 @@ def coding_delegation_record_payload(
         "recommendation_evidence": payload.get("recommendations", []),
         "harness_quality": payload.get("harness_quality", {}),
         "executor_handoff": payload.get("executor_handoff"),
+        "prompt_handoff": payload.get("prompt_handoff"),
         "acceptance_criteria": delegation.get("acceptance_criteria", []),
         "verification": delegation.get("verification", []),
         "status": "prepared_not_observed",
@@ -281,8 +315,13 @@ def _executor_handoff(executor_target: str, delegation: CodingDelegation) -> dic
     codex_skill = _codex_skill_for_workflow(delegation.recommended_workflow)
     return {
         "schema_version": EXECUTOR_HANDOFF_SCHEMA_VERSION,
+        "work_owner_mode": "external_executor",
+        "selected_executor_profile": "codex",
+        "dispatch_policy": "ask_before_dispatch",
+        "dispatchable": True,
         "executor_target": "codex",
         "handoff_mode": "instruction_payload",
+        "send_action": "send_to_executor",
         "codex_skill": codex_skill,
         "codex_invocation": {
             "syntax": "$skill",
@@ -359,10 +398,73 @@ def _executor_handoff(executor_target: str, delegation: CodingDelegation) -> dic
     }
 
 
-def _public_harness_quality(harness: str, *, action: str, has_executor_handoff: bool) -> dict[str, object]:
+def _prompt_handoff(profile: str, delegation: CodingDelegation) -> dict[str, object]:
+    invocation = prompt_invocation_for_profile(profile)
+    label = executor_label(profile)
+    return {
+        "schema_version": PROMPT_HANDOFF_SCHEMA_VERSION,
+        "work_owner_mode": "prompt_only_handoff",
+        "selected_executor_profile": profile,
+        "dispatchable": False,
+        "invocation": invocation,
+        "status": "prepared_not_observed",
+        "recording_contract": "prompt_prepared_not_dispatched",
+        "dispatch_contract": "prompt_only_no_dispatch",
+        "prompt_template": _prompt_only_template(delegation, profile=profile, label=label),
+        "scope": [
+            "Use the original task message as the executor request.",
+            f"Give the prompt to {label} only after the user chooses that executor.",
+            "Keep OMHM wrapper/session state separate from executor evidence.",
+        ],
+        "non_goals": [
+            "Do not claim OMHM or Hermes dispatched the prompt.",
+            "Do not create a lifecycle run for this prompt-only handoff.",
+            "Do not claim implementation, review, CI, or merge status from a prepared prompt.",
+        ],
+        "acceptance_criteria": list(delegation.acceptance_criteria),
+        "verification": list(delegation.verification),
+        "review": {
+            "required": delegation.review_required,
+            "workflow": delegation.review_workflow,
+            "evidence_required": "Review evidence must be reported by the chosen executor or wrapper after real work occurs.",
+        },
+        "evidence_contract": {
+            "prepared_is_not": ["dispatch", "implementation", "verification", "review", "ci", "merge"],
+            "observed_required_for": [
+                "executor_dispatch",
+                "executor_result",
+                "verification",
+                "review",
+                "ci",
+                "merge_readiness",
+                "merge",
+            ],
+        },
+        "harness_quality": with_wrapper_actions(
+            harness_quality_contract(delegation.recommended_harness),
+            ("show_prompt_handoff", "copy_prompt_handoff", "choose_executor", "show_status"),
+        ),
+    }
+
+
+def _public_harness_quality(
+    harness: str,
+    *,
+    action: str,
+    work_owner_mode: str,
+    has_executor_handoff: bool,
+    has_prompt_handoff: bool,
+    choice_required: bool,
+) -> dict[str, object]:
     contract = harness_quality_contract(harness)
     if action == "delegate" and has_executor_handoff:
-        return contract
+        return with_wrapper_actions(contract, ("send_to_executor", "send_to_codex", "show_status"))
+    if action == "delegate" and has_prompt_handoff:
+        return with_wrapper_actions(contract, ("show_prompt_handoff", "copy_prompt_handoff", "choose_executor", "show_status"))
+    if action == "delegate" and choice_required:
+        return with_wrapper_actions(contract, ("choose_executor", "show_status"))
+    if work_owner_mode == "retained_hermes":
+        return with_wrapper_actions(contract, ("show_status",))
     return with_wrapper_actions(contract, ("show_status",))
 
 
@@ -385,6 +487,30 @@ def _codex_prompt_template(delegation: CodingDelegation, *, codex_skill: str) ->
         "Task:\n{message}"
     ).format(
         codex_skill=codex_skill,
+        workflow=delegation.recommended_workflow,
+        harness=delegation.recommended_harness,
+        intent=delegation.intent,
+        message="{message}",
+    )
+
+
+def _prompt_only_template(delegation: CodingDelegation, *, profile: str, label: str) -> str:
+    return (
+        "You are {label}, receiving a Hermes-orchestrated coding handoff.\n\n"
+        "Executor profile: `{profile}`\n"
+        "Recommended OMHM workflow: `{workflow}`\n"
+        "Recommended harness: `{harness}`\n"
+        "Intent: `{intent}`\n"
+        "Prepared status: `prepared_not_observed`\n\n"
+        "Rules:\n"
+        "- Treat this as a prompt prepared by Hermes/OMHM, not as observed execution.\n"
+        "- Inspect the repository or local context before claiming a code change.\n"
+        "- Report exact files changed, verification commands, blockers, and evidence refs.\n"
+        "- Do not claim Hermes performed implementation, review, CI, or merge work.\n\n"
+        "Task:\n{message}"
+    ).format(
+        label=label,
+        profile=profile,
         workflow=delegation.recommended_workflow,
         harness=delegation.recommended_harness,
         intent=delegation.intent,

@@ -4,7 +4,7 @@ This file is generated from `src/skills/catalog.py`. Update the catalog first, t
 
 The reference describes prompt-level Hermes workflow guidance and local evidence expectations. It does not claim hidden Hermes runtime behavior.
 
-Workflow names are kept for compatibility, but each skill declares advisory wrapper guidance for whether Hermes should retain the work directly or prepare a Codex handoff for coding-heavy execution.
+Workflow names are kept for compatibility, but each skill declares advisory wrapper guidance for whether Hermes should retain the work directly, ask the user to choose an executor, or prepare a coding handoff for coding-heavy execution.
 
 ## Skills
 
@@ -16,7 +16,7 @@ Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
 - Phase: `routing`
 - Hermes role: `retained-router`
 - Quality tier: `routing-gated`
-- Handoff policy: Classify requests into Hermes-retained planning/research/interview lanes or prepared Codex coding handoffs; do not execute code.
+- Handoff policy: Classify requests into Hermes-retained planning/research/interview lanes, executor choice, or prepared coding handoffs; do not execute code.
 - Use when: Use as the top-level router when a request references oh-my-hermes, installed workflows, or ambiguous workflow routing.
 - Strong routing signals: `oh-my-hermes`, `omh`, `skill routing`, `workflow routing`, `chat routing`, `wrapper contract`, `prepared observed`, `evidence boundary`, `상태 기록`, `증거 경계`
 - Quality bar:
@@ -45,12 +45,12 @@ Hermes Ralph workflow: persistent execution with verification and review.
 - Phase: `completion`
 - Hermes role: `codex-handoff-guidance`
 - Quality tier: `handoff-gated`
-- Handoff policy: Keep as compatibility guidance; for implementation, ask the wrapper to prepare/track a Codex lifecycle instead of making Hermes the coder.
+- Handoff policy: Keep as compatibility guidance; for implementation, ask the wrapper to prepare/track the selected executor path instead of making Hermes the hidden coder.
 - Use when: Use after scope is concrete and the user wants one owner to continue through implementation and verification.
 - Strong routing signals: `ralph`, `$ralph`, `finish until done`, `persistent execution`, `self-referential loop`
 - Quality bar:
   - Do not enter a finish-until-done loop until scope, acceptance criteria, and verification commands are concrete.
-  - For coding edits, prepare and track Codex-like executor evidence instead of implying Hermes implemented the changes.
+  - For coding edits, prepare and track selected executor evidence instead of implying Hermes implemented the changes.
   - Report completion only from observed execution and verification evidence.
 - Required inputs:
   - concrete scope
@@ -75,7 +75,7 @@ Hermes Ultragoal workflow: file-backed durable goal ledgers.
 - Phase: `durable-goals`
 - Hermes role: `codex-handoff-guidance`
 - Quality tier: `checkpoint-gated`
-- Handoff policy: Use Hermes to maintain durable goal/checkpoint state; delegate coding milestones to Codex and report only observed runtime evidence.
+- Handoff policy: Use Hermes to maintain durable goal/checkpoint state; delegate coding milestones to the selected coding executor and report only observed runtime evidence.
 - Use when: Use when work needs durable goal artifacts, checkpointed progress, and final quality gates.
 - Strong routing signals: `ultragoal`, `$ultragoal`, `durable goal`, `multi-goal`, `goal ledger`
 - Quality bar:
@@ -105,7 +105,7 @@ Hermes Deep Interview workflow: one-question-at-a-time clarification.
 - Phase: `discovery`
 - Hermes role: `retained-cognition`
 - Quality tier: `clarity-gated`
-- Handoff policy: Run directly in Hermes or the chat wrapper; produce a clarified brief before any Codex handoff is prepared.
+- Handoff policy: Run directly in Hermes or the chat wrapper; produce a clarified brief before any coding handoff is prepared.
 - Use when: Use before planning or execution when requirements are materially ambiguous.
 - Strong routing signals: `deep-interview`, `$deep-interview`, `interview`, `don't assume`, `clarify`, `feature shaping`, `ambiguous product request`, `one question`, `온보딩`, `부드럽게`, `모호한 제품 요청`, `기획자`, `개발자 사이`
 - Quality bar:
@@ -135,7 +135,7 @@ Hermes Team workflow: coordinated parallel or sequential work lanes.
 - Phase: `coordination`
 - Hermes role: `codex-handoff-guidance`
 - Quality tier: `coordination-gated`
-- Handoff policy: Use Hermes for lane framing and status; implementation lanes should become Codex handoff tasks unless they are research, interview, planning, or status-only.
+- Handoff policy: Use Hermes for lane framing and status; implementation lanes should become selected executor handoff tasks unless they are research, interview, planning, or status-only.
 - Use when: Use when multiple independent lanes materially improve throughput or verification.
 - Strong routing signals: `team`, `$team`, `swarm`, `parallel agents`, `coordinated workers`
 - Quality bar:
@@ -165,7 +165,7 @@ Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
 - Phase: `parallel-delivery`
 - Hermes role: `codex-handoff-guidance`
 - Quality tier: `handoff-gated`
-- Handoff policy: Keep the workflow name for compatibility, but convert coding lanes into explicit Codex handoffs with disjoint scope, verification, and review evidence.
+- Handoff policy: Keep the workflow name for compatibility, but convert coding lanes into explicit selected executor handoffs with disjoint scope, verification, and review evidence.
 - Use when: Use when an accepted implementation plan can be split into independent, reviewable work lanes.
 - Strong routing signals: `ultrawork`, `$ultrawork`, `parallel work`, `parallel implementation`, `high throughput`
 - Quality bar:
@@ -178,7 +178,7 @@ Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
   - disjoint file or responsibility scopes
   - verification commands
 - Expected outputs:
-  - Codex handoff prompts or lane instructions
+  - executor handoff prompts or lane instructions
   - status summary
   - review/CI evidence requirements
 - Artifact expectations:
@@ -186,7 +186,7 @@ Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
 - Safety rules:
   - Do not start parallel coding without disjoint ownership boundaries.
   - Keep Hermes responsible for orchestration/status, not hidden implementation.
-  - Record unobserved Codex execution as prepared_not_observed or not_observed.
+  - Record unobserved executor work as prepared_not_observed or not_observed.
 
 ### web-research
 
@@ -226,7 +226,7 @@ Hermes Research Brief workflow: source-backed business research without pretendi
 - Phase: `business-brief`
 - Hermes role: `retained-cognition`
 - Quality tier: `source-gated`
-- Handoff policy: Keep business research in Hermes; prepare Codex handoff only after a later accepted plan requires code changes.
+- Handoff policy: Keep business research in Hermes; prepare a selected executor handoff only after a later accepted plan requires code changes.
 - Use when: Use when Hermes should scope a business question, gather or summarize source-backed evidence, and preserve evidence/inference boundaries before strategy or handoff.
 - Strong routing signals: `research-brief`, `business-research`, `business research`, `research brief`, `source-backed business research`, `customer feedback trends`, `feedback trends`, `market evidence`, `data search`, `source scan`, `자료 조사`, `데이터 서치`, `근거 조사`, `피드백 추세`, `고객 피드백 추세`
 - Quality bar:
@@ -320,7 +320,7 @@ Hermes Feedback Triage workflow: cluster customer signals and choose the next wo
 - Phase: `feedback`
 - Hermes role: `retained-cognition`
 - Quality tier: `triage-gated`
-- Handoff policy: Keep feedback triage in Hermes; recommend the next workflow and prepare Codex handoff only after explicit coding intent or accepted plan evidence.
+- Handoff policy: Keep feedback triage in Hermes; recommend the next workflow and prepare a selected executor handoff only after explicit coding intent or accepted plan evidence.
 - Use when: Use when Hermes should classify feedback, bug reports, and feature asks before deciding whether research, planning, or coding handoff is needed.
 - Strong routing signals: `feedback-triage`, `customer-feedback-triage`, `feedback triage`, `customer feedback`, `feedback cluster`, `bug or feature`, `feature request triage`, `payment failure feedback`, `feedback trends`, `고객 피드백`, `피드백`, `피드백 분류`, `피드백을 모아서`, `결제 실패 피드백`, `버그 기능 요청`, `기능 요청`
 - Quality bar:
@@ -338,7 +338,7 @@ Hermes Feedback Triage workflow: cluster customer signals and choose the next wo
 - Artifact expectations:
   - feedback triage record when a wrapper captures it
 - Safety rules:
-  - Do not turn feedback into a roadmap, implementation plan, or Codex handoff by default.
+  - Do not turn feedback into a roadmap, implementation plan, or coding handoff by default.
   - Separate bug signal, feature ask, severity, opportunity, and missing evidence.
   - Route code changes only after explicit user intent or accepted planning evidence.
 
@@ -383,13 +383,13 @@ Hermes UltraQA workflow: adversarial QA and fix loops.
 - Phase: `qa`
 - Hermes role: `hybrid-verification`
 - Quality tier: `scenario-gated`
-- Handoff policy: Hermes can design scenarios and report observed results; code fixes discovered by QA should become Codex handoffs.
+- Handoff policy: Hermes can design scenarios and report observed results; code fixes discovered by QA should become selected executor handoffs.
 - Use when: Use when the task needs adversarial test scenarios, verification, and fix loops.
 - Strong routing signals: `ultraqa`, `$ultraqa`, `adversarial qa`, `hostile scenarios`, `e2e qa`, `real-world qa`, `qa scenario`, `release qa`, `장애 상황`, `쿠버네티스 장애`, `적절히 진단`, `검증 체크리스트`, `릴리즈 전 gate`
 - Quality bar:
   - Generate hostile scenarios from changed behavior and known risk areas.
   - Report pass/fail evidence separately from proposed fixes.
-  - Delegate code mutations discovered by QA to Codex-like executors.
+  - Delegate code mutations discovered by QA to the selected coding executor.
 - Required inputs:
   - changed behavior
   - acceptance criteria
@@ -413,7 +413,7 @@ Hermes Plan workflow: structured planning before execution.
 - Phase: `plan`
 - Hermes role: `retained-cognition`
 - Quality tier: `acceptance-gated`
-- Handoff policy: Keep planning in Hermes; if the accepted plan requires code edits, prepare a Codex handoff after acceptance.
+- Handoff policy: Keep planning in Hermes; if the accepted plan requires code edits, prepare a selected executor handoff after acceptance.
 - Use when: Use for structured planning when implementation is not ready to start safely, including feature work that needs a safe plan before handoff.
 - Strong routing signals: `plan`, `$plan`, `implementation plan`, `strategy`, `task breakdown`, `safe feature`, `safely add a feature`, `add a feature`, `feature request`, `new feature`, `product triage`, `bug triage`, `issue triage`, `reproduction plan`, `workflow hub`, `coding handoff`, `답할 차례`, `준비할 차례`, `project template`, `결제 실패`, `결제 실패 이슈`, `재현 계획`, `고객 피드백`, `기능 요청`, `요구사항 정리`, `작업 허브`, `작업 허브가 필요`, `github pr workflow`, `상태와 다음 행동`, `프로젝트별 운영`
 - Quality bar:
@@ -443,7 +443,7 @@ Hermes Ralplan workflow: consensus planning with review gates.
 - Phase: `reviewed-plan`
 - Hermes role: `retained-cognition`
 - Quality tier: `reviewed-plan-gated`
-- Handoff policy: Keep consensus planning and review in Hermes; produce explicit Codex handoff guidance only after the plan is accepted.
+- Handoff policy: Keep consensus planning and review in Hermes; produce explicit selected executor handoff guidance only after the plan is accepted.
 - Use when: Use when requirements are clear enough for planning but architecture, risks, or tests need review.
 - Strong routing signals: `ralplan`, `$ralplan`, `consensus plan`, `reviewed plan`, `issue to PR`, `acceptance criteria`, `verification command`, `reviewable PR`, `PR로 만들`, `PR로 만들 수 있게`, `검증 command`, `리뷰 가능한 단위`
 - Quality bar:
@@ -474,7 +474,7 @@ Hermes Code Review workflow: bug-first review with evidence.
 - Phase: `critique`
 - Hermes role: `hybrid-review`
 - Quality tier: `finding-evidence-gated`
-- Handoff policy: Hermes may frame and summarize review evidence; fixes or code mutations found during review should be delegated to Codex.
+- Handoff policy: Hermes may frame and summarize review evidence; fixes or code mutations found during review should be delegated to the selected coding executor.
 - Use when: Use for review-shaped requests; findings come first and must cite concrete evidence.
 - Strong routing signals: `code-review`, `$code-review`, `review`, `audit`, `find bugs`, `release gate`, `claim audit`, `evidence audit`, `README claim`, `what actually happened`, `릴리즈 전`, `실제 코드와 맞는가`, `실제로 뭐 했는지`, `검증된 결과`
 - Quality bar:
@@ -504,7 +504,7 @@ Hermes AI slop cleaner workflow: behavior-preserving cleanup.
 - Phase: `cleanup`
 - Hermes role: `codex-handoff-guidance`
 - Quality tier: `regression-gated`
-- Handoff policy: Use Hermes to define cleanup scope and regression checks; delegate behavior-preserving edits to Codex once tests are clear.
+- Handoff policy: Use Hermes to define cleanup scope and regression checks; delegate behavior-preserving edits to the selected coding executor once tests are clear.
 - Use when: Use for behavior-preserving cleanup with tests before and after edits.
 - Strong routing signals: `ai-slop-cleaner`, `$ai-slop-cleaner`, `cleanup`, `deslop`, `refactor`, `risky`, `safe refactor`, `risk analysis`, `refactor workflow`, `legacy refactor`, `위험한 리팩터링`, `리팩터링`, `리팩토링`, `위험 분석`, `변경 범위 제한`, `회귀 테스트`
 - Quality bar:
@@ -534,7 +534,7 @@ Hermes adaptation for bounded official/upstream best-practice research.
 - Phase: `evidence`
 - Hermes role: `retained-cognition`
 - Quality tier: `source-gated`
-- Handoff policy: Run as Hermes-side evidence gathering; hand coding to Codex only after source-backed guidance is summarized.
+- Handoff policy: Run as Hermes-side evidence gathering; hand coding to the selected executor only after source-backed guidance is summarized.
 - Use when: Use when correctness depends on current official or upstream guidance.
 - Strong routing signals: `best-practice-research`, `best practice`, `official docs`, `upstream guidance`
 - Quality bar:
@@ -563,7 +563,7 @@ Hermes adaptation for durable research-goal execution.
 - Phase: `durable-research`
 - Hermes role: `retained-cognition`
 - Quality tier: `validator-gated`
-- Handoff policy: Keep durable research in Hermes-managed artifacts; do not convert to Codex unless the research produces an accepted coding task.
+- Handoff policy: Keep durable research in Hermes-managed artifacts; do not convert to executor handoff unless the research produces an accepted coding task.
 - Use when: Use for validator-gated research that needs durable artifacts.
 - Strong routing signals: `autoresearch-goal`, `research goal`, `durable research`, `critic research`
 - Quality bar:
@@ -592,7 +592,7 @@ Hermes adaptation for measurable performance-goal execution.
 - Phase: `measurement`
 - Hermes role: `hybrid-measurement`
 - Quality tier: `measurement-gated`
-- Handoff policy: Hermes can own baselines, benchmark plans, and status; optimization code changes should be Codex handoffs.
+- Handoff policy: Hermes can own baselines, benchmark plans, and status; optimization code changes should be selected executor handoffs.
 - Use when: Use when the goal is measurable performance improvement with evaluator evidence.
 - Strong routing signals: `performance-goal`, `performance goal`, `latency`, `throughput`, `benchmark`
 - Quality bar:
@@ -680,7 +680,7 @@ Hermes adaptation for ending active workflow state cleanly.
 - Phase: `state-cleanup`
 - Hermes role: `retained-operator`
 - Quality tier: `evidence-gated`
-- Handoff policy: Run directly in Hermes/runtime state; never delegate cancellation to Codex.
+- Handoff policy: Run directly in Hermes/runtime state; never delegate cancellation to a coding executor.
 - Use when: Use to cleanly end active adapted workflow state.
 - Strong routing signals: `cancel`, `$cancel`, `stop`, `abort`
 - Quality bar:
@@ -706,7 +706,7 @@ Hermes adaptation for managing local skills.
 - Phase: `skill-management`
 - Hermes role: `retained-operator`
 - Quality tier: `evidence-gated`
-- Handoff policy: Use Hermes for inventory and guidance; delegate only repository code changes to Codex.
+- Handoff policy: Use Hermes for inventory and guidance; delegate only repository code changes to the selected coding executor.
 - Use when: Use for local skill listing, search, add, remove, or edit tasks.
 - Strong routing signals: `skill`, `$skill`, `skills`, `manage skills`
 - Quality bar:
@@ -732,7 +732,7 @@ Hermes adaptation for diagnosing oh-my-hermes installation health.
 - Phase: `diagnostics`
 - Hermes role: `retained-operator`
 - Quality tier: `evidence-gated`
-- Handoff policy: Run directly as local health inspection; propose Codex work only when a repo fix is required.
+- Handoff policy: Run directly as local health inspection; propose executor work only when a repo fix is required.
 - Use when: Use to diagnose OMH installation and Hermes config registration.
 - Strong routing signals: `doctor`, `$doctor`, `diagnose omh`, `installation health`
 - Quality bar:
@@ -788,6 +788,10 @@ Route implementation requests through scoped context, edit discipline, tests, re
   - `review_ci_merge_recorded_when_required`
 - Wrapper actions:
   - `accept_plan`
+  - `show_prompt_handoff`
+  - `copy_prompt_handoff`
+  - `choose_executor`
+  - `send_to_executor`
   - `send_to_codex`
   - `show_status`
   - `record_result`
@@ -1137,7 +1141,7 @@ Cluster customer feedback and choose the next workflow without defaulting to cod
 - Delegation expectation: Record feedback triage as Hermes-retained analysis; record coding handoff only after explicit accepted coding intent.
 - Privacy default: `metadata_only`
 - Overclaim guards:
-  - Feedback triage is not a roadmap, implementation plan, or Codex handoff by default.
+  - Feedback triage is not a roadmap, implementation plan, or coding handoff by default.
   - A bug signal is not proof that a fix was implemented or verified.
 - Fallback: If feedback items are too vague, ask for source or sample items before ranking severity.
 

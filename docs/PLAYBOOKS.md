@@ -50,7 +50,8 @@ Playbooks deliberately separate ownership:
   and status narration.
 - OMH owns deterministic local contracts, playbook selection, prepared handoff
   payloads, and metadata-only evidence records.
-- Codex-like executors own main coding work after dispatch.
+- Selected coding executors own main coding work after dispatch or prompt
+  handoff.
 
 Prepared handoff remains `prepared_not_observed` until the wrapper or operator
 records dispatch and result evidence. A playbook recommendation is not execution evidence.
@@ -79,8 +80,10 @@ omh playbook recommend "I want to safely add a feature to this repo"
 ```
 
 The top playbook is `safe-feature-change`. A wrapper can show a planning-first
-response, keep handoff disabled until plan acceptance, then show `Send to
-Codex` and `Show status` actions after a prepared handoff exists.
+response, keep handoff disabled until plan acceptance, then show executor
+selection, `Send to executor`, prompt handoff, and `Show status` actions based
+on the configured executor profile. `Send to Codex` is only a compatibility
+alias when the Codex lifecycle profile is selected.
 
 The user-facing improvement is simple: the user describes the work naturally,
 and the wrapper turns it into the right pipeline without exposing shell
@@ -94,5 +97,5 @@ For business work, a prompt like:
 
 routes to `feedback-triage` instead of a coding handoff. The wrapper can show
 that Hermes will classify feedback, rank severity or opportunity, and recommend
-the next workflow. It should not show `Send to Codex` unless the user later
+the next workflow. It should not show executor actions unless the user later
 accepts a plan with explicit code work.

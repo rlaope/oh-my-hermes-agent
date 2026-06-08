@@ -20,6 +20,7 @@ from omh.wrapper_sessions import (
     create_or_resume_wrapper_session,
     prepare_wrapper_session_handoff,
     record_plan_decision,
+    select_wrapper_session_executor,
     session_id_for_thread_key,
     write_wrapper_session,
 )
@@ -90,8 +91,15 @@ class WrapperSessionTests(unittest.TestCase):
                 prepare_wrapper_session_handoff(paths, session_id, message)
 
             accepted = record_plan_decision(paths, session_id, "accept")
-            self.assertEqual(accepted["session"]["status"], "plan_accepted")
-            self.assertEqual(accepted["status"]["chat_response"]["state"]["next_action"], "prepare_handoff")
+            self.assertEqual(accepted["session"]["status"], "executor_choice_required")
+            self.assertEqual(accepted["status"]["chat_response"]["state"]["next_action"], "choose_executor")
+
+            with self.assertRaises(WrapperSessionError):
+                prepare_wrapper_session_handoff(paths, session_id, message)
+
+            selected = select_wrapper_session_executor(paths, session_id, "codex")
+            self.assertEqual(selected["session"]["status"], "executor_selected")
+            self.assertEqual(selected["status"]["chat_response"]["state"]["next_action"], "prepare_handoff")
 
             handoff = prepare_wrapper_session_handoff(paths, session_id, message)
 
@@ -117,6 +125,46 @@ class WrapperSessionTests(unittest.TestCase):
             self.assertEqual(revised["session"]["current_run_id"], "")
             self.assertEqual(cancelled["session"]["status"], "cancelled")
             self.assertEqual(cancelled["status"]["claim_boundary"], "Wrapper session state is not execution evidence.")
+            self.assertEqual(validate_runtime(paths)["runs"], [])
+
+    def test_prompt_only_executor_selection_prepares_no_runtime_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor with private-token-123"
+            started = create_or_resume_wrapper_session(paths, message, source="discord")
+            session_id = str(started["session"]["session_id"])
+
+            record_plan_decision(paths, session_id, "accept")
+            selected = select_wrapper_session_executor(paths, session_id, "claude-code")
+            self.assertEqual(selected["session"]["status"], "executor_selected")
+            self.assertEqual(selected["session"]["work_owner_mode"], "prompt_only_handoff")
+
+            prepared = prepare_wrapper_session_handoff(paths, session_id, message)
+
+            self.assertEqual(prepared["session"]["status"], "prompt_handoff_prepared")
+            self.assertEqual(prepared["session"]["current_run_id"], "")
+            self.assertEqual(prepared["session"]["selected_executor_profile"], "claude-code")
+            self.assertEqual(prepared["handoff"]["runtime"]["run_created"], False)
+            self.assertEqual(prepared["handoff"]["prompt_handoff"]["schema_version"], "coding_prompt_handoff/v1")
+            self.assertEqual(prepared["status"]["next_action"], "show_prompt_handoff")
+            self.assertEqual(validate_runtime(paths)["runs"], [])
+            self.assertTrue(validate_runtime(paths)["ok"])
+            session_path = paths.runtime_wrapper_sessions_dir / session_id / "session.json"
+            self.assertNotIn(message, session_path.read_text(encoding="utf-8"))
+
+    def test_retained_hermes_selection_does_not_prepare_executor_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
+            session_id = str(started["session"]["session_id"])
+
+            record_plan_decision(paths, session_id, "accept")
+            selected = select_wrapper_session_executor(paths, session_id, "hermes")
+
+            self.assertEqual(selected["session"]["work_owner_mode"], "retained_hermes")
+            self.assertEqual(selected["status"]["chat_response"]["state"]["next_action"], "show_status")
+            with self.assertRaises(WrapperSessionError):
+                prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
             self.assertEqual(validate_runtime(paths)["runs"], [])
 
     def test_invalid_plan_decision_transitions_are_rejected(self) -> None:
@@ -153,6 +201,7 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
             session_id = str(started["session"]["session_id"])
             record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
             first = prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
             second = prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
 
@@ -171,6 +220,7 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, message, source="discord", source_metadata=source_metadata)
             session_id = str(started["session"]["session_id"])
             record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
             append_wrapper_session_event(
                 paths.runtime_wrapper_sessions_dir / session_id,
                 {
@@ -197,6 +247,7 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, message, source="discord", source_metadata=source_metadata)
             first_session_id = str(started["session"]["session_id"])
             record_plan_decision(paths, first_session_id, "accept")
+            select_wrapper_session_executor(paths, first_session_id, "codex")
             first_handoff = prepare_wrapper_session_handoff(paths, first_session_id, message)
             first_run_id = str(first_handoff["session"]["current_run_id"])
             second_session_id = "ws-duplicate-recovery-attempt"
@@ -207,6 +258,9 @@ class WrapperSessionTests(unittest.TestCase):
                     "thread_key": "discord:c1:m2",
                     "status": "plan_accepted",
                     "decision": "plan_accepted",
+                    "work_owner_mode": "external_executor",
+                    "selected_executor_profile": "codex",
+                    "dispatch_policy": "ask_before_dispatch",
                     "current_run_id": "",
                 }
             )
@@ -233,9 +287,18 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, message, source="discord")
             session_id = str(started["session"]["session_id"])
             accepted = record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
             lifecycle = start_codex_delegation_lifecycle(paths, message, source="discord")
             session = dict(accepted["session"])
-            session.update({"status": "handoff_prepared", "current_run_id": lifecycle["run"]["run_id"]})
+            session.update(
+                {
+                    "status": "handoff_prepared",
+                    "work_owner_mode": "external_executor",
+                    "selected_executor_profile": "codex",
+                    "dispatch_policy": "ask_before_dispatch",
+                    "current_run_id": lifecycle["run"]["run_id"],
+                }
+            )
             write_wrapper_session(paths, session)
 
             self.assertFalse(validate_runtime(paths)["ok"])
@@ -251,6 +314,7 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, message, source="discord")
             session_id = str(started["session"]["session_id"])
             record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
             handoff = prepare_wrapper_session_handoff(paths, session_id, message)
             run_id = str(handoff["session"]["current_run_id"])
             duplicate_session_id = "ws-duplicate-run-owner"
@@ -280,6 +344,7 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
             session_id = str(started["session"]["session_id"])
             record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
             prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
 
             status = build_wrapper_session_status(paths, session_id)
@@ -310,7 +375,16 @@ class WrapperSessionTests(unittest.TestCase):
             started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
             session = dict(started["session"])
             run = create_run(paths, {"skill": "plan", "harness": "planning", "trigger": "test"})
-            session.update({"status": "handoff_prepared", "decision": "plan_accepted", "current_run_id": run["run_id"]})
+            session.update(
+                {
+                    "status": "handoff_prepared",
+                    "decision": "plan_accepted",
+                    "work_owner_mode": "external_executor",
+                    "selected_executor_profile": "codex",
+                    "dispatch_policy": "ask_before_dispatch",
+                    "current_run_id": run["run_id"],
+                }
+            )
             write_wrapper_session(paths, session)
 
             validation = validate_runtime(paths)

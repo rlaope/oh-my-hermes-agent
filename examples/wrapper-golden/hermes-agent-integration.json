@@ -183,7 +183,7 @@
       "source_scenario": "handoff_prepared",
       "from_state": "plan_accepted",
       "to_state": "handoff_prepared",
-      "wrapper_action": "send_to_codex",
+      "wrapper_action": "send_to_executor",
       "observed_evidence": [
         "prepared handoff payload",
         "linked run id",

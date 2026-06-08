@@ -34,7 +34,7 @@ Quality bar:
 
 Handoff policy:
 
-Run directly in Hermes/runtime state; never delegate cancellation to Codex.
+Run directly in Hermes/runtime state; never delegate cancellation to a coding executor.
 
 Required inputs:
 

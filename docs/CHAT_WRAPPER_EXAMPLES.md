@@ -21,7 +21,7 @@ The first command renders the fixture event in
 the full deterministic path:
 
 ```text
-recommend -> chat response -> Hermes plan -> Codex handoff -> status card
+recommend -> chat response -> Hermes plan -> selected executor handoff -> status card
 ```
 
 ## Discord-Style Plan Response
@@ -62,7 +62,7 @@ a progress block in the same thread:
 
 ```text
 Hermes Agent  BOT
-A Codex handoff is ready.
+A coding-agent handoff is ready.
 
 I have prepared the handoff, but executor dispatch is not observed yet.
 
@@ -75,15 +75,17 @@ Status
 [pending] Merge Ready
 [pending] Merged
 
-Primary action: Send to Codex
+Primary action: Send to executor
 Claim boundary: Preparation is not execution evidence.
 ```
 
 User-facing effect:
 
 - Prepared handoff is presented as ready to dispatch, not completed work.
-- The wrapper sends Codex the handoff's `$skill {message}` invocation, such as
-  `$ai-slop-cleaner {message}`, rather than asking the chat user to run it.
+- If the selected profile is Codex, the wrapper can use the handoff's
+  `$skill {message}` invocation, such as `$ai-slop-cleaner {message}`, rather
+  than asking the chat user to run it. Prompt-only profiles render a copyable
+  handoff instead of lifecycle evidence.
 - Execution, verification, CI, merge-readiness, and merge stay separate.
 - The wrapper can keep editing the same thread as evidence arrives.
 
@@ -115,7 +117,7 @@ Claim boundary: A draft plan is not execution evidence.
 What gets better for the team:
 
 - The message is treated as product/bug triage, not instant implementation.
-- The next step is investigation and reproduction planning before a Codex
+- The next step is investigation and reproduction planning before any coding
   handoff.
 - The future handoff can carry acceptance criteria and verification checks.
 
@@ -140,7 +142,7 @@ Claim boundary: Routing is not execution evidence.
 What gets better for the team:
 
 - The request stays in a Hermes-retained QA workflow.
-- `omh coding delegate --executor codex` does not emit a Codex handoff for this
+- `omh coding delegate` does not emit a dispatchable executor handoff for this
   scenario until a concrete code change is accepted.
 - QA scenarios, expected behavior, and observed results can be recorded without
   pretending the product was fixed.
@@ -167,7 +169,8 @@ Claim boundary: No plan or execution has started.
 What gets better for the team:
 
 - Broad product language becomes deep interview before implementation.
-- Hermes asks for the missing decision instead of sending vague work to Codex.
+- Hermes asks for the missing decision instead of sending vague work to a coding
+  executor.
 - Planning and handoff buttons stay behind the clarification gate.
 
 ### Release Evidence Review

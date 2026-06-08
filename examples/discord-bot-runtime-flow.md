@@ -28,8 +28,10 @@ status update.
    ```
 
    Render `chat_response.actions` as buttons when the platform supports them.
-   Typical action ids include `accept_plan`, `revise_plan`, `send_to_codex`,
-   `show_status`, and `cancel`.
+   Typical action ids include `accept_plan`, `revise_plan`, `choose_executor`,
+   `show_prompt_handoff`, `copy_prompt_handoff`, `send_to_executor`,
+   `show_status`, and `cancel`. `send_to_codex` is only a compatibility alias
+   when the selected executor profile is `codex`.
 
 4. If the wrapper needs restart recovery, start or resume a metadata-only chat
    session keyed to the Discord message/thread:
@@ -52,17 +54,24 @@ status update.
    omh chat session accept-plan "$session_id"
    ```
 
-6. For accepted implementation-shaped work, prepare a Codex-oriented lifecycle
-   run and link it to the wrapper session:
+6. For accepted implementation-shaped work, choose who owns the coding work.
+   Codex can create a run-backed lifecycle; non-Codex profiles prepare
+   prompt-only handoffs without creating a runtime run:
+
+   ```sh
+   omh chat session select-executor "$session_id" codex
+   ```
+
+7. Prepare the selected handoff and link it to the wrapper session:
 
    ```sh
    handoff_json="$(omh chat session prepare-handoff "$session_id" "risky refactor")"
    run_id="$(printf '%s' "$handoff_json" | python -c 'import json,sys; print(json.load(sys.stdin)["session"]["current_run_id"])')"
    ```
 
-7. Dispatch the `coding_executor_handoff/v1` payload to the external coding
-   executor outside OMH, then record only transitions the wrapper actually
-   observed:
+8. If the selected executor is Codex, dispatch the
+   `coding_executor_handoff/v1` payload to the external coding executor outside
+   OMH, then record only transitions the wrapper actually observed:
 
    ```sh
    omh coding lifecycle dispatch --run "$run_id"
@@ -70,7 +79,12 @@ status update.
    omh coding lifecycle verify --run "$run_id" --completion-status completed
    ```
 
-8. Render status updates from the local lifecycle report:
+   If the selected executor is prompt-only, render the `prompt_handoff` for the
+   user to copy or for the wrapper to pass to its own executor integration. Do
+   not mark dispatch, execution, review, CI, or merge evidence as observed from
+   the prompt alone.
+
+9. Render status updates from the local lifecycle report:
 
    ```sh
    omh coding lifecycle report --run "$run_id"

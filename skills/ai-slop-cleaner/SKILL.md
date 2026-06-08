@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Use Hermes to define cleanup scope and regression checks; delegate behavior-preserving edits to Codex once tests are clear.
+Use Hermes to define cleanup scope and regression checks; delegate behavior-preserving edits to the selected coding executor once tests are clear.
 
 Required inputs:
 

@@ -35,7 +35,7 @@ Quality bar:
 
 Handoff policy:
 
-Keep the workflow name for compatibility, but convert coding lanes into explicit Codex handoffs with disjoint scope, verification, and review evidence.
+Keep the workflow name for compatibility, but convert coding lanes into explicit selected executor handoffs with disjoint scope, verification, and review evidence.
 
 Required inputs:
 
@@ -46,7 +46,7 @@ Required inputs:
 
 Expected outputs:
 
-- Codex handoff prompts or lane instructions
+- executor handoff prompts or lane instructions
 - status summary
 - review/CI evidence requirements
 
@@ -58,7 +58,7 @@ Safety rules:
 
 - Do not start parallel coding without disjoint ownership boundaries.
 - Keep Hermes responsible for orchestration/status, not hidden implementation.
-- Record unobserved Codex execution as prepared_not_observed or not_observed.
+- Record unobserved executor work as prepared_not_observed or not_observed.
 
 ## Harness Discipline
 

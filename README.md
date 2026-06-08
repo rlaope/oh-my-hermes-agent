@@ -39,8 +39,8 @@ status.
 - **Hermes-native boundary** - no Hermes core patching, hidden transport bot, or
   network service inside this package.
 - **Delegation-first coding** - coding-heavy requests become prepared handoffs
-  for external coding executors, with review, verification, and Codex `$skill`
-  invocation expectations.
+  for the selected executor: Codex lifecycle when supported, or prompt-only
+  handoff for Claude Code, OMH-style runtime users, generic agents, or Hermes.
 - **Evidence-aware status** - prepared, dispatched, executed, reviewed,
   verified, CI, and merge-ready states stay separate.
 - **Local and inspectable** - skills, manifests, plans, sessions, and runtime
@@ -125,8 +125,8 @@ we need a competitor market scan and strategy memo for next week's leadership me
 ```
 
 Those stay Hermes-retained by default. OMH can classify, brief, and record the
-next workflow without pretending data was fetched, a meeting happened, or Codex
-implemented anything.
+next workflow without pretending data was fetched, a meeting happened, or a
+coding executor implemented anything.
 
 ## Two Install Paths
 
@@ -187,8 +187,8 @@ omh demo orchestration
 ```
 
 The demo is deterministic and transport-free. It shows the full
-recommend -> chat response -> Hermes plan -> Codex handoff -> status card path
-without calling an LLM, bot SDK, network API, or Hermes core patch.
+recommend -> chat response -> Hermes plan -> selected executor handoff -> status
+card path without calling an LLM, bot SDK, network API, or Hermes core patch.
 
 **Optional playbook inspection**
 
@@ -323,8 +323,8 @@ The generated catalog classifies each workflow by role:
 | Verification | `code-review`, `ultraqa` | Hermes can frame review and QA expectations; code fixes remain executor work. |
 
 Actual Discord and Slack transports stay outside this repository. `omh` does
-not open network connections, authenticate bots, post messages, invoke Codex, or
-patch Hermes internals.
+not open network connections, authenticate bots, post messages, invoke coding
+executors, or patch Hermes internals.
 
 Hermes plans include a deterministic `quality_gate` and `deep_interview`
 contract. Blocked plans ask one concise question; draft plans remain unapproved

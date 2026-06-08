@@ -24,7 +24,7 @@ class CliTests(unittest.TestCase):
         self.assertTrue(any(recommendation["why"] and recommendation["suggested_prompt"] for recommendation in recommendations))
         cleanup = next(recommendation for recommendation in recommendations if recommendation["skill"] == "ai-slop-cleaner")
         self.assertEqual(cleanup["hermes_role"], "codex-handoff-guidance")
-        self.assertIn("Codex", cleanup["handoff_policy"])
+        self.assertIn("selected coding executor", cleanup["handoff_policy"])
 
     def test_recommend_implementation_plan_includes_planning_workflow(self) -> None:
         status, stdout, stderr = run_cli(["recommend", "implementation", "plan", "with", "review"])
@@ -473,7 +473,16 @@ class CliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             accepted = json.loads(stdout)
             self.assertEqual(accepted["session"]["decision"], "plan_accepted")
-            self.assertEqual(accepted["status"]["chat_response"]["state"]["next_action"], "prepare_handoff")
+            self.assertEqual(accepted["session"]["status"], "executor_choice_required")
+            self.assertEqual(accepted["status"]["chat_response"]["state"]["next_action"], "choose_executor")
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "select-executor", session_id, "codex"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            selected = json.loads(stdout)
+            self.assertEqual(selected["session"]["status"], "executor_selected")
+            self.assertEqual(selected["status"]["chat_response"]["state"]["next_action"], "prepare_handoff")
 
             status, stdout, stderr = run_cli(home_args + ["chat", "session", "prepare-handoff", session_id, message])
 
@@ -529,7 +538,12 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["harness_quality"]["schema_version"], "harness_quality/v1")
         self.assertEqual(payload["harness_quality"]["harness"], "coding-handling")
         self.assertIn("coding_delegation_prepared", payload["harness_quality"]["evidence_ladder"])
-        self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_status"])
+        self.assertEqual(payload["harness_quality"]["wrapper_actions"], ["show_prompt_handoff", "copy_prompt_handoff", "choose_executor", "show_status"])
+        self.assertEqual(payload["work_owner_mode"], "prompt_only_handoff")
+        self.assertEqual(payload["selected_executor_profile"], "generic")
+        self.assertFalse(payload["dispatchable"])
+        self.assertEqual(payload["prompt_handoff"]["schema_version"], "coding_prompt_handoff/v1")
+        self.assertNotIn("executor_handoff", payload)
         self.assertNotIn("suggested_prompt", json.dumps(payload))
         self.assertNotIn("risky refactor", json.dumps(payload))
 
@@ -605,7 +619,9 @@ class CliTests(unittest.TestCase):
         self.assertIn("Use Codex skill: `$ai-slop-cleaner`", handoff["prompt_template"])
         self.assertIn("changed_files", handoff["report_contract"]["required_fields"])
         self.assertIn("executor_result", " ".join(handoff["evidence_contract"]["observed_required_for"]))
+        self.assertIn("send_to_executor", payload["harness_quality"]["wrapper_actions"])
         self.assertIn("send_to_codex", payload["harness_quality"]["wrapper_actions"])
+        self.assertIn("send_to_executor", handoff["harness_quality"]["wrapper_actions"])
         self.assertIn("send_to_codex", handoff["harness_quality"]["wrapper_actions"])
         self.assertNotIn(hostile, json.dumps(handoff))
         self.assertNotIn(hostile, json.dumps(payload))
@@ -670,36 +686,55 @@ class CliTests(unittest.TestCase):
             self.assertEqual(stderr, "")
             self.assertEqual(status, 0)
             payload = json.loads(stdout)
-            run_id = payload["runtime"]["run"]["run_id"]
-            run = payload["runtime"]["run"]
-            record = payload["runtime"]["coding_delegation"]
-            self.assertEqual(run["status"], "prepared")
-            self.assertEqual(run["artifact_kind"], "prepared_coding_delegation")
-            self.assertEqual(run["phase"], "prepared")
-            self.assertEqual(run["observation_status"], "prepared_not_observed")
-            self.assertEqual(record["schema_version"], "coding_delegation/v1")
-            self.assertEqual(record["record_type"], "coding_delegation")
-            self.assertEqual(record["source"], "discord")
-            self.assertEqual(record["action"], "delegate")
-            self.assertEqual(record["intent"], "cleanup")
-            self.assertEqual(record["status"], "prepared_not_observed")
-            self.assertEqual(record["message_length"], len("risky refactor"))
-            self.assertEqual(record["source_metadata"]["source_event_id"], "m1")
-            self.assertTrue(record["acceptance_criteria"])
-            self.assertTrue(record["verification"])
-            self.assertNotIn("risky refactor", json.dumps(record))
+            self.assertEqual(payload["runtime"]["recorded"], False)
+            self.assertEqual(payload["runtime"]["reason"], "prompt_only_handoff_is_wrapper_session_only")
+            self.assertEqual(payload["runtime"]["run_created"], False)
+            self.assertEqual(payload["work_owner_mode"], "prompt_only_handoff")
+            self.assertEqual(payload["selected_executor_profile"], "generic")
+            self.assertEqual(payload["prompt_handoff"]["schema_version"], "coding_prompt_handoff/v1")
+            self.assertNotIn("executor_handoff", payload)
+            self.assertNotIn("risky refactor", json.dumps(payload["prompt_handoff"]))
 
-            status, stdout, stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "show", run_id])
+            status, stdout, stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "validate"])
             self.assertEqual(stderr, "")
             self.assertEqual(status, 0)
-            shown = json.loads(stdout)
-            self.assertEqual(shown["run"]["artifact_kind"], "prepared_coding_delegation")
-            self.assertEqual(shown["run"]["phase"], "prepared")
-            self.assertEqual(shown["run"]["observation_status"], "prepared_not_observed")
-            self.assertEqual(shown["coding_delegation"]["recommended_workflow"], "ai-slop-cleaner")
-            self.assertNotIn("risky refactor", json.dumps(shown["coding_delegation"]))
+            self.assertTrue(json.loads(stdout)["ok"])
 
-            status, stdout, stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "validate", "--run", run_id])
+    def test_coding_delegate_record_after_default_setup_does_not_create_choice_run(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+
+            status, stdout, stderr = run_cli(base + ["setup"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertEqual(json.loads(stdout)["steps"]["profile"]["default_executor"], "choose")
+
+            status, stdout, stderr = run_cli(
+                base
+                + [
+                    "coding",
+                    "delegate",
+                    "--record",
+                    "--source",
+                    "discord",
+                    "risky",
+                    "refactor",
+                ]
+            )
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            payload = json.loads(stdout)
+            self.assertTrue(payload["executor_selection"]["choice_required"])
+            self.assertEqual(payload["runtime"]["recorded"], False)
+            self.assertEqual(payload["runtime"]["reason"], "executor_choice_required")
+            self.assertEqual(payload["runtime"]["run_created"], False)
+            self.assertFalse((omh_home / "runtime" / "runs").exists())
+
+            status, stdout, stderr = run_cli(base + ["runtime", "validate"])
             self.assertEqual(stderr, "")
             self.assertEqual(status, 0)
             self.assertTrue(json.loads(stdout)["ok"])
@@ -804,24 +839,22 @@ class CliTests(unittest.TestCase):
             hermes_home = root / ".hermes"
             base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
 
-            for message, next_action in (("zzzzunknownphrase", "route_coding_request"), ("fix maybe", "clarify_coding_request")):
+            for message, action in (("zzzzunknownphrase", "fallback"), ("fix maybe", "clarify")):
                 with self.subTest(message=message):
                     status, stdout, stderr = run_cli(base + ["coding", "delegate", "--record", "--executor", "codex", message])
                     self.assertEqual(stderr, "")
                     self.assertEqual(status, 0)
                     payload = json.loads(stdout)
                     self.assertNotIn("executor_handoff", payload)
-                    run_id = payload["runtime"]["run"]["run_id"]
+                    self.assertEqual(payload["delegation"]["action"], action)
+                    self.assertEqual(payload["runtime"]["recorded"], False)
+                    self.assertEqual(payload["runtime"]["reason"], "retained_hermes_has_no_executor_handoff")
+                    self.assertEqual(payload["runtime"]["run_created"], False)
 
-                    status, stdout, stderr = run_cli(base + ["runtime", "delegation-status", "--run", run_id])
-
-                    self.assertEqual(stderr, "")
-                    self.assertEqual(status, 0)
-                    summary = json.loads(stdout)
-                    self.assertEqual(summary["next_action"], next_action)
-                    self.assertFalse(summary["prepared"]["handoff_available"])
-                    self.assertNotEqual(summary["next_action"], "dispatch_to_executor")
-                    self.assertTrue(summary["integrity"]["ok"])
+            status, stdout, stderr = run_cli(base + ["runtime", "validate"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertTrue(json.loads(stdout)["ok"])
 
     def test_runtime_delegation_status_reports_review_followup_after_observed_execution(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -1139,15 +1172,28 @@ class CliTests(unittest.TestCase):
         self.assertNotIn(message, stdout)
         self.assertNotIn("omh ", json.dumps(payload["chat_response"]).lower())
 
-    def test_chat_interact_delegate_mode_gates_send_to_codex(self) -> None:
+    def test_chat_interact_delegate_mode_defaults_to_executor_choice(self) -> None:
         status, stdout, stderr = run_cli(["chat", "interact", "--mode", "delegate", "--source", "discord", "risky", "refactor"])
 
         self.assertEqual(stderr, "")
         self.assertEqual(status, 0)
         payload = json.loads(stdout)
         actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
-        self.assertEqual(payload["next_action"], "send_to_codex")
+        self.assertEqual(payload["next_action"], "choose_executor")
+        self.assertTrue(payload["delegation"]["executor_selection"]["choice_required"])
+        self.assertNotIn("executor_handoff", payload["delegation"])
+        self.assertIn("choose_executor", actions)
+
+    def test_chat_interact_delegate_mode_can_prepare_codex_handoff(self) -> None:
+        status, stdout, stderr = run_cli(["chat", "interact", "--mode", "delegate", "--executor", "codex", "--source", "discord", "risky", "refactor"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        actions = {action["id"] for action in payload["chat_response"]["actions"] if action["enabled"]}
+        self.assertEqual(payload["next_action"], "send_to_executor")
         self.assertEqual(payload["delegation"]["executor_handoff"]["executor_target"], "codex")
+        self.assertIn("send_to_executor", actions)
         self.assertIn("send_to_codex", actions)
 
     def test_chat_interact_status_renders_prepared_codex_handoff(self) -> None:
@@ -1186,9 +1232,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(payload["source"], "discord")
         self.assertEqual(payload["thread_key"], "discord:c1:m1")
         self.assertEqual(payload["status_card"]["schema_version"], "status_card/v1")
-        self.assertEqual(payload["status_card"]["primary_action"], "send_to_codex")
+        self.assertEqual(payload["status_card"]["primary_action"], "send_to_executor")
         self.assertIn("status_card", payload["chat_response"])
         self.assertEqual(payload["chat_response"]["state"]["thread_key"], "discord:c1:m1")
+        self.assertIn("send_to_executor", actions)
         self.assertIn("send_to_codex", actions)
 
     def test_coding_lifecycle_cli_rejects_result_before_dispatch(self) -> None:
@@ -1204,6 +1251,12 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(status, 2)
         self.assertIn("cannot record Codex result", stderr)
+
+    def test_coding_lifecycle_cli_rejects_non_codex_executor(self) -> None:
+        status, _, stderr = run_cli(["coding", "lifecycle", "start", "--record", "--executor", "claude-code", "risky", "refactor"])
+
+        self.assertEqual(status, 2)
+        self.assertIn("Codex-only in Phase 1", stderr)
 
     def test_coding_lifecycle_cli_happy_path_reports_completion_for_non_review_task(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -1276,7 +1329,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(plan["deep_interview"]["after_answer_next_action"], "accept_or_revise_plan")
         self.assertTrue(plan["acceptance_criteria"])
         self.assertTrue(plan["verification_plan"])
-        self.assertIn("omh coding delegate --record", plan["execution_handoff"])
+        self.assertIn("omh coding delegate --executor codex --record", plan["execution_handoff"])
         contract = payload["wrapper_contract"]
         self.assertEqual(contract["schema_version"], "hermes_plan_wrapper/v1")
         self.assertEqual(contract["current_step"], "present_plan")
@@ -1295,6 +1348,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(coding_delegate["stdout_schema_version"], "coding_delegation/v1")
         self.assertEqual(coding_delegate["recording_contract"], "prepared_not_observed")
         self.assertIn("{message}", coding_delegate["argv_template"])
+        self.assertIn("--executor", coding_delegate["argv_template"])
+        self.assertIn("codex", coding_delegate["argv_template"])
+        self.assertEqual(coding_delegate["recorded_run_field"], "runtime.run.run_id")
         self.assertNotIn("command_template", coding_delegate)
 
     def test_hermes_plan_wrapper_contract_uses_only_argv_for_hostile_messages(self) -> None:
@@ -1309,6 +1365,8 @@ class CliTests(unittest.TestCase):
         self.assertTrue(coding_delegate["available"])
         self.assertNotIn("command_template", coding_delegate)
         self.assertEqual(coding_delegate["argv_template"][-1], "{message}")
+        self.assertIn("--executor", coding_delegate["argv_template"])
+        self.assertIn("codex", coding_delegate["argv_template"])
         self.assertNotIn(hostile, json.dumps(coding_delegate))
 
     def test_hermes_plan_wrapper_contract_rejects_substring_coding_matches(self) -> None:
@@ -1562,6 +1620,32 @@ class CliTests(unittest.TestCase):
             self.assertEqual(doctor_stderr, "")
             self.assertEqual(doctor_status, 0)
             self.assertTrue(json.loads(doctor_stdout)["ok"])
+
+    def test_setup_profile_can_set_prompt_only_runtime_default(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+
+            status, stdout, stderr = run_cli(base + ["setup", "--profile", "2", "--profile", "4"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            setup = json.loads(stdout)
+            self.assertEqual(setup["steps"]["profile"]["selected_categories"], ["prompt-only-coding", "plugin-runtime"])
+            self.assertEqual(setup["steps"]["profile"]["default_executor"], "omx-runtime")
+            self.assertTrue((omh_home / "setup-profile.json").exists())
+
+            status, stdout, stderr = run_cli(base + ["chat", "interact", "--mode", "delegate", "--source", "discord", "risky", "refactor"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            payload = json.loads(stdout)
+            self.assertEqual(payload["next_action"], "show_prompt_handoff")
+            self.assertEqual(payload["delegation"]["selected_executor_profile"], "omx-runtime")
+            self.assertFalse(payload["delegation"]["dispatchable"])
+            self.assertNotIn("executor_handoff", payload["delegation"])
 
     def test_setup_dry_run_marks_bootstrap_state_unobserved(self) -> None:
         with TemporaryDirectory() as tmp:
