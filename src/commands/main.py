@@ -89,7 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--omh-home", default=None)
     parser.add_argument("--hermes-home", default=None)
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     _add_top_level_commands(sub)
     _add_docs_commands(sub)
@@ -108,9 +108,36 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _print_welcome() -> None:
+    print(
+        """OMH - oh-my-hermes-agent
+
+Install OMH, then talk to Hermes. The CLI is the bootstrap, doctor, verifier,
+and wrapper/backend surface; the normal user experience is Hermes Agent chat
+with installed OMH skills.
+
+Start:
+  omh setup              Install/update managed Hermes skills
+  omh doctor             Check local OMH and Hermes skill registration
+
+Useful operator commands:
+  omh recommend "risky refactor"
+  omh playbook recommend "turn this issue into a PR"
+  omh loop status
+
+After setup, restart or reload Hermes Agent and try:
+  Use OMH request-to-handoff for: I want to safely add a feature to this repo.
+
+Run `omh --help` for the full command list."""
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if not getattr(args, "command", None):
+        _print_welcome()
+        return 0
     try:
         return int(args.func(args))
     except OmhError as exc:

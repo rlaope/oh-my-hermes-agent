@@ -145,9 +145,10 @@ install_into_venv() {
     exit 1
   fi
   OMH_RUNTIME_PYTHON="$OMH_VENV_DIR/bin/python"
+  say "Installing OMH package..."
   # Intentional shell splitting: OMH_PIP_ARGS is an advanced operator escape hatch.
   # shellcheck disable=SC2086
-  "$OMH_RUNTIME_PYTHON" -m pip install $OMH_PIP_ARGS --upgrade "$OMH_PACKAGE_URL"
+  PIP_DISABLE_PIP_VERSION_CHECK=1 "$OMH_RUNTIME_PYTHON" -m pip install --disable-pip-version-check -q $OMH_PIP_ARGS --upgrade "$OMH_PACKAGE_URL"
   OMH_COMMAND_HINT="$OMH_VENV_DIR/bin/omh"
   link_omh_command
 }
@@ -157,9 +158,10 @@ install_into_python() {
   if [ -z "$OMH_PIP_ARGS_WAS_SET" ]; then
     OMH_DIRECT_PIP_ARGS="--user"
   fi
+  say "Installing OMH package..."
   # Intentional shell splitting: OMH_DIRECT_PIP_ARGS is an advanced operator escape hatch.
   # shellcheck disable=SC2086
-  "$OMH_PYTHON" -m pip install $OMH_DIRECT_PIP_ARGS --upgrade "$OMH_PACKAGE_URL"
+  PIP_DISABLE_PIP_VERSION_CHECK=1 "$OMH_PYTHON" -m pip install --disable-pip-version-check -q $OMH_DIRECT_PIP_ARGS --upgrade "$OMH_PACKAGE_URL"
   OMH_RUNTIME_PYTHON="$OMH_PYTHON"
 }
 
@@ -225,6 +227,10 @@ else
 fi
 
 set -- setup --channel "$OMH_CHANNEL" --package-url "$OMH_PACKAGE_URL"
+
+if [ "$OMH_CHANNEL" = "local" ] && [ -d "$OMH_PACKAGE_URL" ]; then
+  set -- "$@" --source "$OMH_PACKAGE_URL"
+fi
 
 if [ "$OMH_AUTO_APPLY" = "0" ]; then
   set -- "$@" --skip-apply

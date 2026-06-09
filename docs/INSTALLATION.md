@@ -23,6 +23,12 @@ omh doctor
 The installer normally runs setup automatically, but `omh setup` is kept here
 as the explicit repairable step: it installs generated managed skills and
 registers them with Hermes through `skills.external_dirs`.
+When `omh setup` is run in a real terminal, it opens a small colored wizard that
+detects the Hermes config path, confirms skill registration, asks for workflow
+defaults, and can opt into the plugin bridge or a team/profile pack. In
+non-interactive shells it uses safe defaults and prints a concise summary. Use
+`omh setup --json` or `OMH_OUTPUT=json omh setup` for the full
+machine-readable payload.
 
 The installer also prints the installed `omh` command path. By default it uses
 an isolated OMH virtual environment and links `omh` into a user bin directory
@@ -161,15 +167,17 @@ omh runtime status
 omh probe
 ```
 
-`omh setup` should report install and apply steps plus a
+`omh setup` should report a human-readable setup summary by default. The same
+command with `--json` should include install and apply steps plus a
 `hermes_native_setup/v1` block that names the equivalent Hermes skill install
 path, managed skill directory, and `skills.external_dirs` registration key.
 `hermes_native.observed` means the local bootstrap/apply step actually ran; it
 does not prove Hermes has reloaded or used the skill yet.
 `discovery_status: config_registered_reload_required` means restart or refresh
 Hermes before claiming the skill is visible in chat.
-`omh doctor` should report a healthy setup result. `omh list` should show the
-managed skills available to Hermes.
+`omh doctor` should report a healthy summary by default; `omh doctor --json`
+returns the full check payload. `omh list` should show the managed skills
+available to Hermes.
 `omh runtime status` should show the local runtime artifact directory and the
 latest install/apply/doctor state when those commands have run. `omh probe`
 reports observable Hermes capability surfaces without mutating Hermes internals.

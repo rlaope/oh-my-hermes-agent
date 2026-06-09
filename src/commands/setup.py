@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
+import sys
 
 from .. import __version__
-from ..config_adapter import ensure_external_dir, read_config, remove_external_dir, write_config
+from ..config_adapter import ensure_external_dir, external_dirs, read_config, remove_external_dir, write_config
 from ..doctor import doctor_ok, recommended_next_action, run_doctor
 from ..hashutil import sha256_file
 from ..installer import OmhError, install_skill_pack, uninstall_skill_pack
@@ -15,11 +17,11 @@ from ..probe import probe_capabilities
 from ..release import RELEASE_CHANNELS, package_url_for
 from ..routing.recommend import recommend_skills
 from ..runtime.artifacts import update_state
-from ..setup_profiles import build_setup_profile, write_setup_profile
+from ..setup_profiles import build_setup_profile, setup_profile_choices, write_setup_profile
 from ..snippet import WORKSPACE_SNIPPET
 from ..targets import record_target_observation
 from ..team_profiles import TeamProfileError, inspect_team_profile_pack, install_team_profile_pack, list_team_profile_packs
-from .common import _paths, _print_json
+from .common import _paths, _print_json, _wants_json
 
 
 def cmd_install(args: argparse.Namespace) -> int:
@@ -119,7 +121,10 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     payload = _doctor_result(args)
-    _print_json(payload)
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_doctor_summary(payload)
     return 0 if payload["ok"] else 1
 
 
@@ -149,6 +154,8 @@ def _doctor_result(args: argparse.Namespace) -> dict[str, object]:
 
 def cmd_setup(args: argparse.Namespace) -> int:
     paths = _paths(args)
+    if _setup_should_interact(args):
+        _run_setup_wizard(args, paths)
     steps: dict[str, object] = {"install": _install_result(args)}
     if args.skip_apply:
         steps["apply"] = {"skipped": True, "message": "Skipped Hermes config registration because --skip-apply was set."}
@@ -228,8 +235,220 @@ def cmd_setup(args: argparse.Namespace) -> int:
         payload["plugin_distribution"] = steps["plugin"]
     if args.profile_pack:
         payload["team_profiles"] = steps["team_profiles"]
-    _print_json(payload)
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_setup_summary(payload)
     return 0
+
+
+def _setup_should_interact(args: argparse.Namespace) -> bool:
+    if getattr(args, "interactive", False):
+        return True
+    if getattr(args, "no_interactive", False) or getattr(args, "yes", False):
+        return False
+    if _wants_json(args) or getattr(args, "dry_run", False):
+        return False
+    if args.profile or args.profile_pack or args.with_plugin or args.skip_apply:
+        return False
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _run_setup_wizard(args: argparse.Namespace, paths) -> None:
+    use_color = _use_color()
+    print(_color("OMH setup", "1;36", use_color))
+    print("This wizard installs managed Hermes skills and records local routing defaults.")
+    print(f"Hermes home: {_color(str(paths.hermes_home), '36', use_color)}")
+    if paths.hermes_config_path.exists():
+        config_text = read_config(paths.hermes_config_path)
+        registered = str(paths.skills_dir) in external_dirs(config_text)
+        status = "already registered" if registered else "will register OMH skills"
+        print(f"Hermes config: {_color(str(paths.hermes_config_path), '36', use_color)} ({status})")
+    else:
+        print(f"Hermes config: {_color(str(paths.hermes_config_path), '36', use_color)} (will create)")
+    print(f"Managed skills: {_color(str(paths.skills_dir), '36', use_color)}")
+
+    args.skip_apply = not _ask_yes_no("Register these skills in Hermes config?", default=True, use_color=use_color)
+    args.profile = _ask_setup_profiles(use_color=use_color)
+    args.with_plugin = _ask_yes_no("Install optional local plugin bridge?", default=False, use_color=use_color)
+    args.profile_pack = _ask_team_profile_packs(use_color=use_color)
+    print("")
+
+
+def _ask_setup_profiles(*, use_color: bool) -> list[str]:
+    choices = setup_profile_choices()
+    print("")
+    print(_color("Choose workflow defaults", "1;32", use_color))
+    for item in choices:
+        suffix = " (recommended)" if item["id"] == "safety-first" else ""
+        print(f"  {item['choice']}) {item['label']}{suffix}")
+        print(f"     {item['description']}")
+    while True:
+        values = _split_selection(_ask("Select profile number(s)", default="5", use_color=use_color), default=["5"])
+        try:
+            build_setup_profile(values)
+        except ValueError as exc:
+            print(_color(f"Invalid profile selection: {exc}", "31", use_color))
+            continue
+        return values
+
+
+def _ask_team_profile_packs(*, use_color: bool) -> list[str]:
+    catalog = list_team_profile_packs()
+    packs = catalog.get("packs", []) if isinstance(catalog, dict) else []
+    print("")
+    print(_color("Optional team/profile packs", "1;32", use_color))
+    print("  0) None (recommended for first install)")
+    id_by_choice: dict[str, str] = {}
+    valid_ids: set[str] = set()
+    for idx, pack in enumerate(packs, start=1):
+        pack_id = str(pack["id"])
+        id_by_choice[str(idx)] = pack_id
+        valid_ids.add(pack_id)
+        print(f"  {idx}) {pack['title']} - {pack['summary']}")
+    while True:
+        raw_values = _split_selection(_ask("Select pack number(s)", default="0", use_color=use_color), default=["0"])
+        if raw_values == ["0"]:
+            return []
+        selected: list[str] = []
+        invalid: list[str] = []
+        for raw in raw_values:
+            value = id_by_choice.get(raw, raw)
+            if value == "0":
+                continue
+            if value not in valid_ids:
+                invalid.append(raw)
+                continue
+            if value not in selected:
+                selected.append(value)
+        if invalid:
+            print(_color(f"Invalid profile pack selection: {', '.join(invalid)}", "31", use_color))
+            continue
+        return selected
+
+
+def _ask_yes_no(prompt: str, *, default: bool, use_color: bool) -> bool:
+    suffix = "Y/n" if default else "y/N"
+    while True:
+        value = _ask(prompt, default=suffix, use_color=use_color).strip().lower()
+        if not value or value == suffix.lower():
+            return default
+        if value in {"y", "yes"}:
+            return True
+        if value in {"n", "no"}:
+            return False
+        print(_color("Please answer y or n.", "31", use_color))
+
+
+def _ask(prompt: str, *, default: str, use_color: bool) -> str:
+    try:
+        return input(f"{_color('?', '1;36', use_color)} {prompt} [{default}]: ").strip()
+    except EOFError:
+        print("")
+        return ""
+
+
+def _split_selection(raw: str, *, default: list[str]) -> list[str]:
+    value = raw.strip()
+    if not value:
+        return default
+    return [item for item in value.replace(",", " ").split() if item]
+
+
+def _use_color() -> bool:
+    return sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+
+def _color(text: str, code: str, enabled: bool) -> str:
+    if not enabled:
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def _print_setup_summary(payload: dict[str, object]) -> None:
+    steps = payload.get("steps", {})
+    hermes_native = payload.get("hermes_native", {})
+    if not isinstance(steps, dict):
+        steps = {}
+    if not isinstance(hermes_native, dict):
+        hermes_native = {}
+
+    install = steps.get("install", {})
+    apply = steps.get("apply", {})
+    profile = steps.get("profile", {})
+    targets = steps.get("targets", {})
+    skills = install.get("skills", []) if isinstance(install, dict) else []
+    topology = targets.get("topology", {}) if isinstance(targets, dict) else {}
+
+    dry_run = bool(payload.get("dry_run", False))
+    title = "OMH setup preview complete." if dry_run else "OMH setup complete."
+    print(title)
+    print(f"Skills: {len(skills)} managed skill(s) at {hermes_native.get('skills_dir', '')}")
+
+    discovery_status = str(hermes_native.get("discovery_status", ""))
+    if discovery_status == "config_registered_reload_required":
+        print(
+            "Hermes registration: configured in "
+            f"{hermes_native.get('hermes_config_path', '')} "
+            "(restart or reload Hermes Agent to observe it)."
+        )
+    elif discovery_status == "dry_run_not_observed":
+        print("Hermes registration: dry run only; no local registration was observed.")
+    elif discovery_status == "not_registered_skip_apply":
+        print("Hermes registration: skipped by --skip-apply.")
+    else:
+        print(f"Hermes registration: {discovery_status or 'unknown'}")
+
+    if isinstance(apply, dict) and apply.get("message"):
+        print(f"Apply: {apply.get('message')}")
+
+    if isinstance(profile, dict):
+        selected = ", ".join(str(item) for item in profile.get("selected_categories", []) or [])
+        executor = str(profile.get("default_executor", ""))
+        if selected or executor:
+            print(f"Profile: {selected or 'default'}; default executor: {executor or 'unknown'}")
+
+    if isinstance(topology, dict):
+        print(
+            "Target topology: "
+            f"{topology.get('mode', 'unknown')} "
+            f"({topology.get('known_target_count', 0)} known target(s))."
+        )
+
+    plugin = payload.get("plugin_distribution")
+    if isinstance(plugin, dict):
+        print(f"Plugin bundle: {plugin.get('status', 'installed')}")
+    elif not dry_run:
+        print("Plugin bundle: optional; install later with `omh setup --with-plugin`.")
+
+    if dry_run:
+        print("Next: rerun without `--dry-run` to install and register the managed skills.")
+    else:
+        print("Next: restart or reload Hermes Agent, then try:")
+        print("  Use OMH request-to-handoff for: I want to safely add a feature to this repo.")
+    print("For machine-readable output, rerun with `--json`.")
+
+
+def _print_doctor_summary(payload: dict[str, object]) -> None:
+    checks = payload.get("checks", [])
+    if not isinstance(checks, list):
+        checks = []
+    ok = bool(payload.get("ok", False))
+    print("OMH doctor: ok" if ok else "OMH doctor: needs attention")
+    print(f"Checks: {sum(1 for check in checks if isinstance(check, dict) and check.get('ok'))}/{len(checks)} passing")
+    for check in checks:
+        if not isinstance(check, dict) or check.get("ok"):
+            continue
+        name = check.get("name", "unknown")
+        message = check.get("message", "")
+        remediation = check.get("remediation", "") or check.get("next_action", "")
+        print(f"- {name}: {message}")
+        if remediation:
+            print(f"  Fix: {remediation}")
+    next_action = str(payload.get("recommended_next_action", "")).strip()
+    if next_action:
+        print(f"Next: {next_action}")
+    print("For machine-readable output, rerun with `--json`.")
 
 
 def _plugin_setup_result(args: argparse.Namespace, paths) -> dict[str, object]:
@@ -314,6 +533,10 @@ def _add_common_install_options(p: argparse.ArgumentParser) -> None:
 def _add_top_level_commands(sub) -> None:
     setup = sub.add_parser("setup")
     _add_common_install_options(setup)
+    setup.add_argument("--json", action="store_true", help="Print the full machine-readable setup payload.")
+    setup.add_argument("--yes", action="store_true", help="Use default setup choices without interactive prompts.")
+    setup.add_argument("--interactive", action="store_true", help="Force the interactive setup wizard.")
+    setup.add_argument("--no-interactive", action="store_true", help="Disable the interactive setup wizard.")
     setup.add_argument("--skip-apply", action="store_true", help="Install skills without registering them in Hermes config.")
     setup.add_argument(
         "--profile",
@@ -361,6 +584,7 @@ def _add_top_level_commands(sub) -> None:
     list_cmd.set_defaults(func=cmd_list)
 
     doctor = sub.add_parser("doctor")
+    doctor.add_argument("--json", action="store_true", help="Print the full machine-readable doctor payload.")
     doctor.set_defaults(func=cmd_doctor)
 
     recommend = sub.add_parser("recommend")

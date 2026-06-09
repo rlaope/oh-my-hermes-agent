@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +19,11 @@ def _paths(args: argparse.Namespace):
 
 def _print_json(data: object) -> None:
     print(json.dumps(data, indent=2, sort_keys=True))
+
+
+def _wants_json(args: argparse.Namespace) -> bool:
+    output = os.environ.get("OMH_OUTPUT", "").strip().lower()
+    return bool(getattr(args, "json", False)) or output == "json"
 
 
 def _explicit_source_metadata(args: argparse.Namespace) -> dict[str, str]:
