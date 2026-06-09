@@ -1608,5 +1608,32 @@ def catalog_intent_delegation_skill_names() -> tuple[str, ...]:
     )
 
 
+MEMORY_CONTEXT_POLICIES = ("compact", "explicit")
+_EXPLICIT_MEMORY_CONTEXT_SKILLS = (
+    "ralph",
+    "ultragoal",
+    "team",
+    "ultrawork",
+    "idea-to-deploy",
+    "cto-loop",
+    "deploy-and-monitor",
+    "ultraqa",
+    "plan",
+    "ralplan",
+    "code-review",
+    "ai-slop-cleaner",
+    "performance-goal",
+    "ask",
+)
+
+
+def memory_context_policy_for_skill(name: str) -> str:
+    return "explicit" if name in _EXPLICIT_MEMORY_CONTEXT_SKILLS else "compact"
+
+
+def explicit_memory_context_skill_names() -> tuple[str, ...]:
+    return _EXPLICIT_MEMORY_CONTEXT_SKILLS
+
+
 CORE_SKILLS = [definition.name for definition in _DEFINITIONS]
 DESCRIPTIONS = {definition.name: definition.description for definition in _DEFINITIONS}

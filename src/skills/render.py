@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 from .catalog import (
     DESCRIPTIONS,
@@ -9,9 +10,9 @@ from .catalog import (
     builtin_definitions,
     builtin_harnesses,
     harness_quality_contract,
+    memory_context_policy_for_skill,
     primary_harness_for_skill,
 )
-from ..roles import role_summary_markdown
 
 
 @dataclass(frozen=True)
@@ -57,11 +58,14 @@ MEMORY_CONTEXT_SKILL_CONTRACT = (
     "summaries to shape plans and handoffs, but do not claim Hermes internal memory was read or "
     "changed."
 )
+MEMORY_CONTEXT_COMPACT_SKILL_CONTRACT = (
+    "Treat wrapper-supplied memory/context summaries as advisory local context, not proof that "
+    "opaque Hermes memory was read or changed."
+)
 MEMORY_CONTEXT_REFERENCE_CONTEXT = (
     f"`{MEMORY_REVIEW_SCHEMA}` is separate from `status_card/v1`; `{HANDOFF_CONTEXT_PACK_SCHEMA}` "
     "may be attached to executor handoffs only when unresolved conflicts are absent."
 )
-
 
 def _target_topology_router_section() -> str:
     return "\n\n".join(
@@ -82,13 +86,23 @@ def _target_topology_skill_contract_bullets() -> str:
     )
 
 
-def _memory_context_skill_contract_bullets() -> str:
-    return f"- {MEMORY_CONTEXT_SKILL_CONTRACT}"
+def _memory_context_skill_contract_bullets(definition: SkillDefinition) -> str:
+    if _needs_explicit_memory_context(definition):
+        return f"- {MEMORY_CONTEXT_SKILL_CONTRACT}"
+    return f"- {MEMORY_CONTEXT_COMPACT_SKILL_CONTRACT}"
+
+
+def _needs_explicit_memory_context(definition: SkillDefinition) -> bool:
+    return memory_context_policy_for_skill(definition.name) == "explicit"
+
+
+@lru_cache(maxsize=1)
+def _definitions_by_name() -> dict[str, SkillDefinition]:
+    return {definition.name: definition for definition in builtin_definitions()}
 
 
 def _frontmatter(name: str, description: str) -> str:
-    definitions = {definition.name: definition for definition in builtin_definitions()}
-    definition = definitions.get(name)
+    definition = _definitions_by_name().get(name)
     category = definition.category if definition else "workflow"
     phase = definition.phase if definition else "general"
     return (
@@ -111,26 +125,12 @@ def _trigger_table(definitions: list[SkillDefinition]) -> str:
 
 
 def _harness_summary(harness: HarnessDefinition) -> str:
-    inputs = ", ".join(harness.required_inputs[:3])
-    outputs = ", ".join(harness.expected_outputs[:3])
-    verification = ", ".join(harness.verification[:2])
-    artifact_events = ", ".join(f"`{event}`" for event in harness.artifact_events[:3])
-    evidence_ladder = " -> ".join(f"`{step}`" for step in harness.evidence_ladder)
-    wrapper_actions = ", ".join(f"`{action}`" for action in harness.wrapper_actions)
+    evidence_ladder = " -> ".join(f"`{step}`" for step in harness.evidence_ladder[:4])
+    wrapper_actions = ", ".join(f"`{action}`" for action in harness.wrapper_actions[:4])
     return (
-        f"- `{harness.name}`: {harness.purpose}\n"
-        f"  - Use when: {harness.use_when}\n"
-        f"  - Quality tier: `{harness.quality_tier}`\n"
-        f"  - Inputs: {inputs}\n"
-        f"  - Outputs: {outputs}\n"
-        f"  - Quality Bar: {' '.join(harness.quality_bar)}\n"
-        f"  - Evidence Ladder: {evidence_ladder}\n"
-        f"  - Wrapper Actions: {wrapper_actions}\n"
-        f"  - Verification: {verification}\n"
-        f"  - Runtime Evidence: events {artifact_events}; privacy `{harness.privacy_default}`\n"
-        f"  - Delegation: {harness.delegation_expectation}\n"
-        f"  - Overclaim Guards: {' '.join(harness.overclaim_guards)}\n"
-        f"  - Fallback: {harness.fallback}"
+        f"- `{harness.name}`: {harness.purpose} Tier `{harness.quality_tier}`. "
+        f"Ladder: {evidence_ladder}. Actions: {wrapper_actions or '`show_status`'}. "
+        f"Privacy `{harness.privacy_default}`."
     )
 
 
@@ -139,12 +139,22 @@ def _harness_registry(harnesses: list[HarnessDefinition]) -> str:
 
 
 def _role_registry(definitions: list[SkillDefinition]) -> str:
-    lines = []
+    grouped: dict[str, list[str]] = {}
     for definition in definitions:
-        lines.append(
-            f"- `{definition.name}`: role `{definition.hermes_role}`; handoff policy: {definition.handoff_policy}"
-        )
+        grouped.setdefault(definition.hermes_role, []).append(definition.name)
+    lines = [
+        f"- `{role}`: {', '.join(f'`{name}`' for name in names)}"
+        for role, names in sorted(grouped.items())
+    ]
+    lines.append("- Full per-skill handoff policies live in generated workflow skills and `docs/WORKFLOWS.md`.")
     return "\n".join(lines)
+
+
+def _responsibility_roles_compact() -> str:
+    return (
+        "Responsibility role details are generated in `docs/WORKFLOWS.md` and surfaced by `skill_view`. "
+        "Use the compact role registry above in the router prompt to keep ordinary Hermes routing lightweight."
+    )
 
 
 def _tuple_list(values: tuple[str, ...]) -> str:
@@ -220,7 +230,7 @@ General rule: Hermes should retain routing, web/source research, deep interview,
 
 ## Responsibility Roles
 
-{role_summary_markdown()}
+{_responsibility_roles_compact()}
 
 ## Wrapper Backend Chat Routing
 
@@ -316,8 +326,7 @@ Record only what is observed. A Codex-selected `coding_delegation.json` record a
 
 
 def workflow_skill(name: str) -> SkillTemplate:
-    definitions = {definition.name: definition for definition in builtin_definitions()}
-    definition = definitions[name]
+    definition = _definitions_by_name()[name]
     title = name.replace("-", " ").title()
     triggers = ", ".join(f"`{trigger}`" for trigger in definition.triggers)
     primary_harness = primary_harness_for_skill(name)
@@ -360,7 +369,7 @@ Record observed delegation results when Hermes or the wrapper exposes them. If d
 - Use Hermes-native tools, file operations, and subagent/delegation features when available.
 - Do not require runtime tools, role prompts, or overlays that Hermes Agent does not expose.
 {_target_topology_skill_contract_bullets()}
-{_memory_context_skill_contract_bullets()}
+{_memory_context_skill_contract_bullets(definition)}
 - When a runtime-specific mechanism appears in imported instructions, translate it to a Hermes-native artifact:
   - goal tools -> `.omh/goals/` ledgers or explicit checklists,
   - question renderers -> one concise question in the current Hermes interface,
