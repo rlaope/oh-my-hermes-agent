@@ -57,10 +57,25 @@ MEMORY_CONTEXT_SKILL_CONTRACT = (
     "summaries to shape plans and handoffs, but do not claim Hermes internal memory was read or "
     "changed."
 )
+MEMORY_CONTEXT_COMPACT_SKILL_CONTRACT = (
+    "Treat wrapper-supplied memory/context summaries as advisory local context, not proof that "
+    "opaque Hermes memory was read or changed."
+)
 MEMORY_CONTEXT_REFERENCE_CONTEXT = (
     f"`{MEMORY_REVIEW_SCHEMA}` is separate from `status_card/v1`; `{HANDOFF_CONTEXT_PACK_SCHEMA}` "
     "may be attached to executor handoffs only when unresolved conflicts are absent."
 )
+MEMORY_CONTEXT_EXPLICIT_CATEGORIES = {
+    "delivery",
+    "execution",
+    "leadership",
+    "maintenance",
+    "monitoring",
+    "optimization",
+    "planning",
+    "review",
+    "verification",
+}
 
 
 def _target_topology_router_section() -> str:
@@ -82,8 +97,14 @@ def _target_topology_skill_contract_bullets() -> str:
     )
 
 
-def _memory_context_skill_contract_bullets() -> str:
-    return f"- {MEMORY_CONTEXT_SKILL_CONTRACT}"
+def _memory_context_skill_contract_bullets(definition: SkillDefinition) -> str:
+    if _needs_explicit_memory_context(definition):
+        return f"- {MEMORY_CONTEXT_SKILL_CONTRACT}"
+    return f"- {MEMORY_CONTEXT_COMPACT_SKILL_CONTRACT}"
+
+
+def _needs_explicit_memory_context(definition: SkillDefinition) -> bool:
+    return definition.category in MEMORY_CONTEXT_EXPLICIT_CATEGORIES
 
 
 def _frontmatter(name: str, description: str) -> str:
@@ -360,7 +381,7 @@ Record observed delegation results when Hermes or the wrapper exposes them. If d
 - Use Hermes-native tools, file operations, and subagent/delegation features when available.
 - Do not require runtime tools, role prompts, or overlays that Hermes Agent does not expose.
 {_target_topology_skill_contract_bullets()}
-{_memory_context_skill_contract_bullets()}
+{_memory_context_skill_contract_bullets(definition)}
 - When a runtime-specific mechanism appears in imported instructions, translate it to a Hermes-native artifact:
   - goal tools -> `.omh/goals/` ledgers or explicit checklists,
   - question renderers -> one concise question in the current Hermes interface,
