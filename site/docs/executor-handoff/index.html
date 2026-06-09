@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OMH Executor-Ready Handoff</title>
+    <meta name="description" content="OMH executor-ready handoff docs for Codex, Claude Code, Hermes-retained work, and executor-neutral implementation plans.">
+    <link rel="stylesheet" href="../../styles.css">
+  </head>
+  <body class="docs-page feature-page">
+    <header class="topbar topbar--solid" aria-label="Primary">
+      <a class="brand brand--link" href="../../">OMH</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="../">Docs</a>
+        <a class="nav__icon" href="https://github.com/rlaope/oh-my-hermes-agent" aria-label="Open OMH repository on GitHub" title="GitHub repository">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.22c0 4.52 2.87 8.35 6.85 9.7.5.09.68-.22.68-.49v-1.73c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.71 0 0 .84-.28 2.75 1.05A9.37 9.37 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.4.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9v2.8c0 .27.18.58.69.48A10.06 10.06 0 0 0 22 12.22C22 6.58 17.52 2 12 2Z"></path></svg>
+        </a>
+      </nav>
+    </header>
+
+    <main class="feature-shell">
+      <header class="feature-hero">
+        <p class="eyebrow">Flagship lane</p>
+        <h1>Executor-ready handoff</h1>
+        <p>
+          Use this lane when coding or implementation may be needed, but Hermes
+          should first prepare a reviewable handoff. The user can choose Codex,
+          Claude Code, another executor, or Hermes-retained work.
+        </p>
+        <div class="feature-actions">
+          <a class="button button--primary" href="../">Back to docs</a>
+          <a class="button" href="../intent-to-plan/">See planning lane</a>
+        </div>
+      </header>
+
+      <section class="feature-section feature-section--split">
+        <div class="feature-copy">
+          <h2>Handoff lifecycle</h2>
+          <p>
+            "Turn this issue into a PR" should become scope, non-goals,
+            acceptance criteria, verification commands, review expectations, and
+            executor choice before anyone claims code changed.
+          </p>
+          <div class="feature-flow feature-flow--handoff" aria-label="Executor handoff flow">
+            <span>request</span>
+            <span>plan accepted</span>
+            <span>executor choice</span>
+            <span>dispatch</span>
+            <span>observed evidence</span>
+          </div>
+        </div>
+        <aside class="feature-contract">
+          <h2>Evidence boundary</h2>
+          <ul class="docs-list">
+            <li>Prepared handoff is not implementation evidence.</li>
+            <li>Executor dispatch must be observed separately.</li>
+            <li>Review, CI, and merge readiness need their own records.</li>
+            <li>Prompt-only executors stay prompt-only until a tested lifecycle exists.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="feature-section">
+        <h2>Use cases</h2>
+        <div class="usecase-grid">
+          <article class="case-card">
+            <span>Open source issue</span>
+            <h3>Make this GitHub issue PR-ready.</h3>
+            <p>Hermes prepares the smallest reviewable unit and hands it to the selected executor after acceptance.</p>
+          </article>
+          <article class="case-card">
+            <span>Multi-executor team</span>
+            <h3>Some people use Codex, others use Claude Code.</h3>
+            <p>OMH keeps the handoff executor-neutral and lets the wrapper ask for selection when needed.</p>
+          </article>
+          <article class="case-card">
+            <span>Safety adoption</span>
+            <h3>We want AI coding but need proof of what happened.</h3>
+            <p>Status stays split across prepared, dispatched, executed, verified, reviewed, CI, and merge-ready states.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Executor-handoff docs are part of the OMH public site.</span>
+      <span>Developed by <a href="https://github.com/rlaope">rlaope</a>.</span>
+    </footer>
+  </body>
+</html>

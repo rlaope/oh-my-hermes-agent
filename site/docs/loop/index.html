@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OMH Loop - Loop Engineering for Hermes</title>
+    <meta
+      name="description"
+      content="Loop Engineering docs for OMH: direct ambitious goal loops for Hermes Agent with interview, research, plan, runtime tick queue, handoff, feedback, and evidence boundaries."
+    >
+    <link rel="stylesheet" href="../../styles.css">
+  </head>
+  <body class="docs-page feature-page">
+    <header class="topbar topbar--solid" aria-label="Primary">
+      <a class="brand brand--link" href="../../">OMH</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="../">Docs</a>
+        <a
+          class="nav__icon"
+          href="https://github.com/rlaope/oh-my-hermes-agent"
+          aria-label="Open OMH repository on GitHub"
+          title="GitHub repository"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.58 2 12.22c0 4.52 2.87 8.35 6.85 9.7.5.09.68-.22.68-.49v-1.73c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.35 1.11 2.92.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.71 0 0 .84-.28 2.75 1.05A9.37 9.37 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.4.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9v2.8c0 .27.18.58.69.48A10.06 10.06 0 0 0 22 12.22C22 6.58 17.52 2 12 2Z"></path>
+          </svg>
+        </a>
+      </nav>
+    </header>
+
+    <main class="feature-shell">
+      <header class="feature-hero feature-hero--loop">
+        <p class="eyebrow">New flagship workflow</p>
+        <span class="new-badge">New</span>
+        <h1>Loop!</h1>
+        <p>
+          OMH Loop lets Hermes Agent treat a high-level goal as a repeating
+          system: clarify the goal, research the gap, plan the next move, queue
+          a runtime tick, prepare handoff when allowed, evaluate feedback, and
+          continue until evidence, authority, context, or external waiting says
+          to stop.
+        </p>
+        <div class="feature-actions">
+          <a class="button button--primary" href="../">Back to docs</a>
+          <a class="button" href="https://github.com/rlaope/oh-my-hermes-agent">GitHub</a>
+        </div>
+      </header>
+
+      <section class="feature-section">
+        <div class="feature-copy">
+          <h2>Loop Engineering</h2>
+          <p>
+            In the AI ecosystem, after harness engineering, Loop Engineering is
+            emerging as the next practical layer. The point is no longer just
+            prompting. The point is giving a clear goal and designing the system
+            that decides what to find, how to process it, when to hand off work,
+            when to wait, and when to stop.
+          </p>
+          <blockquote class="loop-post">
+            <p>AI 생태계에서 하네스 엔지니어링이라는 개념에 이어서 루프 엔지니어링이 새로 태어났습니다.</p>
+            <p>이젠 프롬프팅이 아니라 확실한 Goal을 주고, 구축된 시스템이 계속해 목표를 세우고 문제를 스스로 정의하고 개발하는 자동화된 파이프라인 루프가 필요하게 됩니다.</p>
+            <p>즉, 사람이 매번 지시하는 대신 무엇을 찾고, 어떻게 처리하고, 언제 멈출지를 시스템으로 설계합니다.</p>
+            <p>OMH에서는 이 개념을 Hermes Agent 위에서 딸깍으로 정의하고, 스킬, 플러그인, 커넥터, 서브에이전트, 워크트리, 외부 메모리 같은 요소가 안전하게 만나는 루프 계약으로 제공합니다.</p>
+          </blockquote>
+        </div>
+        <div class="loop-visual loop-visual--large" aria-label="Loop engineering cycle">
+          <span>goal</span>
+          <span>interview</span>
+          <span>research</span>
+          <span>plan</span>
+          <span>tick</span>
+          <span>handoff</span>
+          <span>feedback</span>
+          <span>again</span>
+        </div>
+      </section>
+
+      <section class="feature-section feature-section--split">
+        <div>
+          <h2>When to use it</h2>
+          <div class="usecase-grid">
+            <article class="case-card">
+              <span>Open source ambition</span>
+              <h3>Make this a 10k-star quality OSS.</h3>
+              <p>Hermes reframes the large goal into research, product, docs, QA, release, and distribution loops without pretending market response was observed.</p>
+            </article>
+            <article class="case-card">
+              <span>Long refactor</span>
+              <h3>Finish all major refactoring safely.</h3>
+              <p>The loop records each risk, plan, handoff, feedback gate, and checkpoint so the work can continue across context limits.</p>
+            </article>
+            <article class="case-card">
+              <span>Product development</span>
+              <h3>Keep improving onboarding until it feels polished.</h3>
+              <p>Hermes cycles discovery, plan, executor handoff, QA feedback, and user-facing status while preserving evidence boundaries.</p>
+            </article>
+          </div>
+        </div>
+        <aside class="feature-contract">
+          <h2>What the tick means</h2>
+          <p>
+            <code>loop_runtime/v1</code> is a prepared queue, not execution
+            evidence. It can name a worktree plan, subagent plan, connector
+            intent, or executor handoff, but observed work must be recorded
+            separately.
+          </p>
+          <ul class="docs-list">
+            <li>Prepared queue item is not worktree creation.</li>
+            <li>Prepared subagent plan is not subagent dispatch.</li>
+            <li>Prepared connector plan is not connector I/O.</li>
+            <li>External outcomes stay waiting until observed.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="feature-section">
+        <h2>How Hermes can present it</h2>
+        <div class="discord-frame" aria-label="Hermes Loop chat example">
+          <div class="discord-channel"># founder-loop</div>
+          <div class="discord-message">
+            <div class="avatar avatar--user">U</div>
+            <div class="message-body">
+              <div class="message-meta"><strong>user</strong></div>
+              <p>./loop Make OMH a 10k-star quality Hermes-native project.</p>
+            </div>
+          </div>
+          <div class="discord-message">
+            <div class="avatar avatar--bot">H</div>
+            <div class="message-body bot-response">
+              <div class="message-meta"><strong>Hermes Agent</strong> <span>BOT</span></div>
+              <div class="route-lens">
+                <span>workflow: loop</span>
+                <span>phase: interview</span>
+                <span>next: choose permission profile</span>
+              </div>
+              <h3>I can start this as a Loop.</h3>
+              <p>
+                I will keep the ambition large, separate implementable work from
+                external adoption waiting, and queue the next runtime step only
+                inside the permission profile you choose.
+              </p>
+              <div class="button-row">
+                <button type="button">Observe only</button>
+                <button type="button">Handoff only</button>
+                <button type="button">Execute with gates</button>
+              </div>
+              <p class="claim-boundary">A loop tick is not execution, review, CI, merge, publication, or market response evidence.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Loop docs are part of the OMH public site.</span>
+      <span>Developed by <a href="https://github.com/rlaope">rlaope</a>.</span>
+    </footer>
+  </body>
+</html>
