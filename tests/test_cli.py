@@ -14,6 +14,115 @@ from omh.skill_pack import builtin_skill_templates
 
 
 class CliTests(unittest.TestCase):
+    def test_no_arg_cli_shows_welcome_instead_of_error(self) -> None:
+        status, stdout, stderr = run_cli([], output_json=False)
+
+        self.assertEqual(status, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("OMH - oh-my-hermes-agent", stdout)
+        self.assertIn("omh setup", stdout)
+        self.assertIn("Hermes Agent chat", stdout)
+        self.assertIn("omh --help", stdout)
+
+    def test_setup_and_doctor_default_to_human_summary_with_json_escape_hatch(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = ["--omh-home", str(root / ".omh"), "--hermes-home", str(root / ".hermes")]
+
+            status, stdout, stderr = run_cli(base + ["setup"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH setup complete.", stdout)
+            self.assertIn("Skills:", stdout)
+            self.assertIn("Hermes registration:", stdout)
+            self.assertIn("Next: restart or reload Hermes Agent", stdout)
+            self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
+            with self.assertRaises(json.JSONDecodeError):
+                json.loads(stdout)
+
+            status, stdout, stderr = run_cli(base + ["doctor"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH doctor: ok", stdout)
+            self.assertIn("Checks:", stdout)
+            self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
+
+            dry_root = root / "dry"
+            dry_base = ["--omh-home", str(dry_root / ".omh"), "--hermes-home", str(dry_root / ".hermes")]
+            status, stdout, stderr = run_cli(dry_base + ["setup", "--dry-run"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH setup preview complete.", stdout)
+            self.assertIn("Next: rerun without `--dry-run`", stdout)
+            self.assertNotIn("restart or reload Hermes Agent", stdout)
+            self.assertFalse((dry_root / ".omh").exists())
+            self.assertFalse((dry_root / ".hermes").exists())
+
+            status, stdout, stderr = run_cli(base + ["setup", "--json"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertTrue(json.loads(stdout)["ok"])
+
+            status, stdout, stderr = run_cli(base + ["doctor", "--json"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertTrue(json.loads(stdout)["ok"])
+
+    def test_setup_interactive_wizard_records_user_choices(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+            answers = "\n".join(
+                [
+                    "y",
+                    "2 3",
+                    "y",
+                    "4",
+                ]
+            ) + "\n"
+
+            status, stdout, stderr = run_cli(base + ["setup", "--interactive"], output_json=False, stdin_text=answers)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH setup", stdout)
+            self.assertIn("Choose workflow defaults", stdout)
+            self.assertIn("Optional team/profile packs", stdout)
+            self.assertIn("OMH setup complete.", stdout)
+            self.assertIn("Plugin bundle:", stdout)
+            self.assertIn(str(omh_home / "skills"), (hermes_home / "config.yaml").read_text(encoding="utf-8"))
+            profile = json.loads((omh_home / "setup-profile.json").read_text(encoding="utf-8"))
+            self.assertEqual(profile["selected_categories"], ["prompt-only-coding", "codex-lifecycle"])
+            self.assertEqual(profile["default_executor"], "codex")
+            self.assertTrue((hermes_home / "plugins" / "omh" / "plugin.yaml").exists())
+            self.assertTrue((hermes_home / "agents" / "omh-cto-loop-cto.md").exists())
+            self.assertTrue((omh_home / "team-profile-packs" / "cto-loop.json").exists())
+
+    def test_setup_interactive_wizard_uses_defaults_on_eof(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+
+            status, stdout, stderr = run_cli(base + ["setup", "--interactive"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH setup", stdout)
+            self.assertIn("OMH setup complete.", stdout)
+            profile = json.loads((omh_home / "setup-profile.json").read_text(encoding="utf-8"))
+            self.assertEqual(profile["selected_categories"], ["safety-first"])
+            self.assertEqual(profile["default_executor"], "choose")
+            self.assertFalse((hermes_home / "plugins" / "omh" / "plugin.yaml").exists())
+
     def test_goal_cli_records_checkpoints_and_completion_gate(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
