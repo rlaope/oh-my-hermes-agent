@@ -2198,6 +2198,41 @@ class CliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertEqual(json.loads(stdout)["runs"][0]["run_id"], run["run_id"])
 
+            status, stdout, _ = run_cli(
+                [
+                    "--omh-home",
+                    str(omh_home),
+                    "--hermes-home",
+                    str(hermes_home),
+                    "runtime",
+                    "record",
+                    "--skill",
+                    "oh-my-hermes",
+                    "--harness",
+                    "coding-handling",
+                    "--status",
+                    "started",
+                    "--trigger",
+                    "second coding request",
+                ]
+            )
+            self.assertEqual(status, 0)
+            second_run = json.loads(stdout)["run"]
+
+            status, stdout, _ = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "runs", "--limit", "1"])
+            self.assertEqual(status, 0)
+            self.assertEqual([item["run_id"] for item in json.loads(stdout)["runs"]], [second_run["run_id"]])
+
+            status, stdout, stderr = run_cli(
+                ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "runtime", "export", "--limit", "1", "--summary"]
+            )
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            summary_export = json.loads(stdout)
+            self.assertFalse(summary_export["export"]["full"])
+            self.assertEqual([item["run_id"] for item in summary_export["runs"]], [second_run["run_id"]])
+            self.assertNotIn("events", summary_export["runs"][0])
+
             status, _, _ = run_cli(
                 [
                     "--omh-home",

@@ -10,7 +10,7 @@ from ..ingress import CHAT_SOURCES, compact_source_metadata, extract_message_tex
 from ..routing.chat import CONFIDENCE_LEVELS
 from ..executors import CODING_EXECUTOR_TARGETS, executor_selection_for_target
 from .lifecycle import report_codex_delegation_lifecycle, start_codex_delegation_lifecycle
-from ..local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, utc_now
+from ..local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, read_jsonl_objects, utc_now
 from ..paths import OmhPaths
 from ..runtime.records import build_event_record, build_wrapper_session_record, validate_event_record, validate_wrapper_session_record
 from .contract import build_chat_interaction_payload, build_chat_status_interaction
@@ -390,10 +390,14 @@ def show_wrapper_session(paths: OmhPaths, session_id: str) -> dict[str, Any]:
     session = read_json_object(session_dir / "session.json")
     if not session:
         raise FileNotFoundError(session_id)
-    return {
+    events, event_errors = read_wrapper_session_events_result(session_dir)
+    result = {
         "session": session,
-        "events": read_wrapper_session_events(session_dir),
+        "events": events,
     }
+    if event_errors:
+        result["event_errors"] = event_errors
+    return result
 
 
 def read_wrapper_session(paths: OmhPaths, session_id: str) -> dict[str, Any] | None:
@@ -420,10 +424,11 @@ def append_wrapper_session_event(session_dir: Path, event: dict[str, Any]) -> di
 
 
 def read_wrapper_session_events(session_dir: Path) -> list[dict[str, Any]]:
-    path = session_dir / "events.jsonl"
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return read_wrapper_session_events_result(session_dir)[0]
+
+
+def read_wrapper_session_events_result(session_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    return read_jsonl_objects(session_dir / "events.jsonl")
 
 
 def validate_wrapper_sessions(paths: OmhPaths, session_id: str | None = None) -> dict[str, Any]:
@@ -587,17 +592,10 @@ def _validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
             errors.append(f"{session_path}: session_id must match directory name")
     events_path = session_dir / "events.jsonl"
     if events_path.exists():
-        try:
-            for index, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
-                if not line.strip():
-                    continue
-                event = json.loads(line)
-                if not isinstance(event, dict):
-                    errors.append(f"{events_path}:{index}: event must be an object")
-                    continue
-                errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
-        except (OSError, JSONDecodeError) as exc:
-            errors.append(f"{events_path}: {exc}")
+        events, event_errors = read_jsonl_objects(events_path)
+        errors.extend(event_errors)
+        for index, event in enumerate(events, start=1):
+            errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
     return {"session_id": session_id, "ok": not errors, "errors": errors}

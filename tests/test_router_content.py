@@ -8,7 +8,7 @@ from _local_package import load_local_package
 
 load_local_package()
 from omh.routing import recommend as recommend_module
-from omh.roles import role_definitions, role_file_markdown, role_summary_markdown, roles_reference_markdown
+from omh.roles import role_definitions, role_file_markdown, roles_reference_markdown
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
 from omh.runtime.records import validate_harness_quality
 from omh.skills.catalog import (
@@ -36,8 +36,8 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("advisory wrapper guidance", router.content)
         self.assertIn("This role metadata is advisory", router.content)
         self.assertIn("Responsibility Roles", router.content)
-        self.assertIn("responsibility descriptors, not runtime agents", router.content)
-        self.assertIn(role_summary_markdown(), router.content)
+        self.assertIn("Responsibility role details are generated in `docs/WORKFLOWS.md`", router.content)
+        self.assertIn("Full per-skill handoff policies live in generated workflow skills", router.content)
         self.assertIn("Hermes should retain routing, web/source research, deep interview, planning, status, and evidence narration", router.content)
         self.assertIn("selected executor profile", router.content)
         self.assertIn("prepared_not_observed", router.content)
@@ -154,17 +154,12 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("quality lanes, not proof that a separate runtime role exists", router.content)
         for harness in harnesses:
             self.assertIn(f"`{harness}`", router.content)
-        self.assertIn("Inputs:", router.content)
-        self.assertIn("Outputs:", router.content)
-        self.assertIn("Quality tier:", router.content)
-        self.assertIn("Quality Bar:", router.content)
-        self.assertIn("Evidence Ladder:", router.content)
-        self.assertIn("Wrapper Actions:", router.content)
-        self.assertIn("Overclaim Guards:", router.content)
-        self.assertIn("Verification:", router.content)
-        self.assertIn("Runtime Evidence:", router.content)
-        self.assertIn("Delegation:", router.content)
-        self.assertIn("Fallback:", router.content)
+        self.assertIn("Tier `", router.content)
+        self.assertIn("Ladder:", router.content)
+        self.assertIn("Actions:", router.content)
+        self.assertIn("Privacy `metadata_only`", router.content)
+        self.assertNotIn("Inputs:", router.content)
+        self.assertNotIn("Quality Bar:", router.content)
 
     def test_catalog_definitions_expose_required_metadata_fields(self) -> None:
         for definition in builtin_definitions():

@@ -69,3 +69,27 @@ def read_json_object_result(path: Path) -> tuple[dict[str, Any] | None, str | No
         return read_json_object(path), None
     except (OSError, JSONDecodeError, ValueError) as exc:
         return None, str(exc)
+
+
+def read_jsonl_objects(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    if not path.exists():
+        return [], []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return [], [f"{path}: {exc}"]
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for index, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except JSONDecodeError as exc:
+            errors.append(f"{path}:{index}: {exc}")
+            continue
+        if not isinstance(record, dict):
+            errors.append(f"{path}:{index}: event must be an object")
+            continue
+        records.append(record)
+    return records, errors

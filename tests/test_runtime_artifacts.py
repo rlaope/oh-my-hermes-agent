@@ -87,6 +87,42 @@ class RuntimeArtifactTests(unittest.TestCase):
             self.assertNotEqual(first["run_id"], second["run_id"])
             self.assertEqual(len(list_runs(paths)), 2)
 
+    def test_show_and_export_report_malformed_jsonl_without_crashing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_run(paths, {"skill": "oh-my-hermes", "harness": "coding-handling", "status": "started"})
+            events_path = paths.runtime_runs_dir / run["run_id"] / "events.jsonl"
+            with events_path.open("a", encoding="utf-8") as handle:
+                handle.write("{not json\n")
+
+            shown = show_run(paths, run["run_id"])
+            exported = export_runtime(paths, redacted=False)
+            validation = validate_runtime(paths, run["run_id"])
+
+            self.assertIn("event_errors", shown)
+            self.assertTrue(any("Expecting property name" in error for error in shown["event_errors"]))
+            self.assertEqual(exported["runs"][0]["event_errors"], shown["event_errors"])
+            self.assertFalse(validation["ok"])
+            self.assertTrue(any("Expecting property name" in error for error in validation["runs"][0]["errors"]))
+
+    def test_runtime_listing_and_summary_export_can_be_bounded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            runs = [
+                create_run(paths, {"run_id": "20260604T000001000000Z-one", "skill": "oh-my-hermes", "harness": "coding-handling"}),
+                create_run(paths, {"run_id": "20260604T000002000000Z-two", "skill": "oh-my-hermes", "harness": "coding-handling"}),
+                create_run(paths, {"run_id": "20260604T000003000000Z-three", "skill": "oh-my-hermes", "harness": "coding-handling"}),
+            ]
+
+            self.assertEqual([run["run_id"] for run in list_runs(paths, limit=2)], [runs[1]["run_id"], runs[2]["run_id"]])
+
+            exported = export_runtime(paths, redacted=False, limit=1, full=False)
+
+            self.assertEqual(exported["export"]["limit"], 1)
+            self.assertFalse(exported["export"]["full"])
+            self.assertEqual([run["run_id"] for run in exported["runs"]], [runs[2]["run_id"]])
+            self.assertNotIn("events", exported["runs"][0])
+
     @unittest.skipUnless(hasattr(os, "umask"), "permission checks require POSIX-like mode bits")
     def test_runtime_artifacts_are_private_even_with_permissive_umask(self) -> None:
         with TemporaryDirectory() as tmp:

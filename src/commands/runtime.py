@@ -60,7 +60,7 @@ def cmd_runtime_status(args: argparse.Namespace) -> int:
 
 
 def cmd_runtime_runs(args: argparse.Namespace) -> int:
-    _print_json({"runs": list_runs(_paths(args))})
+    _print_json({"runs": list_runs(_paths(args), limit=_bounded_limit(args))})
     return 0
 
 
@@ -266,8 +266,17 @@ def cmd_runtime_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_runtime_export(args: argparse.Namespace) -> int:
-    _print_json(export_runtime(_paths(args), redacted=args.redacted))
+    _print_json(export_runtime(_paths(args), redacted=args.redacted, limit=_bounded_limit(args), full=not args.summary))
     return 0
+
+
+def _bounded_limit(args: argparse.Namespace) -> int | None:
+    if getattr(args, "all", False):
+        return None
+    limit = int(getattr(args, "limit", 50))
+    if limit < 1:
+        raise OmhError("--limit must be at least 1 unless --all is set")
+    return limit
 
 
 def _add_runtime_commands(sub) -> None:
@@ -278,6 +287,8 @@ def _add_runtime_commands(sub) -> None:
     runtime_status.set_defaults(func=cmd_runtime_status)
 
     runtime_runs = runtime_sub.add_parser("runs")
+    runtime_runs.add_argument("--limit", type=int, default=50, help="Maximum recent runs to return. Use --all for an unbounded listing.")
+    runtime_runs.add_argument("--all", action="store_true", help="Return all runs.")
     runtime_runs.set_defaults(func=cmd_runtime_runs)
 
     runtime_show = runtime_sub.add_parser("show")
@@ -358,4 +369,7 @@ def _add_runtime_commands(sub) -> None:
     runtime_export = runtime_sub.add_parser("export")
     runtime_export.add_argument("--redacted", action="store_true", default=True)
     runtime_export.add_argument("--no-redact", dest="redacted", action="store_false")
+    runtime_export.add_argument("--limit", type=int, default=50, help="Maximum recent runs and wrapper sessions to include. Use --all to export all.")
+    runtime_export.add_argument("--all", action="store_true", help="Export all runs and wrapper sessions.")
+    runtime_export.add_argument("--summary", action="store_true", help="Export run/session records without full event payloads.")
     runtime_export.set_defaults(func=cmd_runtime_export)

@@ -211,6 +211,37 @@ class MemoryContractTests(unittest.TestCase):
             self.assertNotIn("outside-secret-token", json.dumps(inspection))
             self.assertNotIn("outside", {item["item_id"] for item in inspection["review_items"]})
 
+    def test_memory_inspection_summary_and_pack_limits_bound_output(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            apply_memory_update_batch(
+                paths,
+                {
+                    "schema_version": "memory_update_batch/v1",
+                    "updates": [
+                        {
+                            "op": "update",
+                            "item_id": f"context-{index}",
+                            "scope": {"kind": "project", "ref": "default"},
+                            "key": f"context_{index}",
+                            "value": f"value-{index}",
+                            "summary": f"Context item {index}",
+                        }
+                        for index in range(4)
+                    ],
+                },
+            )
+
+            inspection = build_memory_inspection(paths, summary=True, review_item_limit=2)
+            pack = build_handoff_context_pack(paths, context_limit=2)
+
+            self.assertEqual(inspection["snapshots"], [])
+            self.assertGreaterEqual(inspection["snapshot_count"], 1)
+            self.assertTrue(inspection["snapshot_summary"])
+            self.assertGreater(inspection["review_item_count"], len(inspection["review_items"]))
+            self.assertLessEqual(len(inspection["review_items"]), 2)
+            self.assertEqual(len(pack["included_context"]), 2)
+
     def test_handoff_context_pack_attaches_only_when_conflict_free(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")

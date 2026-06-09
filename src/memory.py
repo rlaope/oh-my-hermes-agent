@@ -88,18 +88,27 @@ def build_memory_inspection(
     paths: OmhPaths,
     *,
     wrapper_snapshot: dict[str, Any] | None = None,
+    scope_kind: str | None = None,
+    scope_ref: str | None = None,
+    session_limit: int | None = None,
+    summary: bool = False,
+    review_item_limit: int | None = None,
 ) -> dict[str, object]:
-    snapshots = _local_snapshots(paths)
+    snapshots = _local_snapshots(paths, scope_kind=scope_kind, scope_ref=scope_ref, session_limit=session_limit)
     if wrapper_snapshot:
         snapshots.append(_normalize_wrapper_snapshot(wrapper_snapshot))
     conflicts = _detect_conflicts(snapshots)
     stale_candidates = [conflict for conflict in conflicts if conflict["severity"] in {"warning", "blocker"}]
-    review_items = _review_items(snapshots, conflicts)
+    all_review_items = _review_items(snapshots, conflicts)
+    review_items = _limited_items(all_review_items, review_item_limit)
     payload: dict[str, object] = {
         "schema_version": MEMORY_INSPECTION_SCHEMA_VERSION,
         "created_at": utc_now(),
-        "snapshots": snapshots,
+        "snapshots": [] if summary else snapshots,
+        "snapshot_summary": _snapshot_summary(snapshots) if summary else [],
+        "snapshot_count": len(snapshots),
         "review_items": review_items,
+        "review_item_count": len(all_review_items),
         "conflicts": conflicts,
         "stale_candidates": stale_candidates,
         "recommended_actions": _recommended_actions(conflicts),
@@ -139,8 +148,15 @@ def build_handoff_context_pack(
     inspection: dict[str, Any] | None = None,
     executor_target: str = "generic",
     session_id: str = "",
+    scope_kind: str | None = None,
+    scope_ref: str | None = None,
+    session_limit: int | None = None,
+    context_limit: int = 12,
 ) -> dict[str, object]:
-    inspection = inspection or build_memory_inspection(paths)
+    if inspection is None:
+        snapshots = _local_snapshots(paths, scope_kind=scope_kind, scope_ref=scope_ref, session_limit=session_limit)
+        conflicts = _detect_conflicts(snapshots)
+        inspection = {"snapshots": snapshots, "conflicts": conflicts}
     conflicts = [conflict for conflict in inspection.get("conflicts", []) if isinstance(conflict, dict)]
     blocking_conflicts = [conflict for conflict in conflicts if conflict.get("severity") == "blocker"]
     included: list[dict[str, object]] = []
@@ -177,7 +193,7 @@ def build_handoff_context_pack(
         "session_id": session_id,
         "scope": _scope("project", "default"),
         "source_refs": _source_refs(inspection),
-        "included_context": included[:12],
+        "included_context": included[:context_limit],
         "excluded_context": excluded,
         "blocked_by_conflicts": blocking_conflicts,
         "redaction_policy": "metadata_only",
@@ -284,7 +300,13 @@ def validate_handoff_context_blocked(value: Any, *, label: str = "context_pack_b
     return errors
 
 
-def _local_snapshots(paths: OmhPaths) -> list[dict[str, object]]:
+def _local_snapshots(
+    paths: OmhPaths,
+    *,
+    scope_kind: str | None = None,
+    scope_ref: str | None = None,
+    session_limit: int | None = None,
+) -> list[dict[str, object]]:
     snapshots: list[dict[str, object]] = []
     setup = read_setup_profile(paths)
     if setup:
@@ -299,9 +321,9 @@ def _local_snapshots(paths: OmhPaths) -> list[dict[str, object]]:
         snapshots.append(_snapshot("runtime_state", _scope("project", "default"), [{"item_id": "runtime-state-error", "key": "runtime_state", "summary": runtime_error}]))
     memory_snapshots = _memory_snapshots(paths)
     snapshots.extend(memory_snapshots)
-    snapshots.extend(_wrapper_session_snapshots(paths))
+    snapshots.extend(_wrapper_session_snapshots(paths, limit=session_limit))
     snapshots.append(_catalog_hint_snapshot())
-    return snapshots
+    return _filter_snapshots_by_scope(snapshots, scope_kind=scope_kind, scope_ref=scope_ref)
 
 
 def _setup_snapshot(setup: dict[str, Any]) -> dict[str, object]:
@@ -379,11 +401,14 @@ def _memory_snapshots(paths: OmhPaths) -> list[dict[str, object]]:
     return snapshots
 
 
-def _wrapper_session_snapshots(paths: OmhPaths) -> list[dict[str, object]]:
+def _wrapper_session_snapshots(paths: OmhPaths, *, limit: int | None = None) -> list[dict[str, object]]:
     if not paths.runtime_wrapper_sessions_dir.exists():
         return []
     snapshots: list[dict[str, object]] = []
-    for session_json in sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json")):
+    session_paths = sorted(paths.runtime_wrapper_sessions_dir.glob("*/session.json"))
+    if limit is not None and limit > 0:
+        session_paths = session_paths[-limit:]
+    for session_json in session_paths:
         session = read_json_object(session_json)
         if not isinstance(session, dict):
             continue
@@ -408,6 +433,45 @@ def _wrapper_session_snapshots(paths: OmhPaths) -> list[dict[str, object]]:
             )
         snapshots.append(_snapshot("wrapper_session", _scope("thread", _stable_ref(session.get("thread_key", session_id))), items))
     return snapshots
+
+
+def _filter_snapshots_by_scope(
+    snapshots: list[dict[str, object]],
+    *,
+    scope_kind: str | None,
+    scope_ref: str | None,
+) -> list[dict[str, object]]:
+    if not scope_kind and not scope_ref:
+        return snapshots
+    filtered: list[dict[str, object]] = []
+    for snapshot in snapshots:
+        scope = _normalize_scope(snapshot.get("scope", _scope("project", "default")))
+        kind_matches = not scope_kind or scope["kind"] == scope_kind
+        ref_matches = not scope_ref or scope["ref"] == scope_ref
+        if kind_matches and ref_matches:
+            filtered.append(snapshot)
+    return filtered
+
+
+def _limited_items(items: list[dict[str, object]], limit: int | None) -> list[dict[str, object]]:
+    if limit is None:
+        return items
+    if limit < 1:
+        return []
+    return items[:limit]
+
+
+def _snapshot_summary(snapshots: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        {
+            "source": str(snapshot.get("source", "")),
+            "truth_level": str(snapshot.get("truth_level", "")),
+            "precedence": int(snapshot.get("precedence", 0) or 0),
+            "scope": snapshot.get("scope", _scope("project", "default")),
+            "item_count": len(snapshot.get("items", [])) if isinstance(snapshot.get("items"), list) else 0,
+        }
+        for snapshot in snapshots
+    ]
 
 
 def _catalog_hint_snapshot() -> dict[str, object]:

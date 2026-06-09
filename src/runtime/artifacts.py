@@ -9,7 +9,15 @@ from pathlib import Path
 from typing import Any
 
 from ..harness_quality import build_harness_progress
-from ..local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, read_json_object_result, utc_now
+from ..local_store import (
+    atomic_write_json,
+    ensure_dir,
+    ensure_file,
+    read_json_object,
+    read_json_object_result,
+    read_jsonl_objects,
+    utc_now,
+)
 from ..paths import OmhPaths
 from .records import (
     DELEGATION_RESULTS,
@@ -260,7 +268,15 @@ def write_merge_record(run_dir: Path, merge: dict[str, Any]) -> dict[str, Any]:
     return record
 
 
-def list_runs(paths: OmhPaths) -> list[dict[str, Any]]:
+def _apply_limit(records: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
+    if limit is None:
+        return records
+    if limit < 1:
+        return []
+    return records[-limit:]
+
+
+def list_runs(paths: OmhPaths, *, limit: int | None = None) -> list[dict[str, Any]]:
     if not paths.runtime_runs_dir.exists():
         return []
     runs: list[dict[str, Any]] = []
@@ -268,14 +284,16 @@ def list_runs(paths: OmhPaths) -> list[dict[str, Any]]:
         run = read_json_object(run_json)
         if run:
             runs.append(run)
-    return runs
+    return _apply_limit(runs, limit)
 
 
 def read_events(run_dir: Path) -> list[dict[str, Any]]:
+    return read_events_result(run_dir)[0]
+
+
+def read_events_result(run_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
     path = run_dir / "events.jsonl"
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return read_jsonl_objects(path)
 
 
 def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
@@ -284,9 +302,10 @@ def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
     if not run:
         raise FileNotFoundError(run_id)
     evidence_dir = run_dir / "evidence"
-    return {
+    events, event_errors = read_events_result(run_dir)
+    result = {
         "run": run,
-        "events": read_events(run_dir),
+        "events": events,
         "routing": read_json_object(run_dir / "routing.json"),
         "coding_delegation": read_json_object(run_dir / "coding_delegation.json"),
         "delegation": read_json_object(run_dir / "delegation.json"),
@@ -296,9 +315,12 @@ def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
         "merge": read_json_object(run_dir / "merge.json"),
         "evidence": sorted(path.name for path in evidence_dir.iterdir()) if evidence_dir.exists() else [],
     }
+    if event_errors:
+        result["event_errors"] = event_errors
+    return result
 
 
-def list_wrapper_session_records(paths: OmhPaths) -> list[dict[str, Any]]:
+def list_wrapper_session_records(paths: OmhPaths, *, limit: int | None = None) -> list[dict[str, Any]]:
     if not paths.runtime_wrapper_sessions_dir.exists():
         return []
     sessions: list[dict[str, Any]] = []
@@ -306,7 +328,7 @@ def list_wrapper_session_records(paths: OmhPaths) -> list[dict[str, Any]]:
         session = read_json_object(session_json)
         if session:
             sessions.append(session)
-    return sessions
+    return _apply_limit(sessions, limit)
 
 
 def show_wrapper_session_record(paths: OmhPaths, session_id: str) -> dict[str, Any]:
@@ -314,10 +336,14 @@ def show_wrapper_session_record(paths: OmhPaths, session_id: str) -> dict[str, A
     session = read_json_object(session_dir / "session.json")
     if not session:
         raise FileNotFoundError(session_id)
-    return {
+    events, event_errors = _read_jsonl_events_result(session_dir / "events.jsonl")
+    result = {
         "session": session,
-        "events": _read_jsonl_events(session_dir / "events.jsonl"),
+        "events": events,
     }
+    if event_errors:
+        result["event_errors"] = event_errors
+    return result
 
 
 def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str, Any]:
@@ -768,17 +794,10 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
                     errors.append(f"{coding_delegation_path}: prepared runtime run requires a Codex executor_handoff")
     events_path = run_dir / "events.jsonl"
     if events_path.exists():
-        try:
-            for index, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
-                if not line.strip():
-                    continue
-                event = json.loads(line)
-                if not isinstance(event, dict):
-                    errors.append(f"{events_path}:{index}: event must be an object")
-                    continue
-                errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
-        except (OSError, JSONDecodeError) as exc:
-            errors.append(f"{events_path}: {exc}")
+        events, event_errors = read_jsonl_objects(events_path)
+        errors.extend(event_errors)
+        for index, event in enumerate(events, start=1):
+            errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
     for name, validator in OPTIONAL_RECORD_VALIDATORS:
@@ -937,13 +956,23 @@ def _redact(value: Any) -> Any:
     return value
 
 
-def export_runtime(paths: OmhPaths, redacted: bool = True) -> dict[str, Any]:
+def export_runtime(paths: OmhPaths, redacted: bool = True, *, limit: int | None = None, full: bool = True) -> dict[str, Any]:
+    runs = list_runs(paths, limit=limit)
+    wrapper_sessions = list_wrapper_session_records(paths, limit=limit)
     payload = {
         "schema_version": SCHEMA_VERSION,
         "runtime_dir": str(paths.runtime_dir),
         "state": read_state(paths),
-        "runs": [show_run(paths, run["run_id"]) for run in list_runs(paths)],
-        "wrapper_sessions": [show_wrapper_session_record(paths, session["session_id"]) for session in list_wrapper_session_records(paths)],
+        "export": {
+            "full": full,
+            "limit": limit,
+            "run_count": len(runs),
+            "wrapper_session_count": len(wrapper_sessions),
+        },
+        "runs": [show_run(paths, run["run_id"]) for run in runs] if full else runs,
+        "wrapper_sessions": (
+            [show_wrapper_session_record(paths, session["session_id"]) for session in wrapper_sessions] if full else wrapper_sessions
+        ),
     }
     if redacted:
         payload = _redact(payload)
@@ -954,9 +983,11 @@ def export_runtime(paths: OmhPaths, redacted: bool = True) -> dict[str, Any]:
 
 
 def _read_jsonl_events(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return _read_jsonl_events_result(path)[0]
+
+
+def _read_jsonl_events_result(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    return read_jsonl_objects(path)
 
 
 def validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
@@ -976,18 +1007,10 @@ def validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
             errors.append(f"{session_path}: session_id must match directory name")
     events_path = session_dir / "events.jsonl"
     if events_path.exists():
-        try:
-            for index, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
-                if not line.strip():
-                    continue
-                event = json.loads(line)
-                if not isinstance(event, dict):
-                    errors.append(f"{events_path}:{index}: event must be an object")
-                    continue
-                events.append(event)
-                errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
-        except (OSError, JSONDecodeError) as exc:
-            errors.append(f"{events_path}: {exc}")
+        events, event_errors = read_jsonl_objects(events_path)
+        errors.extend(event_errors)
+        for index, event in enumerate(events, start=1):
+            errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
     if session:
