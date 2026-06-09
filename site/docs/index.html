@@ -32,6 +32,10 @@
       <aside class="docs-toc" aria-label="Documentation sections">
         <a href="#overview">Overview</a>
         <a href="#flagship">Flagship workflows</a>
+        <a href="loop/">Loop</a>
+        <a href="intent-to-plan/">Intent to plan</a>
+        <a href="product-ops/">Product ops</a>
+        <a href="executor-handoff/">Executor handoff</a>
         <a href="#install">Install</a>
         <a href="#chat">Chat wrappers</a>
         <a href="#runbook">Runbook</a>
@@ -123,10 +127,34 @@
         <section class="docs-section docs-section--feature" id="flagship">
           <h2>Flagship command-set families</h2>
           <p>
-            These are the representative OMH lanes to show first when introducing
-            the product: intent shaping, non-coding product operations, and
-            executor-ready implementation handoff.
+            These are the representative OMH lanes to show first when
+            introducing the product: the new Loop flagship, intent shaping,
+            non-coding product operations, and executor-ready implementation
+            handoff.
           </p>
+          <article class="loop-spotlight loop-spotlight--docs" aria-label="Loop flagship documentation entry">
+            <div class="loop-spotlight__copy">
+              <span class="new-badge">New</span>
+              <h3>Loop!</h3>
+              <p>
+                Loop turns a large goal into a repeating Hermes-native cycle:
+                interview, research, plan, runtime tick queue, handoff,
+                feedback, wait, and resume. It gives wrappers a visible control
+                plane without pretending background work already happened.
+              </p>
+              <a class="button button--primary" href="loop/">Open Loop docs</a>
+            </div>
+            <div class="loop-visual" aria-label="Loop workflow visualization">
+              <span>goal</span>
+              <span>interview</span>
+              <span>research</span>
+              <span>plan</span>
+              <span>tick</span>
+              <span>handoff</span>
+              <span>feedback</span>
+              <span>again</span>
+            </div>
+          </article>
           <figure class="poster-frame poster-frame--docs">
             <img
               src="../assets/omh-flagship-workflows-poster.png"
@@ -134,30 +162,30 @@
             >
           </figure>
           <div class="docs-feature-grid" aria-label="Flagship OMH workflow families">
-            <article class="flagship-item flagship-item--docs">
+            <a class="flagship-item flagship-item--docs" href="intent-to-plan/">
               <span>Intent to plan</span>
               <h3><code>deep-interview</code> / <code>ralplan</code> / <code>ultragoal</code> / <code>loop</code></h3>
               <p>
                 Convert "Make onboarding feel smoother" into a concrete goal,
                 plan, execution-ready path, or direct ambitious goal loop.
               </p>
-            </article>
-            <article class="flagship-item flagship-item--docs">
+            </a>
+            <a class="flagship-item flagship-item--docs" href="product-ops/">
               <span>Company and product ops</span>
               <h3><code>feedback-triage</code> / <code>research-brief</code> / <code>strategy-brief</code></h3>
               <p>
                 Triage customer signals, brief research, set meeting topics, and
                 frame strategic options without defaulting to coding.
               </p>
-            </article>
-            <article class="flagship-item flagship-item--docs">
+            </a>
+            <a class="flagship-item flagship-item--docs" href="executor-handoff/">
               <span>Executor-ready handoff</span>
               <h3><code>idea-to-deploy</code> / coding handoff / executor selection</h3>
               <p>
                 Prepare work for Codex, Claude Code, or another selected executor
                 while keeping evidence boundaries explicit.
               </p>
-            </article>
+            </a>
           </div>
         </section>
 

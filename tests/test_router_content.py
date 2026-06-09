@@ -381,6 +381,10 @@ class RouterContentTests(unittest.TestCase):
             Path(".github/ISSUE_TEMPLATE/config.yml"),
             Path("site/index.html"),
             Path("site/docs/index.html"),
+            Path("site/docs/loop/index.html"),
+            Path("site/docs/intent-to-plan/index.html"),
+            Path("site/docs/product-ops/index.html"),
+            Path("site/docs/executor-handoff/index.html"),
             Path("site/styles.css"),
             Path("site/assets/hermes-agent-hero.png"),
         ]
@@ -400,6 +404,10 @@ class RouterContentTests(unittest.TestCase):
         install_sh = Path("install.sh").read_text(encoding="utf-8")
         site = Path("site/index.html").read_text(encoding="utf-8")
         site_docs = Path("site/docs/index.html").read_text(encoding="utf-8")
+        site_loop = Path("site/docs/loop/index.html").read_text(encoding="utf-8")
+        site_intent = Path("site/docs/intent-to-plan/index.html").read_text(encoding="utf-8")
+        site_product_ops = Path("site/docs/product-ops/index.html").read_text(encoding="utf-8")
+        site_handoff = Path("site/docs/executor-handoff/index.html").read_text(encoding="utf-8")
         site_css = Path("site/styles.css").read_text(encoding="utf-8")
 
         self.assertIn("hermes skills tap add rlaope/oh-my-hermes-agent", readme)
@@ -535,6 +543,12 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("planning-lead", site)
         self.assertIn("Prepared is not observed", site)
         self.assertIn("Routing is not plan acceptance, dispatch, or execution evidence.", site)
+        self.assertIn("Loop is now a flagship OMH lane.", site)
+        self.assertIn("<h3>Loop!</h3>", site)
+        self.assertIn('href="docs/loop/"', site)
+        self.assertIn('href="docs/intent-to-plan/"', site)
+        self.assertIn('href="docs/product-ops/"', site)
+        self.assertIn('href="docs/executor-handoff/"', site)
         self.assertIn("Hermes Agent Integration Runbook", site_docs)
         self.assertIn("examples/wrapper-golden/hermes-agent-integration.json", site_docs)
         self.assertIn("Role surface", site_docs)
@@ -543,6 +557,20 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("request-to-handoff", site_docs)
         self.assertIn("planning-lead", site_docs)
         self.assertIn("Routing is not plan acceptance, dispatch, or execution evidence.", site_docs)
+        self.assertIn('href="loop/">Open Loop docs</a>', site_docs)
+        self.assertIn('href="intent-to-plan/"', site_docs)
+        self.assertIn('href="product-ops/"', site_docs)
+        self.assertIn('href="executor-handoff/"', site_docs)
+        self.assertIn("Loop Engineering", site_loop)
+        self.assertIn("하네스 엔지니어링", site_loop)
+        self.assertIn("loop_runtime/v1", site_loop)
+        self.assertIn("A loop tick is not execution", site_loop)
+        self.assertIn("Intent to plan", site_intent)
+        self.assertIn("deep-interview", site_intent)
+        self.assertIn("Company and product ops", site_product_ops)
+        self.assertIn("feedback-triage", site_product_ops)
+        self.assertIn("Executor-ready handoff", site_handoff)
+        self.assertIn("Codex, Claude Code", site_handoff)
         topbar = site.split('<header class="topbar"', 1)[1].split("</header>", 1)[0]
         self.assertIn('href="docs/"', topbar)
         self.assertNotIn('href="#architecture"', topbar)
@@ -568,6 +596,8 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("omh harness validate", site_docs)
         self.assertIn("harness_progress/v1", site)
         self.assertIn("assets/hermes-agent-hero.png", site_css)
+        self.assertIn(".loop-spotlight", site_css)
+        self.assertIn(".feature-flow", site_css)
 
     def test_direction_and_agent_contract_lock_product_boundary(self) -> None:
         direction = Path("docs/DIRECTION.md").read_text(encoding="utf-8")
