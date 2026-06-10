@@ -117,7 +117,8 @@ def cmd_update(args: argparse.Namespace) -> int:
 
 
 def _install_operation(args: argparse.Namespace) -> str:
-    return "update" if str(getattr(args, "command", "install")) == "update" else "install"
+    command = str(getattr(args, "command", "install"))
+    return command if command in {"convert", "update"} else "install"
 
 
 def _managed_skills_status(result: dict[str, object], *, dry_run: bool) -> dict[str, object]:
@@ -321,7 +322,11 @@ def cmd_convert(args: argparse.Namespace) -> int:
 
 
 def cmd_apply(args: argparse.Namespace) -> int:
-    _print_json(_apply_result(args))
+    result = _apply_result(args)
+    if _wants_json(args):
+        _print_json(result)
+    else:
+        _print_apply_summary(result)
     return 0
 
 
@@ -394,8 +399,13 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    manifest = read_manifest(_paths(args).manifest_path)
-    _print_json(manifest or {"skills": [], "message": "not installed"})
+    paths = _paths(args)
+    manifest = read_manifest(paths.manifest_path)
+    payload = manifest or {"skills": [], "message": "not installed"}
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_list_summary(payload, manifest_path=paths.manifest_path, skills_dir=paths.skills_dir)
     return 0
 
 
@@ -1233,6 +1243,207 @@ def _print_install_summary(payload: dict[str, object], *, command: str, language
     print(f"  {tr(language, 'machine_readable')}")
 
 
+def _print_apply_summary(payload: dict[str, object]) -> None:
+    use_color = _use_color()
+    dry_run = bool(payload.get("dry_run", False))
+    changed = bool(payload.get("changed", False))
+    title = "OMH apply preview complete." if dry_run else "OMH apply complete."
+    print(_color(title, "1;36", use_color))
+    print(_color("Summary", "1;32", use_color))
+    print(f"  Config: {payload.get('config', '')}")
+    print(f"  Managed skills: {payload.get('skills_dir', '')}")
+    if dry_run:
+        status = "would update Hermes registration" if changed else "registration already up to date"
+    else:
+        status = "updated Hermes registration" if changed else "registration already up to date"
+    message = str(payload.get("message", "")).strip()
+    print(f"  Status: {status}")
+    if message:
+        print(f"  Detail: {message}")
+    print(_color("Next", "1;32", use_color))
+    print("  Restart or reload Hermes Agent before expecting chat to see new skills.")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _print_list_summary(payload: dict[str, object], *, manifest_path: Path, skills_dir: Path) -> None:
+    use_color = _use_color()
+    skills = payload.get("skills", [])
+    if not isinstance(skills, list):
+        skills = []
+    print(_color("OMH managed skills", "1;36", use_color))
+    print(_color("Summary", "1;32", use_color))
+    if not skills:
+        print("  Status: not installed")
+        print(f"  Manifest: {manifest_path}")
+        print(f"  Managed skills: {skills_dir}")
+        print(_color("Next", "1;32", use_color))
+        print("  Run `omh setup` to install managed Hermes skills.")
+        print(f"  {tr('en', 'machine_readable')}")
+        return
+    package = str(payload.get("package", "oh-my-hermes-agent"))
+    installed_at = str(payload.get("installed_at", ""))
+    print(f"  Package: {package}")
+    print(f"  Skills: {len(skills)} managed skill(s) at {skills_dir}")
+    if installed_at:
+        print(f"  Installed at: {installed_at}")
+    print(f"  Manifest: {manifest_path}")
+    names = [str(skill.get("name", "")) for skill in skills if isinstance(skill, dict) and skill.get("name")]
+    shown = names[:12]
+    if shown:
+        print("  Names: " + ", ".join(shown) + (" ..." if len(names) > len(shown) else ""))
+    print(_color("Next", "1;32", use_color))
+    print("  Run `omh doctor` to verify Hermes registration.")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _print_recommend_summary(payload: dict[str, object]) -> None:
+    use_color = _use_color()
+    recommendations = payload.get("recommendations", [])
+    if not isinstance(recommendations, list):
+        recommendations = []
+    print(_color("OMH recommendation", "1;36", use_color))
+    print(f"Query: {payload.get('query', '')}")
+    if not recommendations:
+        print("No recommendations.")
+        print(f"  {tr('en', 'machine_readable')}")
+        return
+    for index, recommendation in enumerate(recommendations, start=1):
+        if not isinstance(recommendation, dict):
+            continue
+        name = str(recommendation.get("skill", "unknown"))
+        confidence = str(recommendation.get("confidence", "unknown"))
+        print(f"{index}. {name} [{confidence}]")
+        description = _short_summary(str(recommendation.get("description", "")), limit=120)
+        if description:
+            print(f"   {description}")
+        next_action = str(recommendation.get("next_action", "")).strip()
+        if next_action:
+            print(f"   Next action: {next_action}")
+        why = _short_summary(str(recommendation.get("why", "")), limit=120)
+        if why:
+            print(f"   Why: {why}")
+    print(_color("Boundary", "1;32", use_color))
+    print("  A recommendation is routing guidance, not execution or verification evidence.")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _print_profile_list_summary(payload: dict[str, object]) -> None:
+    use_color = _use_color()
+    packs = payload.get("packs", [])
+    if not isinstance(packs, list):
+        packs = []
+    print(_color("OMH profile packs", "1;36", use_color))
+    print(_color("Summary", "1;32", use_color))
+    print(f"  Default install: {payload.get('default_install', 'none')}")
+    print(f"  Available packs: {len(packs)}")
+    for pack in packs:
+        if not isinstance(pack, dict):
+            continue
+        pack_id = str(pack.get("id", "unknown"))
+        title = str(pack.get("title", pack_id))
+        summary = _short_summary(str(pack.get("summary", "")), limit=110)
+        print(f"  - {pack_id}: {title}")
+        if summary:
+            print(f"    {summary}")
+    print(_color("Next", "1;32", use_color))
+    print("  Inspect a pack with `omh profile inspect <id>`.")
+    print("  Install one with `omh setup --profile-pack <id>`.")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _print_profile_inspect_summary(payload: dict[str, object]) -> None:
+    use_color = _use_color()
+    pack = payload.get("pack", {})
+    if not isinstance(pack, dict):
+        pack = {}
+    roles = pack.get("roles", [])
+    if not isinstance(roles, list):
+        roles = []
+    pack_id = str(pack.get("id", "unknown"))
+    print(_color(f"OMH profile pack: {pack.get('title', pack_id)}", "1;36", use_color))
+    print(_color("Summary", "1;32", use_color))
+    print(f"  ID: {pack_id}")
+    summary = str(pack.get("summary", "")).strip()
+    use_when = str(pack.get("use_when", "")).strip()
+    if summary:
+        print(f"  Summary: {summary}")
+    if use_when:
+        print(f"  Use when: {use_when}")
+    print(f"  Roles: {len(roles)}")
+    for role in roles:
+        if not isinstance(role, dict):
+            continue
+        role_id = str(role.get("id", "unknown"))
+        title = str(role.get("title", role_id))
+        purpose = _short_summary(str(role.get("purpose", "")), limit=120)
+        print(f"  - {role_id}: {title}")
+        if purpose:
+            print(f"    {purpose}")
+    install_command = str(pack.get("install_command", "")).strip()
+    if install_command:
+        print(_color("Next", "1;32", use_color))
+        print(f"  {install_command}")
+    boundary = str(pack.get("claim_boundary", "")).strip()
+    if boundary:
+        print(_color("Boundary", "1;32", use_color))
+        print(f"  {boundary}")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _print_probe_summary(payload: dict[str, object]) -> None:
+    use_color = _use_color()
+    capabilities = payload.get("capabilities", [])
+    if not isinstance(capabilities, list):
+        capabilities = []
+    counts = {status: 0 for status in ("available", "missing", "unknown", "unverified")}
+    for capability in capabilities:
+        if isinstance(capability, dict):
+            status = str(capability.get("status", "unknown"))
+            counts[status] = counts.get(status, 0) + 1
+    print(_color("OMH capability probe", "1;36", use_color))
+    print(_color("Summary", "1;32", use_color))
+    print(f"  OMH home: {payload.get('omh_home', '')}")
+    print(f"  Hermes home: {payload.get('hermes_home', '')}")
+    print(
+        "  Capabilities: "
+        f"{counts.get('available', 0)} available, "
+        f"{counts.get('missing', 0)} missing, "
+        f"{counts.get('unknown', 0)} unknown, "
+        f"{counts.get('unverified', 0)} unverified"
+    )
+    topology = payload.get("target_topology", {})
+    if isinstance(topology, dict):
+        print(
+            "  Target topology: "
+            f"{topology.get('mode', 'unknown')} "
+            f"({topology.get('known_target_count', 0)} known target(s))"
+        )
+    print(f"  Plugin distribution ready: {payload.get('plugin_distribution_ready', False)}")
+    print(f"  Native integration claim ready: {payload.get('native_integration_claim_ready', False)}")
+    print(_color("Details", "1;32", use_color))
+    for capability in capabilities:
+        if not isinstance(capability, dict):
+            continue
+        status = str(capability.get("status", "unknown"))
+        name = str(capability.get("name", "unknown"))
+        message = _short_summary(str(capability.get("message", "")), limit=120)
+        print(f"  - {name}: {status}")
+        if message:
+            print(f"    {message}")
+    boundary = str(payload.get("claim_boundary", "")).strip()
+    if boundary:
+        print(_color("Boundary", "1;32", use_color))
+        print(f"  {boundary}")
+    print(f"  {tr('en', 'machine_readable')}")
+
+
+def _short_summary(value: str, *, limit: int) -> str:
+    text = " ".join(value.split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
 def _config_change_label(language: str, message: str) -> str:
     key = "config_" + message.replace(".", "_").replace(" ", "_").replace("-", "_")
     translated = tr(language, key)
@@ -1286,15 +1497,23 @@ def _team_profile_setup_result(args: argparse.Namespace, paths) -> list[dict[str
 
 
 def cmd_profile_list(args: argparse.Namespace) -> int:
-    _print_json(list_team_profile_packs())
+    payload = list_team_profile_packs()
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_profile_list_summary(payload)
     return 0
 
 
 def cmd_profile_inspect(args: argparse.Namespace) -> int:
     try:
-        _print_json(inspect_team_profile_pack(args.id))
+        payload = inspect_team_profile_pack(args.id)
     except TeamProfileError as exc:
         raise OmhError(str(exc)) from exc
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_profile_inspect_summary(payload)
     return 0
 
 
@@ -1304,7 +1523,11 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     query = " ".join(args.task).strip()
     if not query:
         raise OmhError("recommend requires a task description")
-    _print_json({"query": query, "recommendations": recommend_skills(query, limit=args.limit)})
+    payload = {"query": query, "recommendations": recommend_skills(query, limit=args.limit)}
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_recommend_summary(payload)
     return 0
 
 
@@ -1314,12 +1537,21 @@ def cmd_snippet(args: argparse.Namespace) -> int:
         return 0
     output = Path(args.output).expanduser().resolve()
     atomic_write_text(output, WORKSPACE_SNIPPET)
-    _print_json({"written": str(output)})
+    payload = {"written": str(output)}
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        print(f"OMH workspace snippet written: {output}")
+        print(f"  {tr('en', 'machine_readable')}")
     return 0
 
 
 def cmd_probe(args: argparse.Namespace) -> int:
-    _print_json(probe_capabilities(_paths(args)))
+    payload = probe_capabilities(_paths(args))
+    if _wants_json(args):
+        _print_json(payload)
+    else:
+        _print_probe_summary(payload)
     return 0
 
 
@@ -1381,10 +1613,12 @@ def _add_top_level_commands(sub) -> None:
     convert.add_argument("--from-skills-dir", required=True)
     convert.add_argument("--force", action="store_true")
     convert.add_argument("--dry-run", action="store_true")
+    convert.add_argument("--json", action="store_true", help="Print the full machine-readable convert payload.")
     convert.set_defaults(func=cmd_convert)
 
     apply = sub.add_parser("apply", help="Register the managed OMH skills directory in Hermes config.")
     apply.add_argument("--dry-run", action="store_true")
+    apply.add_argument("--json", action="store_true", help="Print the machine-readable apply payload.")
     apply.set_defaults(func=cmd_apply)
 
     uninstall = sub.add_parser("uninstall", help="Remove OMH-managed registration, local files, and optional command package.")
@@ -1399,7 +1633,8 @@ def _add_top_level_commands(sub) -> None:
     uninstall.add_argument("--language", default=None, help=f"Human output language ({', '.join(LANGUAGE_CODES)}).")
     uninstall.set_defaults(func=cmd_uninstall)
 
-    list_cmd = sub.add_parser("list", help="Print the installed managed skill manifest as JSON.")
+    list_cmd = sub.add_parser("list", help="Show the installed managed skill manifest.")
+    list_cmd.add_argument("--json", action="store_true", help="Print the full machine-readable manifest.")
     list_cmd.set_defaults(func=cmd_list)
 
     doctor = sub.add_parser("doctor", help="Check local OMH install health and Hermes skill registration.")
@@ -1410,20 +1645,25 @@ def _add_top_level_commands(sub) -> None:
     recommend = sub.add_parser("recommend", help="Map a task description to likely OMH workflow skills.")
     recommend.add_argument("task", nargs="+", help="Task description to map to OMH workflow skills.")
     recommend.add_argument("--limit", type=int, default=5, help="Maximum recommendations to return.")
+    recommend.add_argument("--json", action="store_true", help="Print the full machine-readable recommendation payload.")
     recommend.set_defaults(func=cmd_recommend)
 
     snippet = sub.add_parser("snippet", help="Print or write the workspace guidance snippet for agents.")
     snippet.add_argument("--dry-run", action="store_true")
     snippet.add_argument("--output", default=None)
+    snippet.add_argument("--json", action="store_true", help="Print machine-readable output when writing to --output.")
     snippet.set_defaults(func=cmd_snippet)
 
-    probe = sub.add_parser("probe", help="Inspect observable OMH/Hermes capability surfaces as JSON.")
+    probe = sub.add_parser("probe", help="Inspect observable OMH/Hermes capability surfaces.")
+    probe.add_argument("--json", action="store_true", help="Print the full machine-readable capability payload.")
     probe.set_defaults(func=cmd_probe)
 
     profile = sub.add_parser("profile", help="List or inspect optional visible team role/profile packs.")
     profile_sub = profile.add_subparsers(dest="profile_command", required=True)
     profile_list = profile_sub.add_parser("list")
+    profile_list.add_argument("--json", action="store_true", help="Print the full machine-readable profile pack catalog.")
     profile_list.set_defaults(func=cmd_profile_list)
     profile_inspect = profile_sub.add_parser("inspect")
     profile_inspect.add_argument("id")
+    profile_inspect.add_argument("--json", action="store_true", help="Print the full machine-readable profile pack payload.")
     profile_inspect.set_defaults(func=cmd_profile_inspect)

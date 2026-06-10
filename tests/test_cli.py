@@ -39,7 +39,8 @@ class CliTests(unittest.TestCase):
         self.assertIn("Install managed skills and connect them", help_text)
         self.assertIn("chat", help_text)
         self.assertIn("wrapper chat events", help_text)
-        self.assertIn("Use --json on setup/install/update/doctor/uninstall", help_text)
+        self.assertIn("Human-facing maintenance and catalog commands print summaries", help_text)
+        self.assertIn("Backend/control-plane commands", help_text)
 
     def test_setup_and_doctor_default_to_human_summary_with_json_escape_hatch(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -114,6 +115,80 @@ class CliTests(unittest.TestCase):
             self.assertEqual(doctor_payload["summary"]["schema_version"], "doctor_summary/v1")
             self.assertEqual(doctor_payload["summary"]["status"], "ok")
             self.assertEqual(doctor_payload["state_log"]["entry"], "last_doctor")
+
+    def test_operator_catalog_commands_default_to_human_summary_with_json_escape_hatch(self) -> None:
+        cases = (
+            (["recommend", "risky", "refactor"], "OMH recommendation", "recommendations"),
+            (
+                ["playbook", "recommend", "turn", "this", "issue", "into", "a", "PR"],
+                "OMH playbook recommendation",
+                "recommendations",
+            ),
+            (["playbook", "list"], "OMH playbooks", "playbooks"),
+            (["playbook", "inspect", "safe-feature-change"], "OMH playbook:", "playbook"),
+            (["profile", "list"], "OMH profile packs", "packs"),
+            (["profile", "inspect", "cto-loop"], "OMH profile pack:", "pack"),
+        )
+
+        for args, human_marker, json_key in cases:
+            with self.subTest(args=args):
+                status, stdout, stderr = run_cli(args, output_json=False)
+
+                self.assertEqual(stderr, "")
+                self.assertEqual(status, 0)
+                self.assertIn(human_marker, stdout)
+                self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
+                with self.assertRaises(json.JSONDecodeError):
+                    json.loads(stdout)
+
+                status, stdout, stderr = run_cli(args + ["--json"], output_json=False)
+
+                self.assertEqual(stderr, "")
+                self.assertEqual(status, 0)
+                self.assertIn(json_key, json.loads(stdout))
+
+    def test_local_operator_commands_default_to_human_summary_with_json_escape_hatch(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = ["--omh-home", str(root / ".omh"), "--hermes-home", str(root / ".hermes")]
+
+            status, _, stderr = run_cli(base + ["install"])
+            self.assertEqual(status, 0, stderr)
+
+            cases = (
+                (["apply"], "OMH apply complete.", "config"),
+                (["list"], "OMH managed skills", "skills"),
+                (["probe"], "OMH capability probe", "capabilities"),
+            )
+
+            for args, human_marker, json_key in cases:
+                with self.subTest(args=args):
+                    status, stdout, stderr = run_cli(base + args, output_json=False)
+
+                    self.assertEqual(stderr, "")
+                    self.assertEqual(status, 0)
+                    self.assertIn(human_marker, stdout)
+                    self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
+                    with self.assertRaises(json.JSONDecodeError):
+                        json.loads(stdout)
+
+                    status, stdout, stderr = run_cli(base + args + ["--json"], output_json=False)
+
+                    self.assertEqual(stderr, "")
+                    self.assertEqual(status, 0)
+                    self.assertIn(json_key, json.loads(stdout))
+
+            output = root / "AGENTS-snippet.md"
+            status, stdout, stderr = run_cli(base + ["snippet", "--output", str(output)], output_json=False)
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertIn("OMH workspace snippet written", stdout)
+            self.assertTrue(output.exists())
+
+            status, stdout, stderr = run_cli(base + ["snippet", "--output", str(output), "--json"], output_json=False)
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertEqual(json.loads(stdout)["written"], str(output.resolve()))
 
     def test_setup_interactive_wizard_records_user_choices(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -331,7 +406,7 @@ class CliTests(unittest.TestCase):
     def test_source_checkout_exposes_omh_cli_module(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         result = subprocess.run(
-            [sys.executable, "-m", "omh.cli", "recommend", "risky refactor", "--limit", "1"],
+            [sys.executable, "-m", "omh.cli", "recommend", "risky refactor", "--limit", "1", "--json"],
             cwd=repo_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
