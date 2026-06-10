@@ -97,11 +97,15 @@ def build_parser() -> argparse.ArgumentParser:
             "Normal use happens in Hermes chat:\n"
             "  Use OMH request-to-handoff for: I want to safely add a feature to this repo.\n\n"
             "Operator examples:\n"
+            "  omh recommend \"risky refactor\"\n"
+            "  omh playbook recommend \"turn this issue into a PR\"\n"
             "  omh chat interact \"turn this issue into a PR-ready plan\"\n"
             "  omh loop status\n"
             "  omh runtime status\n\n"
-            "Use --json on setup/install/update/doctor/uninstall when a wrapper\n"
-            "or automation needs machine-readable output."
+            "Human-facing maintenance and catalog commands print summaries by default;\n"
+            "pass --json or set OMH_OUTPUT=json when a wrapper needs full payloads.\n"
+            "Backend/control-plane commands such as chat, coding, runtime, goal, loop,\n"
+            "memory, state, harness, release, and demo print JSON by design."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -134,11 +138,17 @@ Install OMH, then talk to Hermes. The `omh` command is the setup, doctor,
 verifier, and wrapper/backend surface; the normal user experience is Hermes
 Agent chat with installed OMH skills.
 
+If this screen appears after `omh uninstall`, the command package is still on
+PATH. `uninstall` removes OMH-managed Hermes files and removes the command only
+when it can prove the command came from the install.sh-managed OMH venv.
+
 Start:
   omh setup              Install skills and connect them to Hermes
   omh doctor             Check local OMH health and registration
 
 Useful operator commands:
+  omh recommend "risky refactor"
+  omh playbook recommend "turn this issue into a PR"
   omh chat interact "turn this issue into a PR-ready plan"
   omh loop status        Show ambitious goal loop state
   omh runtime status     Show local evidence artifacts

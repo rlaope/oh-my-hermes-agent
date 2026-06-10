@@ -344,6 +344,10 @@ directory probe marked `unverified` is not a native integration claim. Deeper
 Hermes integration requires both a stable Hermes extension contract and runtime
 evidence that the extension ran.
 
+For terminal operators, `omh probe` prints a compact status summary by default.
+Wrappers and automation should request the full capability payload with
+`omh probe --json` or `OMH_OUTPUT=json`.
+
 ## Harness Contract
 
 Representative harnesses are preview metadata for generated prompt guidance.

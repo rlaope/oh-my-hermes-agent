@@ -178,23 +178,34 @@ omh runtime status
 omh probe
 ```
 
-`omh setup` should report a human-readable setup summary by default. In a real
-terminal it first asks for setup language, then only asks for optional defaults
-that change how handoffs or visible role presets are presented. The same command
-with `--json` should include install and apply
-steps plus a
-`hermes_native_setup/v1` block that names the equivalent Hermes skill install
-path, managed skill directory, and `skills.external_dirs` registration key.
+`omh setup` should report a human-readable setup summary by default, including
+the setup scope, install mode, MCP mode, setup state, managed skill path,
+Hermes registration path, target topology, and the `last_setup` state-log entry
+when it writes local state. In a real terminal it first asks for setup language,
+then only asks for optional defaults that change how handoffs or visible role
+presets are presented. The same command with `--json` should include install
+and apply steps, an `operator_summary` block, and a `hermes_native_setup/v1`
+block that names the equivalent Hermes skill install path, managed skill
+directory, and `skills.external_dirs` registration key.
 `hermes_native.observed` means the local bootstrap/apply step actually ran; it
 does not prove Hermes has reloaded or used the skill yet.
 `discovery_status: config_registered_reload_required` means restart or refresh
 Hermes before claiming the skill is visible in chat.
-`omh doctor` should report a healthy summary by default; `omh doctor --json`
-returns the full check payload. `omh list` should show the managed skills
-available to Hermes.
-`omh install` and `omh update` also print concise summaries by default; use
-`--json` or `OMH_OUTPUT=json` when a wrapper or automation needs the complete
-manifest payload.
+`omh doctor` should report a grouped health summary by default: managed skills,
+runtime state, Hermes registration, target topology, optional surfaces, issue
+counts, recommended next action, and the `last_doctor` state-log entry when the
+runtime directory is writable. `omh doctor --json` returns the full check
+payload plus `doctor_summary/v1`. `omh list` should show a concise managed
+skill summary by default and the full manifest with `--json`.
+Human-facing maintenance and catalog commands print readable terminal summaries
+by default: `omh install`, `omh update`, `omh uninstall`, `omh apply`,
+`omh list`, `omh recommend`, `omh playbook ...`, `omh profile ...`,
+`omh probe`, and `omh snippet --output`. Use `--json` on those commands, or set
+`OMH_OUTPUT=json`, when a wrapper or automation needs the complete payload.
+Backend/control-plane commands such as `chat`, `coding`, `runtime`, `goal`,
+`loop`, `memory`, `state`, `harness`, `release`, and `demo` print JSON by
+design because they are wrapper contracts rather than the normal human chat
+surface.
 `omh runtime status` should show the local runtime artifact directory and the
 latest install/apply/doctor state when those commands have run. `omh probe`
 reports observable Hermes capability surfaces without mutating Hermes internals.
@@ -483,19 +494,31 @@ conversation, execution, GitHub, CI, and merge evidence that OMH later records.
 
 ## Update
 
-Update the installed skill pack:
+Update the managed skill pack from the currently installed `omh` command
+package:
 
 ```sh
 omh update --channel preview
-omh setup
 omh doctor
 ```
 
 Use `omh update --channel stable --version <version>` to record a pinned stable
 update intent, or `omh update --channel local --from-skills-dir ./skills` for a
 local fixture. Local modifications block updates unless `--force` is supplied.
-Use `omh setup` after an update to reinstall managed skills and reapply Hermes
-registration. Then run `omh doctor` and restart Hermes Agent.
+Run `omh doctor` after an update. Use `omh setup` only when doctor reports that
+Hermes registration needs repair, then restart Hermes Agent. `omh update` does
+not fetch or replace the `omh` command package itself; rerun the installer to
+sync command-code changes from the preview or stable package source:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh
+```
+
+Successful setup, install, update, and doctor runs record concise state logs
+under `~/.omh/runtime/state.json` as `last_setup`, `last_install`,
+`last_update`, or `last_doctor`. The logs record operator status, managed skill
+count, source metadata, command-package status, and health summaries without
+storing raw chat prompts.
 
 ## Reapply
 
@@ -594,6 +617,9 @@ removes the install.sh-managed `omh` command venv/link when the current command
 is running from that managed venv. It does not delete unrelated Hermes files,
 unrelated plugins, unrelated agents, or pipx/development Python environments
 that OMH cannot safely identify as install.sh-managed.
+If `omh` still runs after uninstall, that means the command package is still on
+`PATH`; remove it with the installer-managed venv, pip, or pipx environment
+that installed it.
 
 Preview the cleanup first:
 
