@@ -39,6 +39,8 @@ from .language import LANGUAGE_CODES, language_from_env, language_options, norma
 
 INSTALLER_COMMAND = "curl -fsSL https://raw.githubusercontent.com/rlaope/oh-my-hermes-agent/main/install.sh | sh"
 COMMAND_PACKAGE_STATUS_SCHEMA_VERSION = "command_package_status/v1"
+SETUP_OPERATOR_SUMMARY_SCHEMA_VERSION = "setup_operator_summary/v1"
+DOCTOR_SUMMARY_SCHEMA_VERSION = "doctor_summary/v1"
 
 
 def cmd_install(args: argparse.Namespace) -> int:
@@ -160,6 +162,96 @@ def _install_operation_log(result: dict[str, object], *, source: str) -> dict[st
         "release_package_url": str(result.get("release_package_url", "")),
         "managed_skills": managed_skills if isinstance(managed_skills, dict) else {},
         "command_package": command_package if isinstance(command_package, dict) else {},
+    }
+
+
+def _setup_operator_summary(
+    args: argparse.Namespace,
+    paths,
+    steps: dict[str, object],
+    hermes_native: dict[str, object],
+) -> dict[str, object]:
+    dry_run = bool(getattr(args, "dry_run", False))
+    status = "dry_run" if dry_run else "skills_only" if getattr(args, "skip_apply", False) else "configured"
+    plugin_status = "installed" if getattr(args, "with_plugin", False) else "optional"
+    team_status = "profile_pack" if getattr(args, "profile_pack", []) else "available"
+    summary = {
+        "schema_version": SETUP_OPERATOR_SUMMARY_SCHEMA_VERSION,
+        "scope": _setup_scope(args),
+        "install_mode": "managed_skills",
+        "mcp_mode": "none",
+        "plugin_mode": plugin_status,
+        "team_mode": team_status,
+        "status": status,
+        "requires_hermes_reload": bool(hermes_native.get("requires_hermes_reload", False)),
+        "paths": {
+            "omh_home": str(paths.omh_home),
+            "hermes_home": str(paths.hermes_home),
+            "skills_dir": str(paths.skills_dir),
+            "hermes_config_path": str(paths.hermes_config_path),
+        },
+        "state_log": {},
+    }
+    if not dry_run:
+        summary["state_log"] = {"path": str(paths.runtime_state_path), "entry": "last_setup"}
+    install = steps.get("install", {})
+    if isinstance(install, dict):
+        managed_skills = install.get("managed_skills", {})
+        if isinstance(managed_skills, dict):
+            summary["managed_skills"] = managed_skills
+    return summary
+
+
+def _setup_scope(args: argparse.Namespace) -> str:
+    if getattr(args, "omh_home", None) or getattr(args, "hermes_home", None):
+        return "custom"
+    return "user"
+
+
+def _doctor_operator_summary(checks: list[object]) -> dict[str, object]:
+    check_dicts = [
+        {
+            "name": str(getattr(check, "name", "")),
+            "ok": bool(getattr(check, "ok", False)),
+            "severity": str(getattr(check, "severity", "")),
+        }
+        for check in checks
+    ]
+    passing = sum(1 for check in check_dicts if check["ok"])
+    blocking = sum(1 for check in check_dicts if not check["ok"] and check["severity"] == "blocking")
+    warnings = sum(1 for check in check_dicts if check["severity"] == "warning")
+    return {
+        "schema_version": DOCTOR_SUMMARY_SCHEMA_VERSION,
+        "status": "ok" if doctor_ok(checks) else "needs_attention",
+        "passing": passing,
+        "total": len(check_dicts),
+        "blocking": blocking,
+        "warnings": warnings,
+        "groups": [
+            _doctor_group("managed_skills", check_dicts, ("manifest", "manifest_skills_dir", "local_modifications", "skills_dir", "skill:")),
+            _doctor_group("runtime", check_dicts, ("runtime_artifacts", "workflow_state", "runtime_state")),
+            _doctor_group("hermes_registration", check_dicts, ("hermes_config", "external_dir", "runtime_context")),
+            _doctor_group("targets", check_dicts, ("target_registry", "target_topology")),
+            _doctor_group("optional_surfaces", check_dicts, ("plugin_", "team_profile_packs")),
+        ],
+    }
+
+
+def _doctor_group(name: str, checks: list[dict[str, object]], prefixes: tuple[str, ...]) -> dict[str, object]:
+    members = [
+        check
+        for check in checks
+        if any(str(check.get("name", "")).startswith(prefix) for prefix in prefixes)
+    ]
+    failed = [check for check in members if not check.get("ok")]
+    warning = any(str(check.get("severity", "")) == "warning" for check in members)
+    status = "needs_attention" if failed else "warning" if warning else "ok"
+    return {
+        "name": name,
+        "status": status,
+        "passing": sum(1 for check in members if check.get("ok")),
+        "total": len(members),
+        "failed": [str(check.get("name", "")) for check in failed],
     }
 
 
@@ -308,35 +400,43 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
+    language = _resolve_language(args)
     payload = _doctor_result(args)
     if _wants_json(args):
         _print_json(payload)
     else:
-        _print_doctor_summary(payload)
+        _print_doctor_summary(payload, language=language)
     return 0 if payload["ok"] else 1
 
 
 def _doctor_result(args: argparse.Namespace) -> dict[str, object]:
     paths = _paths(args)
     checks = run_doctor(paths)
+    next_action = recommended_next_action(checks)
+    summary = _doctor_operator_summary(checks)
     runtime_writable = any(check.name == "runtime_artifacts" and check.ok for check in checks)
     runtime_state_readable = not any(check.name == "runtime_state" and not check.ok for check in checks)
+    state_log: dict[str, str] = {}
     if runtime_writable and runtime_state_readable:
-        next_action = recommended_next_action(checks)
         update_state(
             paths,
             {
                 "last_doctor": {
                     "ok": doctor_ok(checks),
                     "checks": {check.name: check.ok for check in checks},
+                    "summary": summary,
                     "recommended_next_action": next_action,
                 }
             },
         )
+        state_log = {"path": str(paths.runtime_state_path), "entry": "last_doctor"}
     return {
         "ok": doctor_ok(checks),
         "checks": [check.__dict__ for check in checks],
-        "recommended_next_action": recommended_next_action(checks),
+        "summary": summary,
+        "state_log": state_log,
+        "recommended_next_action": next_action,
+        "language": _resolve_language(args),
     }
 
 
@@ -457,6 +557,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     }
 
     if not args.dry_run:
+        operator_summary = _setup_operator_summary(args, paths, steps, hermes_native)
         update_state(
             paths,
             {
@@ -464,13 +565,23 @@ def cmd_setup(args: argparse.Namespace) -> int:
                     "ok": True,
                     "apply_skipped": bool(args.skip_apply),
                     "hermes_native": hermes_native,
+                    "operator_summary": operator_summary,
                     "setup_profile": steps["profile"],
                     "team_profiles": steps.get("team_profiles", []),
                     "target_observation": steps["targets"],
                 }
             },
         )
-    payload: dict[str, object] = {"ok": True, "steps": steps, "dry_run": args.dry_run, "hermes_native": hermes_native, "language": language}
+    else:
+        operator_summary = _setup_operator_summary(args, paths, steps, hermes_native)
+    payload: dict[str, object] = {
+        "ok": True,
+        "steps": steps,
+        "dry_run": args.dry_run,
+        "hermes_native": hermes_native,
+        "operator_summary": operator_summary,
+        "language": language,
+    }
     if args.with_plugin:
         payload["plugin_distribution"] = steps["plugin"]
     if args.profile_pack:
@@ -890,10 +1001,13 @@ def _print_setup_summary(payload: dict[str, object], *, language: str = "en") ->
     use_color = _use_color()
     steps = payload.get("steps", {})
     hermes_native = payload.get("hermes_native", {})
+    operator_summary = payload.get("operator_summary", {})
     if not isinstance(steps, dict):
         steps = {}
     if not isinstance(hermes_native, dict):
         hermes_native = {}
+    if not isinstance(operator_summary, dict):
+        operator_summary = {}
 
     install = steps.get("install", {})
     apply = steps.get("apply", {})
@@ -907,6 +1021,14 @@ def _print_setup_summary(payload: dict[str, object], *, language: str = "en") ->
     print("")
     print(_color(title, "1;36", use_color))
     print(_color(tr(language, "summary"), "1;32", use_color))
+    scope_label = tr(language, "setup_scope_" + str(operator_summary.get("scope", "custom")))
+    install_mode_label = tr(language, "setup_install_mode_" + str(operator_summary.get("install_mode", "managed_skills")))
+    mcp_mode_label = tr(language, "setup_mcp_mode_" + str(operator_summary.get("mcp_mode", "none")))
+    status_label = tr(language, "setup_status_" + str(operator_summary.get("status", "configured")))
+    print(f"  {tr(language, 'setup_scope', scope=scope_label)}")
+    print(f"  {tr(language, 'setup_install_mode', mode=install_mode_label)}")
+    print(f"  {tr(language, 'setup_mcp_mode', mode=mcp_mode_label)}")
+    print(f"  {tr(language, 'setup_status', status=status_label)}")
     print(f"  {tr(language, 'skills_line', count=len(skills), path=hermes_native.get('skills_dir', ''))}")
 
     discovery_status = str(hermes_native.get("discovery_status", ""))
@@ -936,6 +1058,9 @@ def _print_setup_summary(payload: dict[str, object], *, language: str = "en") ->
         print(
             f"  {tr(language, 'target_topology', mode=topology.get('mode', 'unknown'), count=topology.get('known_target_count', 0))}"
         )
+    state_log = operator_summary.get("state_log", {})
+    if isinstance(state_log, dict) and state_log.get("path") and state_log.get("entry"):
+        print(f"  {tr(language, 'state_log', path=state_log.get('path'), entry=state_log.get('entry'))}")
 
     plugin = payload.get("plugin_distribution")
     if isinstance(plugin, dict):
@@ -958,30 +1083,54 @@ def _print_setup_summary(payload: dict[str, object], *, language: str = "en") ->
     print(f"  {tr(language, 'machine_readable')}")
 
 
-def _print_doctor_summary(payload: dict[str, object]) -> None:
+def _print_doctor_summary(payload: dict[str, object], *, language: str = "en") -> None:
     use_color = _use_color()
     checks = payload.get("checks", [])
     if not isinstance(checks, list):
         checks = []
     ok = bool(payload.get("ok", False))
-    print(_color("OMH doctor: ok" if ok else "OMH doctor: needs attention", "1;36" if ok else "1;33", use_color))
-    print(f"Checks: {sum(1 for check in checks if isinstance(check, dict) and check.get('ok'))}/{len(checks)} passing")
-    if ok:
-        print("Summary: local files, managed skills, and Hermes registration checks passed.")
+    summary = payload.get("summary", {})
+    if not isinstance(summary, dict):
+        summary = {}
+    passing = int(summary.get("passing", sum(1 for check in checks if isinstance(check, dict) and check.get("ok"))))
+    total = int(summary.get("total", len(checks)))
+    title_key = "doctor_complete" if ok else "doctor_needs_attention"
+    print(_color(tr(language, title_key), "1;36" if ok else "1;33", use_color))
+    print(_color(tr(language, "summary"), "1;32", use_color))
+    print(f"  {tr(language, 'doctor_status', status=tr(language, 'doctor_status_ok' if ok else 'doctor_status_needs_attention'))}")
+    print(f"  {tr(language, 'doctor_checks', passing=passing, total=total)}")
+    print(
+        f"  {tr(language, 'doctor_issue_counts', blocking=summary.get('blocking', 0), warnings=summary.get('warnings', 0))}"
+    )
+    groups = summary.get("groups", [])
+    if isinstance(groups, list):
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            group_key = "doctor_group_" + str(group.get("name", "unknown"))
+            status_key = "doctor_group_status_" + str(group.get("status", "ok"))
+            print(
+                f"  {tr(language, group_key)}: {tr(language, status_key)} "
+                f"({group.get('passing', 0)}/{group.get('total', 0)})"
+            )
+    state_log = payload.get("state_log", {})
+    if isinstance(state_log, dict) and state_log.get("path") and state_log.get("entry"):
+        print(f"  {tr(language, 'state_log', path=state_log.get('path'), entry=state_log.get('entry'))}")
     for check in checks:
         if not isinstance(check, dict) or check.get("ok"):
             continue
         name = check.get("name", "unknown")
         message = check.get("message", "")
         remediation = check.get("remediation", "") or check.get("next_action", "")
-        print(f"- {name}: {message}")
+        print(f"  - {name}: {message}")
         if remediation:
-            print(f"  Fix: {remediation}")
+            print(f"    {tr(language, 'doctor_fix')}: {remediation}")
     next_action = str(payload.get("recommended_next_action", "")).strip()
+    print(_color(tr(language, "next"), "1;32", use_color))
     if next_action:
-        print(f"Next: {next_action}")
-    print("Boundary: restart or reload Hermes before treating chat visibility as observed.")
-    print("For machine-readable output, rerun with `--json`.")
+        print(f"  {next_action}")
+    print(f"  {tr(language, 'doctor_boundary')}")
+    print(f"  {tr(language, 'machine_readable')}")
 
 
 def _print_uninstall_summary(payload: dict[str, object], *, language: str = "en") -> None:
@@ -1255,6 +1404,7 @@ def _add_top_level_commands(sub) -> None:
 
     doctor = sub.add_parser("doctor", help="Check local OMH install health and Hermes skill registration.")
     doctor.add_argument("--json", action="store_true", help="Print the full machine-readable doctor payload.")
+    doctor.add_argument("--language", default=None, help=f"Human output language ({', '.join(LANGUAGE_CODES)}).")
     doctor.set_defaults(func=cmd_doctor)
 
     recommend = sub.add_parser("recommend", help="Map a task description to likely OMH workflow skills.")

@@ -54,8 +54,13 @@ class CliTests(unittest.TestCase):
             self.assertIn("Installing managed skills", stdout)
             self.assertIn("OMH setup complete.", stdout)
             self.assertIn("Skills:", stdout)
+            self.assertIn("Setup scope:", stdout)
+            self.assertIn("Install mode: managed Hermes skills", stdout)
+            self.assertIn("Setup state:", stdout)
             self.assertIn("Hermes registration:", stdout)
             self.assertIn("Coding handoff default:", stdout)
+            self.assertIn("State log:", stdout)
+            self.assertIn("last_setup", stdout)
             self.assertIn("Visible team preset:", stdout)
             self.assertIn("Restart or reload Hermes Agent", stdout)
             self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
@@ -66,8 +71,14 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(status, 0, stderr)
             self.assertEqual(stderr, "")
-            self.assertIn("OMH doctor: ok", stdout)
+            self.assertIn("OMH doctor complete.", stdout)
+            self.assertIn("Status: ok", stdout)
             self.assertIn("Checks:", stdout)
+            self.assertIn("Issues: 0 blocking", stdout)
+            self.assertIn("Managed skills: ok", stdout)
+            self.assertIn("Hermes registration: ok", stdout)
+            self.assertIn("State log:", stdout)
+            self.assertIn("last_doctor", stdout)
             self.assertIn("Boundary: restart or reload Hermes", stdout)
             self.assertIn("For machine-readable output, rerun with `--json`.", stdout)
 
@@ -87,13 +98,22 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(status, 0, stderr)
             self.assertEqual(stderr, "")
-            self.assertTrue(json.loads(stdout)["ok"])
+            setup_payload = json.loads(stdout)
+            self.assertTrue(setup_payload["ok"])
+            self.assertEqual(setup_payload["operator_summary"]["schema_version"], "setup_operator_summary/v1")
+            self.assertEqual(setup_payload["operator_summary"]["install_mode"], "managed_skills")
+            self.assertEqual(setup_payload["operator_summary"]["mcp_mode"], "none")
+            self.assertEqual(setup_payload["operator_summary"]["state_log"]["entry"], "last_setup")
 
             status, stdout, stderr = run_cli(base + ["doctor", "--json"], output_json=False)
 
             self.assertEqual(status, 0, stderr)
             self.assertEqual(stderr, "")
-            self.assertTrue(json.loads(stdout)["ok"])
+            doctor_payload = json.loads(stdout)
+            self.assertTrue(doctor_payload["ok"])
+            self.assertEqual(doctor_payload["summary"]["schema_version"], "doctor_summary/v1")
+            self.assertEqual(doctor_payload["summary"]["status"], "ok")
+            self.assertEqual(doctor_payload["state_log"]["entry"], "last_doctor")
 
     def test_setup_interactive_wizard_records_user_choices(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -160,7 +180,16 @@ class CliTests(unittest.TestCase):
             self.assertIn("OMH 설정", stdout)
             self.assertIn("관리 스킬 설치", stdout)
             self.assertIn("OMH 설정이 완료되었습니다.", stdout)
+            self.assertIn("설치 모드:", stdout)
             self.assertIn("기계가 읽는 출력", stdout)
+
+            status, stdout, stderr = run_cli(base + ["doctor", "--language", "ko"], output_json=False)
+
+            self.assertEqual(status, 0, stderr)
+            self.assertEqual(stderr, "")
+            self.assertIn("OMH doctor가 완료되었습니다.", stdout)
+            self.assertIn("검사:", stdout)
+            self.assertIn("상태 로그:", stdout)
 
             install_root = root / "install"
             status, stdout, stderr = run_cli(["--omh-home", str(install_root / ".omh"), "install", "--language", "zh"], output_json=False)
@@ -2301,6 +2330,9 @@ class CliTests(unittest.TestCase):
             self.assertIn("apply", payload["steps"])
             self.assertNotIn("doctor", payload["steps"])
             self.assertEqual(payload["hermes_native"]["schema_version"], "hermes_native_setup/v1")
+            self.assertEqual(payload["operator_summary"]["schema_version"], "setup_operator_summary/v1")
+            self.assertEqual(payload["operator_summary"]["status"], "configured")
+            self.assertEqual(payload["operator_summary"]["state_log"]["entry"], "last_setup")
             self.assertEqual(payload["hermes_native"]["mode"], "omh_bootstrap")
             self.assertFalse(payload["hermes_native"]["dry_run"])
             self.assertTrue(payload["hermes_native"]["observed"])
@@ -2319,6 +2351,7 @@ class CliTests(unittest.TestCase):
             state = json.loads((omh_home / "runtime" / "state.json").read_text(encoding="utf-8"))
             self.assertTrue(state["last_setup"]["ok"])
             self.assertEqual(state["last_setup"]["hermes_native"]["schema_version"], "hermes_native_setup/v1")
+            self.assertEqual(state["last_setup"]["operator_summary"]["schema_version"], "setup_operator_summary/v1")
             self.assertEqual(state["last_setup"]["hermes_native"]["skills_dir"], str((omh_home / "skills").resolve()))
 
             doctor_status, doctor_stdout, doctor_stderr = run_cli(["--omh-home", str(omh_home), "--hermes-home", str(hermes_home), "doctor"])

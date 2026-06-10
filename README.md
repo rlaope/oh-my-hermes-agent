@@ -89,14 +89,17 @@ Verify the local install:
 omh doctor
 ```
 
-`omh doctor` prints a short health summary by default. Use `omh doctor --json`
-for the full check payload.
+`omh doctor` prints a grouped health summary by default: managed skills,
+runtime state, Hermes registration, target topology, optional surfaces, the
+recommended next action, and the `last_doctor` state-log entry when writable.
+Use `omh doctor --json` for the full check payload.
 `omh install`, `omh update`, and `omh uninstall` follow the same rule:
 human-readable summaries for terminal use, `--json` for wrappers and
 automation. `omh update` refreshes the managed skill pack from the currently
 installed command package; rerun the installer when you need to update the
-`omh` command code itself. Install and update summaries are also recorded in
-`~/.omh/runtime/state.json` as `last_install` or `last_update`.
+`omh` command code itself. Setup, install, update, and doctor summaries are
+recorded in `~/.omh/runtime/state.json` as `last_setup`, `last_install`,
+`last_update`, or `last_doctor`.
 
 The installer creates an isolated OMH virtual environment, links the `omh`
 command into `~/.local/bin` when possible, and prints the installed command
