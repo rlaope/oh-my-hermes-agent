@@ -1,6 +1,6 @@
 ---
 name: ralph
-description: Hermes Ralph workflow: persistent execution with verification and review.
+description: [omh] Hermes Ralph workflow: persistent execution with verification and review.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, execution]

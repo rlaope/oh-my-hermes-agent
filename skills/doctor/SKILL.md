@@ -1,6 +1,6 @@
 ---
 name: doctor
-description: Hermes adaptation for diagnosing oh-my-hermes installation health.
+description: [omh] Hermes adaptation for diagnosing oh-my-hermes installation health.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, operator]

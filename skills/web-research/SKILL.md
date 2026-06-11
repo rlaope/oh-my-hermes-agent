@@ -1,6 +1,6 @@
 ---
 name: web-research
-description: Hermes Web Research workflow: source-backed current information gathering.
+description: [omh] Hermes Web Research workflow: source-backed current information gathering.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, research]

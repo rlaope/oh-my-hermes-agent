@@ -1,6 +1,6 @@
 ---
 name: team
-description: Hermes Team workflow: coordinated parallel or sequential work lanes.
+description: [omh] Hermes Team workflow: coordinated parallel or sequential work lanes.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, execution]

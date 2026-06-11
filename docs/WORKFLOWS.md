@@ -14,7 +14,7 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
 
 ### oh-my-hermes
 
-Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
+[omh] Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
 
 - Category: `router`
 - Phase: `routing`
@@ -44,7 +44,7 @@ Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
 
 ### ralph
 
-Hermes Ralph workflow: persistent execution with verification and review.
+[omh] Hermes Ralph workflow: persistent execution with verification and review.
 
 - Category: `execution`
 - Phase: `completion`
@@ -74,7 +74,7 @@ Hermes Ralph workflow: persistent execution with verification and review.
 
 ### ultragoal
 
-Hermes Ultragoal workflow: file-backed durable goal ledgers.
+[omh] Hermes Ultragoal workflow: file-backed durable goal ledgers.
 
 - Category: `execution`
 - Phase: `durable-goals`
@@ -108,7 +108,7 @@ Hermes Ultragoal workflow: file-backed durable goal ledgers.
 
 ### loop
 
-Hermes Loop workflow: ambitious goal interview, research, planning, runtime ticks, handoff, feedback, and resume cycles.
+[omh] Hermes Loop workflow: ambitious goal interview, research, planning, runtime ticks, handoff, feedback, and resume cycles.
 
 - Category: `goal-loop`
 - Phase: `continuous-goal-loop`
@@ -159,7 +159,7 @@ Hermes Loop workflow: ambitious goal interview, research, planning, runtime tick
 
 ### ultraprocess
 
-Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.
+[omh] Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.
 
 - Category: `process`
 - Phase: `single-cycle-plan-to-pr`
@@ -199,7 +199,7 @@ Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one 
 
 ### deep-interview
 
-Hermes Deep Interview workflow: one-question-at-a-time clarification.
+[omh] Hermes Deep Interview workflow: one-question-at-a-time clarification.
 
 - Category: `clarification`
 - Phase: `discovery`
@@ -229,7 +229,7 @@ Hermes Deep Interview workflow: one-question-at-a-time clarification.
 
 ### team
 
-Hermes Team workflow: coordinated parallel or sequential work lanes.
+[omh] Hermes Team workflow: coordinated parallel or sequential work lanes.
 
 - Category: `execution`
 - Phase: `coordination`
@@ -259,7 +259,7 @@ Hermes Team workflow: coordinated parallel or sequential work lanes.
 
 ### ultrawork
 
-Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
+[omh] Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
 
 - Category: `execution`
 - Phase: `parallel-delivery`
@@ -290,7 +290,7 @@ Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
 
 ### web-research
 
-Hermes Web Research workflow: source-backed current information gathering.
+[omh] Hermes Web Research workflow: source-backed current information gathering.
 
 - Category: `research`
 - Phase: `current-evidence`
@@ -320,7 +320,7 @@ Hermes Web Research workflow: source-backed current information gathering.
 
 ### research-brief
 
-Hermes Research Brief workflow: source-backed business research without pretending evidence was fetched.
+[omh] Hermes Research Brief workflow: source-backed business research without pretending evidence was fetched.
 
 - Category: `research`
 - Phase: `business-brief`
@@ -350,7 +350,7 @@ Hermes Research Brief workflow: source-backed business research without pretendi
 
 ### strategy-brief
 
-Hermes Strategy Brief workflow: options, tradeoffs, recommendation, and decision notes.
+[omh] Hermes Strategy Brief workflow: options, tradeoffs, recommendation, and decision notes.
 
 - Category: `strategy`
 - Phase: `brief`
@@ -382,7 +382,7 @@ Hermes Strategy Brief workflow: options, tradeoffs, recommendation, and decision
 
 ### meeting-brief
 
-Hermes Meeting Brief workflow: agenda, prompts, decisions, and record template.
+[omh] Hermes Meeting Brief workflow: agenda, prompts, decisions, and record template.
 
 - Category: `meeting`
 - Phase: `preparation`
@@ -414,7 +414,7 @@ Hermes Meeting Brief workflow: agenda, prompts, decisions, and record template.
 
 ### feedback-triage
 
-Hermes Feedback Triage workflow: cluster customer signals and choose the next workflow.
+[omh] Hermes Feedback Triage workflow: cluster customer signals and choose the next workflow.
 
 - Category: `triage`
 - Phase: `feedback`
@@ -444,7 +444,7 @@ Hermes Feedback Triage workflow: cluster customer signals and choose the next wo
 
 ### ops-review
 
-Hermes Ops Review workflow: status, risks, blockers, priorities, and follow-ups.
+[omh] Hermes Ops Review workflow: status, risks, blockers, priorities, and follow-ups.
 
 - Category: `operations`
 - Phase: `status-review`
@@ -477,7 +477,7 @@ Hermes Ops Review workflow: status, risks, blockers, priorities, and follow-ups.
 
 ### idea-to-deploy
 
-Hermes Idea-to-Deploy workflow: shape an app idea into decisions, delivery handoff, verification, release, and monitoring status.
+[omh] Hermes Idea-to-Deploy workflow: shape an app idea into decisions, delivery handoff, verification, release, and monitoring status.
 
 - Category: `delivery`
 - Phase: `app-delivery-loop`
@@ -510,7 +510,7 @@ Hermes Idea-to-Deploy workflow: shape an app idea into decisions, delivery hando
 
 ### cto-loop
 
-Hermes CTO Loop workflow: roadmap, PM, technical tradeoffs, risk, delivery, release, and follow-up operating cadence.
+[omh] Hermes CTO Loop workflow: roadmap, PM, technical tradeoffs, risk, delivery, release, and follow-up operating cadence.
 
 - Category: `leadership`
 - Phase: `operating-loop`
@@ -544,7 +544,7 @@ Hermes CTO Loop workflow: roadmap, PM, technical tradeoffs, risk, delivery, rele
 
 ### deploy-and-monitor
 
-Hermes Deploy-and-Monitor workflow: release checklist, deploy decision, health signals, rollback gate, and post-deploy status.
+[omh] Hermes Deploy-and-Monitor workflow: release checklist, deploy decision, health signals, rollback gate, and post-deploy status.
 
 - Category: `monitoring`
 - Phase: `release-ops`
@@ -578,7 +578,7 @@ Hermes Deploy-and-Monitor workflow: release checklist, deploy decision, health s
 
 ### ultraqa
 
-Hermes UltraQA workflow: adversarial QA and fix loops.
+[omh] Hermes UltraQA workflow: adversarial QA and fix loops.
 
 - Category: `verification`
 - Phase: `qa`
@@ -608,7 +608,7 @@ Hermes UltraQA workflow: adversarial QA and fix loops.
 
 ### plan
 
-Hermes Plan workflow: structured planning before execution.
+[omh] Hermes Plan workflow: structured planning before execution.
 
 - Category: `planning`
 - Phase: `plan`
@@ -638,7 +638,7 @@ Hermes Plan workflow: structured planning before execution.
 
 ### ralplan
 
-Hermes Ralplan workflow: consensus planning with review gates.
+[omh] Hermes Ralplan workflow: consensus planning with review gates.
 
 - Category: `planning`
 - Phase: `reviewed-plan`
@@ -669,7 +669,7 @@ Hermes Ralplan workflow: consensus planning with review gates.
 
 ### code-review
 
-Hermes Code Review workflow: bug-first review with evidence.
+[omh] Hermes Code Review workflow: bug-first review with evidence.
 
 - Category: `review`
 - Phase: `critique`
@@ -699,7 +699,7 @@ Hermes Code Review workflow: bug-first review with evidence.
 
 ### ai-slop-cleaner
 
-Hermes AI slop cleaner workflow: behavior-preserving cleanup.
+[omh] Hermes AI slop cleaner workflow: behavior-preserving cleanup.
 
 - Category: `maintenance`
 - Phase: `cleanup`
@@ -729,7 +729,7 @@ Hermes AI slop cleaner workflow: behavior-preserving cleanup.
 
 ### best-practice-research
 
-Hermes adaptation for bounded official/upstream best-practice research.
+[omh] Hermes adaptation for bounded official/upstream best-practice research.
 
 - Category: `research`
 - Phase: `evidence`
@@ -758,7 +758,7 @@ Hermes adaptation for bounded official/upstream best-practice research.
 
 ### autoresearch-goal
 
-Hermes adaptation for durable research-goal execution.
+[omh] Hermes adaptation for durable research-goal execution.
 
 - Category: `research`
 - Phase: `durable-research`
@@ -787,7 +787,7 @@ Hermes adaptation for durable research-goal execution.
 
 ### performance-goal
 
-Hermes adaptation for measurable performance-goal execution.
+[omh] Hermes adaptation for measurable performance-goal execution.
 
 - Category: `optimization`
 - Phase: `measurement`
@@ -817,7 +817,7 @@ Hermes adaptation for measurable performance-goal execution.
 
 ### wiki
 
-Hermes adaptation for maintaining a project-local markdown wiki.
+[omh] Hermes adaptation for maintaining a project-local markdown wiki.
 
 - Category: `knowledge`
 - Phase: `capture`
@@ -846,7 +846,7 @@ Hermes adaptation for maintaining a project-local markdown wiki.
 
 ### ask
 
-Hermes adaptation for consulting an external advisor when configured.
+[omh] Hermes adaptation for consulting an external advisor when configured.
 
 - Category: `review`
 - Phase: `external-advice`
@@ -875,7 +875,7 @@ Hermes adaptation for consulting an external advisor when configured.
 
 ### cancel
 
-Hermes adaptation for ending active workflow state cleanly.
+[omh] Hermes adaptation for ending active workflow state cleanly.
 
 - Category: `operator`
 - Phase: `state-cleanup`
@@ -901,7 +901,7 @@ Hermes adaptation for ending active workflow state cleanly.
 
 ### skill
 
-Hermes adaptation for managing local skills.
+[omh] Hermes adaptation for managing local skills.
 
 - Category: `operator`
 - Phase: `skill-management`
@@ -927,7 +927,7 @@ Hermes adaptation for managing local skills.
 
 ### doctor
 
-Hermes adaptation for diagnosing oh-my-hermes installation health.
+[omh] Hermes adaptation for diagnosing oh-my-hermes installation health.
 
 - Category: `operator`
 - Phase: `diagnostics`

@@ -1,6 +1,6 @@
 ---
 name: ultraprocess
-description: Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.
+description: [omh] Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, process]

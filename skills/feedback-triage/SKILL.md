@@ -1,6 +1,6 @@
 ---
 name: feedback-triage
-description: Hermes Feedback Triage workflow: cluster customer signals and choose the next workflow.
+description: [omh] Hermes Feedback Triage workflow: cluster customer signals and choose the next workflow.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, triage]

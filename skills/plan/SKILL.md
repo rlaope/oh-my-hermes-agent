@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Hermes Plan workflow: structured planning before execution.
+description: [omh] Hermes Plan workflow: structured planning before execution.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, planning]

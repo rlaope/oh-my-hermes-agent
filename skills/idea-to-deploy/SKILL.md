@@ -1,6 +1,6 @@
 ---
 name: idea-to-deploy
-description: Hermes Idea-to-Deploy workflow: shape an app idea into decisions, delivery handoff, verification, release, and monitoring status.
+description: [omh] Hermes Idea-to-Deploy workflow: shape an app idea into decisions, delivery handoff, verification, release, and monitoring status.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, delivery]

@@ -1,6 +1,6 @@
 ---
 name: ultrawork
-description: Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
+description: [omh] Hermes Ultrawork compatibility workflow: bounded parallel delivery guidance.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, execution]

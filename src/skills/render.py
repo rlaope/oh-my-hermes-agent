@@ -11,6 +11,7 @@ from .catalog import (
     builtin_harnesses,
     harness_quality_contract,
     memory_context_policy_for_skill,
+    omh_description,
     primary_harness_for_skill,
 )
 
@@ -109,6 +110,7 @@ def _frontmatter(name: str, description: str) -> str:
     definition = _definitions_by_name().get(name)
     category = definition.category if definition else "workflow"
     phase = definition.phase if definition else "general"
+    description = omh_description(description)
     return (
         f"---\nname: {name}\ndescription: {description}\nmetadata:\n"
         f"  hermes:\n    tags: [workflow, oh-my-hermes, {category}]\n"

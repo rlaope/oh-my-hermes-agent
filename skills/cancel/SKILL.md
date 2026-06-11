@@ -1,6 +1,6 @@
 ---
 name: cancel
-description: Hermes adaptation for ending active workflow state cleanly.
+description: [omh] Hermes adaptation for ending active workflow state cleanly.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, operator]

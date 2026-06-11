@@ -1,6 +1,6 @@
 ---
 name: performance-goal
-description: Hermes adaptation for measurable performance-goal execution.
+description: [omh] Hermes adaptation for measurable performance-goal execution.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, optimization]

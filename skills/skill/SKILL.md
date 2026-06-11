@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Hermes adaptation for managing local skills.
+description: [omh] Hermes adaptation for managing local skills.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, operator]

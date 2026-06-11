@@ -1,6 +1,6 @@
 ---
 name: deep-interview
-description: Hermes Deep Interview workflow: one-question-at-a-time clarification.
+description: [omh] Hermes Deep Interview workflow: one-question-at-a-time clarification.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, clarification]

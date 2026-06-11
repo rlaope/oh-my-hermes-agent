@@ -1,6 +1,6 @@
 ---
 name: best-practice-research
-description: Hermes adaptation for bounded official/upstream best-practice research.
+description: [omh] Hermes adaptation for bounded official/upstream best-practice research.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, research]
