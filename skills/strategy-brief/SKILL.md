@@ -1,6 +1,6 @@
 ---
 name: strategy-brief
-description: Hermes Strategy Brief workflow: options, tradeoffs, recommendation, and decision notes.
+description: [omh] Hermes Strategy Brief workflow: options, tradeoffs, recommendation, and decision notes.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, strategy]

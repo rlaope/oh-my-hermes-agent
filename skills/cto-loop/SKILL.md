@@ -1,6 +1,6 @@
 ---
 name: cto-loop
-description: Hermes CTO Loop workflow: roadmap, PM, technical tradeoffs, risk, delivery, release, and follow-up operating cadence.
+description: [omh] Hermes CTO Loop workflow: roadmap, PM, technical tradeoffs, risk, delivery, release, and follow-up operating cadence.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, leadership]

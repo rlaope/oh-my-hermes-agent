@@ -1,6 +1,6 @@
 ---
 name: ultraqa
-description: Hermes UltraQA workflow: adversarial QA and fix loops.
+description: [omh] Hermes UltraQA workflow: adversarial QA and fix loops.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, verification]

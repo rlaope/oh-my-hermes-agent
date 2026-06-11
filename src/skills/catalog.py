@@ -5,6 +5,16 @@ from dataclasses import dataclass
 from ..harness_quality import build_harness_quality_contract, unknown_harness_quality_contract
 
 
+OMH_DESCRIPTION_PREFIX = "[omh] "
+
+
+def omh_description(description: str) -> str:
+    text = description.strip()
+    if text.lower().startswith(OMH_DESCRIPTION_PREFIX):
+        return text
+    return f"{OMH_DESCRIPTION_PREFIX}{text}"
+
+
 @dataclass(frozen=True)
 class SkillDefinition:
     name: str
@@ -28,6 +38,9 @@ class SkillDefinition:
         "Name the workflow target, constraints, validation evidence, and stop condition.",
         "Separate Hermes guidance from executor or wrapper behavior unless evidence proves the step happened.",
     )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "description", omh_description(self.description))
 
 
 @dataclass(frozen=True)

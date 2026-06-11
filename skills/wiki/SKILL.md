@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: Hermes adaptation for maintaining a project-local markdown wiki.
+description: [omh] Hermes adaptation for maintaining a project-local markdown wiki.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, knowledge]

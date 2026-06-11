@@ -1,6 +1,6 @@
 ---
 name: ask
-description: Hermes adaptation for consulting an external advisor when configured.
+description: [omh] Hermes adaptation for consulting an external advisor when configured.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, review]

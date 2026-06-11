@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Hermes Code Review workflow: bug-first review with evidence.
+description: [omh] Hermes Code Review workflow: bug-first review with evidence.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, review]

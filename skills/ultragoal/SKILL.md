@@ -1,6 +1,6 @@
 ---
 name: ultragoal
-description: Hermes Ultragoal workflow: file-backed durable goal ledgers.
+description: [omh] Hermes Ultragoal workflow: file-backed durable goal ledgers.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, execution]

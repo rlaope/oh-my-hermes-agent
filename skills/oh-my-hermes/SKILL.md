@@ -1,6 +1,6 @@
 ---
 name: oh-my-hermes
-description: Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
+description: [omh] Router guidance for using oh-my-hermes workflow skills inside Hermes Agent.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, router]

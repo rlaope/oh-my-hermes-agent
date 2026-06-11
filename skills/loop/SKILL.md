@@ -1,6 +1,6 @@
 ---
 name: loop
-description: Hermes Loop workflow: ambitious goal interview, research, planning, runtime ticks, handoff, feedback, and resume cycles.
+description: [omh] Hermes Loop workflow: ambitious goal interview, research, planning, runtime ticks, handoff, feedback, and resume cycles.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, goal-loop]

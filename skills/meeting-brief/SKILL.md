@@ -1,6 +1,6 @@
 ---
 name: meeting-brief
-description: Hermes Meeting Brief workflow: agenda, prompts, decisions, and record template.
+description: [omh] Hermes Meeting Brief workflow: agenda, prompts, decisions, and record template.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, meeting]

@@ -1,6 +1,6 @@
 ---
 name: ops-review
-description: Hermes Ops Review workflow: status, risks, blockers, priorities, and follow-ups.
+description: [omh] Hermes Ops Review workflow: status, risks, blockers, priorities, and follow-ups.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, operations]

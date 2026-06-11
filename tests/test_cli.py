@@ -3039,6 +3039,7 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(run_cli(["--omh-home", str(omh_home), "convert", "--from-skills-dir", str(root / "local-skills")])[0], 0)
             converted = (omh_home / "skills" / "ralph" / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn("description: [omh] Hermes Ralph workflow", converted)
             self.assertIn("Hermes Compatibility Contract", converted)
 
     def test_mocked_source_install_update(self) -> None:

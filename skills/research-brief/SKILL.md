@@ -1,6 +1,6 @@
 ---
 name: research-brief
-description: Hermes Research Brief workflow: source-backed business research without pretending evidence was fetched.
+description: [omh] Hermes Research Brief workflow: source-backed business research without pretending evidence was fetched.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, research]

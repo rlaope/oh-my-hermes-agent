@@ -168,6 +168,7 @@ class RouterContentTests(unittest.TestCase):
 
     def test_catalog_definitions_expose_required_metadata_fields(self) -> None:
         for definition in builtin_definitions():
+            self.assertTrue(definition.description.startswith("[omh] "), definition.name)
             self.assertTrue(definition.category, definition.name)
             self.assertTrue(definition.phase, definition.name)
             self.assertTrue(definition.quality_tier, definition.name)
@@ -179,6 +180,8 @@ class RouterContentTests(unittest.TestCase):
             self.assertTrue(definition.hermes_role, definition.name)
             self.assertIn(definition.delegation_boundary, {"default", "retained", "retained-catalog-intent"}, definition.name)
             self.assertTrue(definition.handoff_policy, definition.name)
+        for template in builtin_skill_templates():
+            self.assertIn("description: [omh] ", template.content.split("---", 2)[1], template.name)
 
     def test_catalog_marks_retained_and_codex_handoff_skills(self) -> None:
         definitions = {definition.name: definition for definition in builtin_definitions()}
@@ -191,7 +194,7 @@ class RouterContentTests(unittest.TestCase):
         self.assertEqual(definitions["ultraprocess"].hermes_role, "retained-cognition")
         self.assertEqual(
             definitions["ultraprocess"].description,
-            "Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.",
+            "[omh] Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.",
         )
         self.assertEqual(definitions["ultrawork"].hermes_role, "codex-handoff-guidance")
         self.assertEqual(definitions["ai-slop-cleaner"].hermes_role, "codex-handoff-guidance")

@@ -1,6 +1,6 @@
 ---
 name: deploy-and-monitor
-description: Hermes Deploy-and-Monitor workflow: release checklist, deploy decision, health signals, rollback gate, and post-deploy status.
+description: [omh] Hermes Deploy-and-Monitor workflow: release checklist, deploy decision, health signals, rollback gate, and post-deploy status.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, monitoring]

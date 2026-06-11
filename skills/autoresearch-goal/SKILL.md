@@ -1,6 +1,6 @@
 ---
 name: autoresearch-goal
-description: Hermes adaptation for durable research-goal execution.
+description: [omh] Hermes adaptation for durable research-goal execution.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, research]
