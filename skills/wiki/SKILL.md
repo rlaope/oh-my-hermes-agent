@@ -27,13 +27,13 @@ This is a Hermes-native `wiki` workflow skill.
 
 Good example:
 
-- Prompt: wiki for: <task that matches this workflow>
+- Prompt: wiki: handle a knowledge request that needs explicit evidence boundaries and a clear stop condition.
 - Expected behavior: Run `wiki` only after naming the target, evidence boundary, and stop condition.
 - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 
 Bad example:
 
-- Prompt: wiki for: <unrelated or unaccepted work>
+- Prompt: wiki: treat casual chat or unaccepted work as if this workflow already produced verified results.
 - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `wiki`.
 - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 

@@ -52,6 +52,7 @@ class SkillDefinition:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "description", omh_description(self.description))
+        routing_hint = self.triggers[0] if self.triggers else self.name
         if not self.why_this_exists:
             object.__setattr__(
                 self,
@@ -75,7 +76,10 @@ class SkillDefinition:
                 self,
                 "good_example",
                 SkillExample(
-                    prompt=f"{self.triggers[0]} for: <task that matches this workflow>",
+                    prompt=(
+                        f"{routing_hint}: handle a {self.category} request that needs "
+                        "explicit evidence boundaries and a clear stop condition."
+                    ),
                     expected=f"Run `{self.name}` only after naming the target, evidence boundary, and stop condition.",
                     why="The request matches the catalog use case and keeps observed evidence separate from prepared guidance.",
                 ),
@@ -85,7 +89,10 @@ class SkillDefinition:
                 self,
                 "bad_example",
                 SkillExample(
-                    prompt=f"{self.triggers[0]} for: <unrelated or unaccepted work>",
+                    prompt=(
+                        f"{routing_hint}: treat casual chat or unaccepted work as if "
+                        "this workflow already produced verified results."
+                    ),
                     expected=f"Ask a clarification question or route to a narrower workflow instead of forcing `{self.name}`.",
                     why="The request lacks the required inputs or would overclaim work that Hermes did not observe.",
                 ),

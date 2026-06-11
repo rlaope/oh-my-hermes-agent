@@ -27,13 +27,13 @@ This is a Hermes-native `ralplan` workflow skill.
 
 Good example:
 
-- Prompt: ralplan for: <task that matches this workflow>
+- Prompt: ralplan: handle a planning request that needs explicit evidence boundaries and a clear stop condition.
 - Expected behavior: Run `ralplan` only after naming the target, evidence boundary, and stop condition.
 - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 
 Bad example:
 
-- Prompt: ralplan for: <unrelated or unaccepted work>
+- Prompt: ralplan: treat casual chat or unaccepted work as if this workflow already produced verified results.
 - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ralplan`.
 - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 

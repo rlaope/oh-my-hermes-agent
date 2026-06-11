@@ -71,11 +71,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ralph`, `$ralph`, `finish until done`, `persistent execution`, `self-referential loop`
 - Good example:
-  - Prompt: ralph for: <task that matches this workflow>
+  - Prompt: ralph: handle a execution request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ralph` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ralph for: <unrelated or unaccepted work>
+  - Prompt: ralph: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ralph`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -320,11 +320,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `team`, `$team`, `swarm`, `parallel agents`, `coordinated workers`
 - Good example:
-  - Prompt: team for: <task that matches this workflow>
+  - Prompt: team: handle a execution request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `team` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: team for: <unrelated or unaccepted work>
+  - Prompt: team: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `team`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -406,11 +406,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `web-research`, `web research`, `latest`, `current sources`, `source-backed research`, `investigate`, `research plan`, `조사`, `근거`, `출처`, `고객 피드백`
 - Good example:
-  - Prompt: web-research for: <task that matches this workflow>
+  - Prompt: web-research: handle a research request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `web-research` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: web-research for: <unrelated or unaccepted work>
+  - Prompt: web-research: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `web-research`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -448,11 +448,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `research-brief`, `business-research`, `business research`, `research brief`, `source-backed business research`, `customer feedback trends`, `feedback trends`, `market evidence`, `data search`, `source scan`, `자료 조사`, `데이터 서치`, `근거 조사`, `피드백 추세`, `고객 피드백 추세`
 - Good example:
-  - Prompt: research-brief for: <task that matches this workflow>
+  - Prompt: research-brief: handle a research request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `research-brief` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: research-brief for: <unrelated or unaccepted work>
+  - Prompt: research-brief: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `research-brief`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -490,11 +490,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `strategy-brief`, `strategy brief`, `strategy memo`, `product strategy`, `strategic options`, `decision note`, `leadership strategy`, `next strategy`, `다음 전략`, `전략 정리`, `전략 메모`, `전략 옵션`, `의사결정`, `리더십 회의`
 - Good example:
-  - Prompt: strategy-brief for: <task that matches this workflow>
+  - Prompt: strategy-brief: handle a strategy request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `strategy-brief` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: strategy-brief for: <unrelated or unaccepted work>
+  - Prompt: strategy-brief: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `strategy-brief`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -622,11 +622,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ops-review`, `ops review`, `weekly ops review`, `status review`, `operating review`, `release risks`, `risks and blockers`, `priorities`, `weekly status`, `운영 리뷰`, `주간 운영`, `상태 리뷰`, `리스크`, `블로커`, `우선순위`, `릴리즈 리스크`
 - Good example:
-  - Prompt: ops-review for: <task that matches this workflow>
+  - Prompt: ops-review: handle a operations request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ops-review` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ops-review for: <unrelated or unaccepted work>
+  - Prompt: ops-review: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ops-review`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -667,11 +667,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `idea-to-deploy`, `idea to deploy`, `from idea to deploy`, `plan to deploy`, `idea to launch`, `ship this idea`, `ship this feature`, `launch this feature`, `product delivery loop`, `app delivery loop`, `complete product loop`, `end-to-end app operation`, `완제품 루프`, `아이디어부터 배포`, `기획부터 배포`, `출시까지`, `앱 운영 루프`
 - Good example:
-  - Prompt: idea-to-deploy for: <task that matches this workflow>
+  - Prompt: idea-to-deploy: handle a delivery request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `idea-to-deploy` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: idea-to-deploy for: <unrelated or unaccepted work>
+  - Prompt: idea-to-deploy: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `idea-to-deploy`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -712,11 +712,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `cto-loop`, `cto loop`, `cto`, `cto pm`, `pm dev qa security ops`, `roadmap technical tradeoffs`, `technical tradeoff`, `delivery risk`, `release readiness`, `technical leadership loop`, `leadership operating loop`, `engineering leadership`, `CTO 구조`, `PM 구조`, `로드맵`, `아키텍처 트레이드오프`, `기술 리더십`, `출시 준비`
 - Good example:
-  - Prompt: cto-loop for: <task that matches this workflow>
+  - Prompt: cto-loop: handle a leadership request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `cto-loop` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: cto-loop for: <unrelated or unaccepted work>
+  - Prompt: cto-loop: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `cto-loop`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -758,11 +758,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `deploy-and-monitor`, `deploy and monitor`, `deploy monitor`, `deployment monitoring`, `release monitor`, `post deploy`, `post-deploy`, `rollback`, `rollback gate`, `health check`, `incident watch`, `release health`, `배포 모니터링`, `배포 감시`, `롤백`, `헬스 체크`, `장애 감시`, `릴리즈 모니터링`
 - Good example:
-  - Prompt: deploy-and-monitor for: <task that matches this workflow>
+  - Prompt: deploy-and-monitor: handle a monitoring request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `deploy-and-monitor` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: deploy-and-monitor for: <unrelated or unaccepted work>
+  - Prompt: deploy-and-monitor: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `deploy-and-monitor`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -804,11 +804,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ultraqa`, `$ultraqa`, `adversarial qa`, `hostile scenarios`, `e2e qa`, `real-world qa`, `qa scenario`, `release qa`, `장애 상황`, `쿠버네티스 장애`, `적절히 진단`, `검증 체크리스트`, `릴리즈 전 gate`
 - Good example:
-  - Prompt: ultraqa for: <task that matches this workflow>
+  - Prompt: ultraqa: handle a verification request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ultraqa` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ultraqa for: <unrelated or unaccepted work>
+  - Prompt: ultraqa: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ultraqa`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -846,11 +846,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `plan`, `$plan`, `implementation plan`, `strategy`, `task breakdown`, `safe feature`, `safely add a feature`, `add a feature`, `feature request`, `new feature`, `product triage`, `bug triage`, `issue triage`, `reproduction plan`, `workflow hub`, `coding handoff`, `답할 차례`, `준비할 차례`, `project template`, `결제 실패`, `결제 실패 이슈`, `재현 계획`, `고객 피드백`, `기능 요청`, `요구사항 정리`, `작업 허브`, `작업 허브가 필요`, `github pr workflow`, `상태와 다음 행동`, `프로젝트별 운영`
 - Good example:
-  - Prompt: plan for: <task that matches this workflow>
+  - Prompt: plan: handle a planning request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `plan` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: plan for: <unrelated or unaccepted work>
+  - Prompt: plan: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `plan`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -888,11 +888,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ralplan`, `$ralplan`, `consensus plan`, `reviewed plan`, `issue to PR`, `acceptance criteria`, `verification command`, `reviewable PR`, `PR로 만들`, `PR로 만들 수 있게`, `검증 command`, `리뷰 가능한 단위`
 - Good example:
-  - Prompt: ralplan for: <task that matches this workflow>
+  - Prompt: ralplan: handle a planning request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ralplan` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ralplan for: <unrelated or unaccepted work>
+  - Prompt: ralplan: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ralplan`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -974,11 +974,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ai-slop-cleaner`, `$ai-slop-cleaner`, `cleanup`, `deslop`, `refactor`, `risky`, `safe refactor`, `risk analysis`, `refactor workflow`, `legacy refactor`, `위험한 리팩터링`, `리팩터링`, `리팩토링`, `위험 분석`, `변경 범위 제한`, `회귀 테스트`
 - Good example:
-  - Prompt: ai-slop-cleaner for: <task that matches this workflow>
+  - Prompt: ai-slop-cleaner: handle a maintenance request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ai-slop-cleaner` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ai-slop-cleaner for: <unrelated or unaccepted work>
+  - Prompt: ai-slop-cleaner: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ai-slop-cleaner`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1016,11 +1016,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `best-practice-research`, `best practice`, `official docs`, `upstream guidance`
 - Good example:
-  - Prompt: best-practice-research for: <task that matches this workflow>
+  - Prompt: best-practice-research: handle a research request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `best-practice-research` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: best-practice-research for: <unrelated or unaccepted work>
+  - Prompt: best-practice-research: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `best-practice-research`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1057,11 +1057,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `autoresearch-goal`, `research goal`, `durable research`, `critic research`
 - Good example:
-  - Prompt: autoresearch-goal for: <task that matches this workflow>
+  - Prompt: autoresearch-goal: handle a research request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `autoresearch-goal` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: autoresearch-goal for: <unrelated or unaccepted work>
+  - Prompt: autoresearch-goal: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `autoresearch-goal`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1098,11 +1098,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `performance-goal`, `performance goal`, `latency`, `throughput`, `benchmark`
 - Good example:
-  - Prompt: performance-goal for: <task that matches this workflow>
+  - Prompt: performance-goal: handle a optimization request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `performance-goal` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: performance-goal for: <unrelated or unaccepted work>
+  - Prompt: performance-goal: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `performance-goal`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1140,11 +1140,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `wiki`, `project wiki`, `memory`, `notes`
 - Good example:
-  - Prompt: wiki for: <task that matches this workflow>
+  - Prompt: wiki: handle a knowledge request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `wiki` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: wiki for: <unrelated or unaccepted work>
+  - Prompt: wiki: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `wiki`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1181,11 +1181,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `ask`, `$ask`, `external advisor`, `claude`, `gemini`
 - Good example:
-  - Prompt: ask for: <task that matches this workflow>
+  - Prompt: ask: handle a review request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `ask` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: ask for: <unrelated or unaccepted work>
+  - Prompt: ask: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ask`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1222,11 +1222,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `cancel`, `$cancel`, `stop`, `abort`
 - Good example:
-  - Prompt: cancel for: <task that matches this workflow>
+  - Prompt: cancel: handle a operator request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `cancel` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: cancel for: <unrelated or unaccepted work>
+  - Prompt: cancel: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `cancel`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:
@@ -1260,11 +1260,11 @@ When wrapper metadata reports `omh_target_topology/v1`, skills bind workflow sta
   - The user needs implementation, review, CI, merge, or external publishing evidence that has not been delegated or observed.
 - Strong routing signals: `skill`, `$skill`, `skills`, `manage skills`
 - Good example:
-  - Prompt: skill for: <task that matches this workflow>
+  - Prompt: skill: handle a operator request that needs explicit evidence boundaries and a clear stop condition.
   - Expected behavior: Run `skill` only after naming the target, evidence boundary, and stop condition.
   - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 - Bad example:
-  - Prompt: skill for: <unrelated or unaccepted work>
+  - Prompt: skill: treat casual chat or unaccepted work as if this workflow already produced verified results.
   - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `skill`.
   - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 - Quality bar:

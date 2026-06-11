@@ -27,13 +27,13 @@ This is a Hermes-native `idea-to-deploy` workflow skill.
 
 Good example:
 
-- Prompt: idea-to-deploy for: <task that matches this workflow>
+- Prompt: idea-to-deploy: handle a delivery request that needs explicit evidence boundaries and a clear stop condition.
 - Expected behavior: Run `idea-to-deploy` only after naming the target, evidence boundary, and stop condition.
 - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 
 Bad example:
 
-- Prompt: idea-to-deploy for: <unrelated or unaccepted work>
+- Prompt: idea-to-deploy: treat casual chat or unaccepted work as if this workflow already produced verified results.
 - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `idea-to-deploy`.
 - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 

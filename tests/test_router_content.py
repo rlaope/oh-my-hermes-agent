@@ -12,6 +12,7 @@ from omh.roles import role_definitions, role_file_markdown, roles_reference_mark
 from omh.skill_pack import builtin_definitions, builtin_harnesses, builtin_skill_templates
 from omh.runtime.records import validate_harness_quality
 from omh.skills.catalog import (
+    SkillDefinition,
     catalog_intent_delegation_skill_names,
     harness_quality_contract,
     primary_harness_for_skill,
@@ -206,6 +207,23 @@ class RouterContentTests(unittest.TestCase):
             self.assertTrue(definition.handoff_policy, definition.name)
         for template in builtin_skill_templates():
             self.assertIn("description: [omh] ", template.content.split("---", 2)[1], template.name)
+
+    def test_default_examples_are_concrete_and_trigger_safe(self) -> None:
+        definition = SkillDefinition(
+            "empty-trigger-safe",
+            "Example skill for empty trigger safety.",
+            (),
+            "Use when validating catalog defaults.",
+        )
+
+        self.assertIn("empty-trigger-safe:", definition.good_example.prompt)
+        self.assertIn("empty-trigger-safe:", definition.bad_example.prompt)
+
+        combined = workflow_reference_markdown() + "\n".join(
+            template.content for template in builtin_skill_templates()
+        )
+        self.assertNotIn("<task that matches this workflow>", combined)
+        self.assertNotIn("<unrelated or unaccepted work>", combined)
 
     def test_flagship_skills_render_quality_rubric_examples(self) -> None:
         templates = {template.name: template.content for template in builtin_skill_templates()}

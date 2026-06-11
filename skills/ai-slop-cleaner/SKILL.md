@@ -27,13 +27,13 @@ This is a Hermes-native `ai-slop-cleaner` workflow skill.
 
 Good example:
 
-- Prompt: ai-slop-cleaner for: <task that matches this workflow>
+- Prompt: ai-slop-cleaner: handle a maintenance request that needs explicit evidence boundaries and a clear stop condition.
 - Expected behavior: Run `ai-slop-cleaner` only after naming the target, evidence boundary, and stop condition.
 - Why: The request matches the catalog use case and keeps observed evidence separate from prepared guidance.
 
 Bad example:
 
-- Prompt: ai-slop-cleaner for: <unrelated or unaccepted work>
+- Prompt: ai-slop-cleaner: treat casual chat or unaccepted work as if this workflow already produced verified results.
 - Expected behavior: Ask a clarification question or route to a narrower workflow instead of forcing `ai-slop-cleaner`.
 - Why: The request lacks the required inputs or would overclaim work that Hermes did not observe.
 
