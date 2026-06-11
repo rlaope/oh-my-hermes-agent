@@ -359,11 +359,11 @@ def build_chat_response_from_route(
         if selected == "ultraprocess" or policy_next_action == "start_ultraprocess":
             evidence_boundary = str(policy.get("evidence_boundary", "")) or "A delivery process route is not execution evidence."
             body = str(policy.get("wrapper_guidance", "")) or (
-                "I will shape this into planning, implementation handoff, review, docs sync, and PR-ready stages."
+                "I will shape this into one planning, implementation handoff, review, docs sync, and PR-ready cycle."
             )
             return _chat_response(
                 kind="process",
-                headline="I can run the delivery process for this.",
+                headline="I can run one delivery process cycle for this.",
                 body=body,
                 phase="process_setup",
                 next_action="start_ultraprocess",
@@ -380,6 +380,8 @@ def build_chat_response_from_route(
                     "confidence": decision.get("confidence", "low"),
                     "selected_workflow": selected,
                     "policy_next_action": policy_next_action,
+                    "cycle_policy": "single_cycle",
+                    "continues_after_feedback": False,
                     "process_stages": [
                         "codebase_or_source_research",
                         "ralplan",
@@ -387,6 +389,7 @@ def build_chat_response_from_route(
                         "code_review",
                         "docs_sync_when_needed",
                         "pr_ready_or_pr_observed_report",
+                        "stop_or_recommend_next_workflow",
                     ],
                     "evidence_not_observed": [
                         "accepted plan",

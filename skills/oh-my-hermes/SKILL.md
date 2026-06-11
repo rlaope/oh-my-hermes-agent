@@ -106,7 +106,7 @@ When Hermes exposes installed skill descriptions to the model, use this registry
 - `ralph`: `ralph`, `$ralph`, `finish until done`, `persistent execution`, `self-referential loop`
 - `ultragoal`: `ultragoal`, `$ultragoal`, `durable goal`, `multi-goal`, `goal ledger`
 - `loop`: `loop`, `./loop`, `$loop`, `goal loop`, `long horizon goal`
-- `ultraprocess`: `ultraprocess`, `$ultraprocess`, `./ultraprocess`, `/ultraprocess`, `end-to-end process`
+- `ultraprocess`: `ultraprocess`, `$ultraprocess`, `./ultraprocess`, `/ultraprocess`, `single-cycle delivery`
 - `deep-interview`: `deep-interview`, `$deep-interview`, `interview`, `don't assume`, `clarify`
 - `team`: `team`, `$team`, `swarm`, `parallel agents`, `coordinated workers`
 - `ultrawork`: `ultrawork`, `$ultrawork`, `parallel work`, `parallel implementation`, `high throughput`

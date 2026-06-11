@@ -190,7 +190,7 @@ so OMH can display and record `main@old -> main@new` instead of only `main`.
 
 | Representative workflow | Boundary | Plain request |
 | --- | --- | --- |
-| `deep-interview` / `ralplan` / `ultragoal` / `loop` / `ultraprocess` | Hermes turns ambiguous intent into a concrete goal, plan, execution-ready path, direct ambitious goal loop, or PR-ready delivery process. | "Make onboarding feel smoother." |
+| `deep-interview` / `ralplan` / `ultragoal` / `loop` / `ultraprocess` | Hermes turns ambiguous intent into a concrete goal, plan, execution-ready path, direct ambitious goal loop, or one PR-ready delivery cycle. | "Make onboarding feel smoother." |
 | `feedback-triage` / `research-brief` / `strategy-brief` | Hermes keeps non-coding company and product operations inside brief, evidence, and decision workflows. | "Payment failures keep coming up." |
 | `idea-to-deploy` / coding handoff / executor selection | Hermes prepares work for Codex, Claude Code, or another selected executor instead of hiding coding inside Hermes. | "Turn this issue into a PR-ready plan and hand it to implementation." |
 
@@ -203,7 +203,7 @@ so OMH can display and record `main@old -> main@new` instead of only `main`.
 | Flagship playbook | `request-to-handoff` turns a plain Hermes message into a role-owned next action with an evidence boundary. |
 | App operation loops | `idea-to-deploy`, `cto-loop`, and `deploy-and-monitor` make Hermes feel like an app delivery operator while keeping evidence boundaries strict. |
 | Ambitious goal loops | `loop` lets Hermes run a direct high-level goal cycle across task discovery, distribution, execution, verification, next-task decisions, runtime tick queueing, handoff, feedback, waiting, and resume states inside an explicit permission profile. Start cards, `loop_engineering/v1` snapshots, and queue lifecycle actions help wrappers show what can start, what is only prepared, and what was later observed or blocked. |
-| PR-ready delivery process | `ultraprocess` turns a concrete "do this" request into codebase/source research, ralplan, selected implementation handoff, code-review gate, docs sync when needed, and a PR-ready or PR-observed report without claiming unobserved executor work. |
+| PR-ready delivery process | `ultraprocess` turns a concrete "do this" request into one codebase/source research, ralplan, selected implementation handoff, code-review gate, docs sync when needed, and PR-ready or PR-observed cycle without claiming unobserved executor work. Use `loop` instead when the goal should keep repeating after feedback. |
 | Business workflows | Research briefs, strategy briefs, meeting briefs, feedback triage, and ops review for non-coding company work. |
 | Coding handoffs | Executor-neutral handoff payloads with acceptance, review, and verification expectations. |
 | Memory context review | Review OMH-local and wrapper-supplied context, flag stale assumptions, and attach conflict-free summaries to executor handoffs. |

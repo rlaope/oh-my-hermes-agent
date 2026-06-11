@@ -159,16 +159,17 @@ Hermes Loop workflow: ambitious goal interview, research, planning, runtime tick
 
 ### ultraprocess
 
-Hermes Ultraprocess workflow: plan, implementation handoff, review, docs sync, and PR-ready delivery process.
+Hermes Ultraprocess workflow: a single-cycle plan, implementation handoff, review, docs sync, and PR-ready delivery process.
 
 - Category: `process`
-- Phase: `plan-to-pr`
+- Phase: `single-cycle-plan-to-pr`
 - Hermes role: `retained-cognition`
 - Quality tier: `process-gated`
-- Handoff policy: Keep process orchestration, source/codebase research, planning, review framing, docs-sync checks, PR narration, and evidence boundaries in Hermes; convert implementation into a selected executor handoff such as Codex, Claude Code, another coding agent, or explicit Hermes-retained work only when the user accepts that owner.
-- Use when: Use when the user asks Hermes to take a concrete task through the full delivery process: research/codebase context, reviewed plan, selected implementation handoff, code review, docs sync when needed, and PR preparation.
-- Strong routing signals: `ultraprocess`, `$ultraprocess`, `./ultraprocess`, `/ultraprocess`, `end-to-end process`, `delivery process`, `research plan implement review docs pr`, `plan implement review docs pr`, `ralplan ultragoal code-review`, `codebase research web research planning implementation review docs sync pr`, `docs sync`, `pr-ready`, `prepare a pr`, `sync docs and prepare a pr`, `code-review sync docs and prepare a pr`, `make a pr`, `open a pr`, `끝까지 해줘`, `PR까지`, `계획 구현 리뷰 문서 PR`, `기획 구현 리뷰 문서 PR`, `코드베이스 조사 웹리서치 계획 구현 리뷰 문서 최신화 PR`, `문서 최신화 PR`
+- Handoff policy: Keep the one-cycle process orchestration, source/codebase research, planning, review framing, docs-sync checks, PR narration, and evidence boundaries in Hermes; convert implementation into a selected executor handoff such as Codex, Claude Code, another coding agent, or explicit Hermes-retained work only when the user accepts that owner.
+- Use when: Use when the user asks Hermes to take a concrete task through one full delivery cycle: research/codebase context, reviewed plan, selected implementation handoff, code review, docs sync when needed, and PR preparation.
+- Strong routing signals: `ultraprocess`, `$ultraprocess`, `./ultraprocess`, `/ultraprocess`, `single-cycle delivery`, `one-cycle delivery`, `end-to-end process`, `delivery process`, `research plan implement review docs pr`, `plan implement review docs pr`, `ralplan ultragoal code-review`, `codebase research web research planning implementation review docs sync pr`, `docs sync`, `pr-ready`, `prepare a pr`, `sync docs and prepare a pr`, `code-review sync docs and prepare a pr`, `make a pr`, `open a pr`, `끝까지 해줘`, `PR까지`, `계획 구현 리뷰 문서 PR`, `기획 구현 리뷰 문서 PR`, `코드베이스 조사 웹리서치 계획 구현 리뷰 문서 최신화 PR`, `문서 최신화 PR`
 - Quality bar:
+  - Complete exactly one plan-to-PR delivery cycle, then stop with status, evidence gaps, or a next recommended workflow.
   - Start with codebase/source research and a ralplan-style decision record before implementation handoff.
   - Use ultragoal or the selected executor path for implementation, with acceptance criteria and verification commands attached.
   - Run code-review as a gate after implementation evidence exists; review preparation alone is not review evidence.
@@ -184,13 +185,14 @@ Hermes Ultraprocess workflow: plan, implementation handoff, review, docs sync, a
   - ultragoal or selected executor handoff
   - code-review gate
   - docs sync checklist
-  - PR-ready summary with observed evidence and gaps
+  - single-cycle PR-ready summary with observed evidence and gaps
 - Artifact expectations:
   - process checklist or runtime record when a wrapper can observe the stages
   - prepared handoff artifact only after implementation owner selection
   - docs-specialist claim check when public behavior changes
 - Safety rules:
   - Do not skip planning when the request is broad, risky, or user-visible.
+  - Do not continue into a repeated feedback loop; recommend `loop` when the user wants ongoing cycles.
   - Do not claim implementation, review, CI, merge readiness, or PR creation without observed executor or GitHub evidence.
   - Keep web research source-backed and permission-aware; do not run hidden network or LLM calls from OMH core.
   - Run docs sync only when behavior, setup, commands, or public claims changed.
