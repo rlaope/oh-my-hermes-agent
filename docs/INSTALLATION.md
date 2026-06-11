@@ -50,10 +50,12 @@ when possible. If that directory is not on `PATH`, add the printed directory to
 Plugin support is installed by `omh setup` by default. It provides a thin
 Hermes plugin bridge in addition to the skill pack:
 
-That installs `~/.hermes/plugins/omh` with metadata-only status support. It
-does not execute code, patch Hermes core, or prove Hermes has loaded the
-plugin. If the target Hermes runtime requires a separate plugin enable command,
-follow that runtime's plugin enable/reload step.
+That installs `~/.hermes/plugins/omh` with metadata-only HUD/status support.
+`omh hud` prints the same compact status line a Hermes TUI or plugin surface can
+render. Token usage appears only when the host supplies token metadata. The
+plugin does not execute code, patch Hermes core, or prove Hermes has loaded it.
+If the target Hermes runtime requires a separate plugin enable command, follow
+that runtime's plugin enable/reload step.
 
 MCP bridge setup is also optional and intentionally conservative:
 
