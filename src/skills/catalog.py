@@ -308,7 +308,7 @@ _DEFINITIONS = [
     ),
     SkillDefinition(
         "ultraprocess",
-        "Hermes Ultraprocess workflow: a single-cycle plan, implementation handoff, review, docs sync, and PR-ready delivery process.",
+        "Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.",
         (
             "ultraprocess",
             "$ultraprocess",

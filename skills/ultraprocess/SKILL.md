@@ -1,6 +1,6 @@
 ---
 name: ultraprocess
-description: Hermes Ultraprocess workflow: a single-cycle plan, implementation handoff, review, docs sync, and PR-ready delivery process.
+description: Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.
 metadata:
   hermes:
     tags: [workflow, oh-my-hermes, process]

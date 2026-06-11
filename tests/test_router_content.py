@@ -189,6 +189,10 @@ class RouterContentTests(unittest.TestCase):
         self.assertEqual(definitions["web-research"].hermes_role, "retained-cognition")
         self.assertEqual(definitions["ralplan"].hermes_role, "retained-cognition")
         self.assertEqual(definitions["ultraprocess"].hermes_role, "retained-cognition")
+        self.assertEqual(
+            definitions["ultraprocess"].description,
+            "Ultra Process - Research - Ralplan - Ultragoal - Code Review - Sync Circle: one PR-ready delivery cycle.",
+        )
         self.assertEqual(definitions["ultrawork"].hermes_role, "codex-handoff-guidance")
         self.assertEqual(definitions["ai-slop-cleaner"].hermes_role, "codex-handoff-guidance")
         self.assertIn("selected executor", definitions["ultrawork"].handoff_policy)
