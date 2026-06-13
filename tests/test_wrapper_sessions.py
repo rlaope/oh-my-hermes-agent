@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from _local_package import load_local_package
 
 load_local_package()
-from omh.coding_lifecycle import record_codex_result, start_codex_delegation_lifecycle
+from omh.coding_lifecycle import record_codex_dispatch, record_codex_result, start_codex_delegation_lifecycle
 from omh.paths import resolve_paths
 from omh.runtime_artifacts import create_run, export_runtime, validate_runtime, write_runtime_observation
 from omh.runtime_records import validate_wrapper_session_record
@@ -532,6 +532,31 @@ class WrapperSessionTests(unittest.TestCase):
             verify_request = request_executor_session_verification(paths, session_id)
 
             self.assertEqual(verify_request["status"]["verification"], "requested")
+
+    def test_codex_lifecycle_dispatch_allows_executor_session_result_recording(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            message = "risky refactor"
+            started = create_or_resume_wrapper_session(paths, message, source="discord")
+            session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "codex")
+            handoff = prepare_wrapper_session_handoff(paths, session_id, message)
+            run_id = str(handoff["session"]["current_run_id"])
+
+            record_codex_dispatch(paths, run_id)
+            status = build_wrapper_session_status(paths, session_id)
+            actions = {action["id"]: action for action in status["executor_session_status"]["actions"]}
+
+            self.assertEqual(status["executor_session_status"]["dispatch"], "observed")
+            self.assertTrue(actions["record_executor_completed"]["enabled"])
+
+            completed = record_executor_session_result(paths, session_id, result="completed", evidence_refs=["codex-summary"])
+
+            self.assertEqual(completed["status"]["coding_agent"], "completed(codex)")
+            self.assertEqual(completed["status"]["result"], "completed")
+            with self.assertRaisesRegex(ExecutorSessionError, "after executor result is recorded"):
+                open_executor_session(paths, session_id, observed=True, external_session_ref="codex-thread-2")
 
     def test_prompt_only_executor_session_tracks_attached_result_without_runtime_run(self) -> None:
         with TemporaryDirectory() as tmp:

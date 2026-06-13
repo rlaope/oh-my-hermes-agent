@@ -255,7 +255,7 @@ def record_executor_session_result(
     session = _existing_session(paths, session_id)
     _require_prepared_handoff(session)
     current = read_executor_session(paths, session_id) or _default_executor_session(session)
-    if not bool(current.get("dispatch_observed", False)) and not bool(current.get("attached", False)):
+    if not _dispatch_observed(current, _linked_status(paths, session), _runtime_status(paths, session)) and not bool(current.get("attached", False)):
         raise ExecutorSessionError("cannot record executor result before an executor session is opened or attached")
     refs = list(evidence_refs or [])
     if str(session.get("current_run_id", "")):
@@ -663,7 +663,7 @@ def _require_prepared_handoff(session: dict[str, Any]) -> None:
 
 def _require_no_observed_result(paths: OmhPaths, session: dict[str, Any]) -> None:
     current = read_executor_session(paths, str(session.get("session_id", ""))) or _default_executor_session(session)
-    if str(current.get("result", "not_observed")) != "not_observed":
+    if _result_status(current, _linked_status(paths, session)) != "not_observed":
         raise ExecutorSessionError("cannot open or attach an executor session after executor result is recorded")
 
 
