@@ -196,6 +196,11 @@ acceptance.
 
 `runtime/artifacts.py` and `runtime/records.py` own local JSON/JSONL evidence,
 schema validation, redacted export, and derived delegated coding status.
+They also own `runtime_observation/v1`, the runtime-level observation ledger for
+Hermes, OMX, OMO, and OMC handoffs. Each record names one observed or blocked
+ladder step such as runtime start, worktree creation, worker dispatch, worker
+result, verification, review, CI, merge readiness, or merge. Missing records
+remain missing evidence; OMH does not infer them from prepared handoff text.
 
 `wrapper/sessions.py` owns metadata-only chat session persistence for wrappers.
 It records chat continuity, plan decisions, and a link to a prepared run id, but
@@ -220,10 +225,15 @@ adapter.
 Roles are descriptors for chat/status clarity, not runtime agent evidence.
 `roles.py` remains only as a compatibility adapter.
 
-`profiles/setup.py` owns setup profile categories and executor defaults.
-`profiles/team.py` owns optional team profile packs such as CTO/PM-style
-operating models. `setup_profiles.py` and `team_profiles.py` remain only as
-compatibility adapters.
+`profiles/setup.py` owns setup profile categories, executor defaults, and the
+selected operating model recorded by `omh setup --operating-model <id>`.
+Operating models are lightweight collaboration defaults such as solo operator,
+small team, research ops, or coding runtime team. They change routing and
+status narration defaults; setup state persists only the stable
+`operating_model_id`, not a mutable catalog snapshot. They do not install
+visible role files or prove that Hermes spawned agents. `profiles/team.py` owns
+optional team profile packs such as CTO/PM-style role files. `setup_profiles.py`
+and `team_profiles.py` remain only as compatibility adapters.
 
 `skills/render.py` owns generated `SKILL.md` content. It should render from the
 catalog rather than becoming a second source of truth. `skills/packaging.py`
@@ -261,7 +271,11 @@ Routing, planning, and delegation have eight local surfaces:
 7. Wrapper-assisted coding delegation. `omh coding delegate` lets wrappers turn
    implementation-shaped messages into a deterministic `coding_delegation/v1`
    handoff payload for an executor lane.
-8. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
+8. Runtime observation recording. `omh runtime observe` lets wrappers or
+   operators append `runtime_observation/v1` evidence for selected runtime
+   handoffs without implying unrecorded worktree, worker, verification, review,
+   CI, or merge steps.
+9. Hermes-facing planning artifacts. `omh hermes plan` lets wrappers or
    operators create deterministic `hermes_plan/v1` planning scaffolds under
    `.hermes/plans/` without claiming that execution or review already happened.
 
@@ -293,7 +307,9 @@ team/swarm, worker-protocol, and worktree guidance. Runtime handoffs are still
 prepared state only: they do not mean Hermes, tmux, workers, subagents, or
 worktrees were started. That record stores a compact snapshot of the generated
 acceptance criteria, verification expectations, report contract, and evidence
-contract, but not the raw prompt body. With `--record`,
+contract, runtime-specific invocation templates, and the
+`runtime_observation/v1` recording contract, but not the raw prompt body. With
+`--record`,
 the companion `run.json` is marked as
 `artifact_kind: prepared_coding_delegation`, `phase: prepared`, and
 `observation_status: prepared_not_observed`; validation treats the run envelope
@@ -301,7 +317,12 @@ and `coding_delegation.json` as a required pair. The run envelope is
 implementation bookkeeping, not proof that Hermes executed the handoff.
 
 The wrapper contract and lower-level surfaces are local contracts; execution
-evidence still comes from Hermes Agent and the selected executor/runtime.
+evidence still comes from Hermes Agent and the selected executor/runtime. For
+Hermes/OMX/OMO/OMC runtime handoffs, the separate runtime observation ledger is
+the bridge between "prepared" and "observed". A wrapper can record
+`runtime_start` while `worktree_creation`, `worker_dispatch`,
+`worker_result`, `verification`, `review`, `ci`, `merge_readiness`, and
+`merge` remain explicitly missing.
 
 Hermes planning writes Markdown plans under the configured Hermes home rather
 than runtime JSON under `.omh/runtime/`. The artifact is user-facing: it includes

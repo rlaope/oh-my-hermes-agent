@@ -11,7 +11,7 @@ from _local_package import load_local_package
 load_local_package()
 from omh.coding_lifecycle import start_codex_delegation_lifecycle
 from omh.paths import resolve_paths
-from omh.runtime_artifacts import create_run, export_runtime, validate_runtime
+from omh.runtime_artifacts import create_run, export_runtime, validate_runtime, write_runtime_observation
 from omh.runtime_records import validate_wrapper_session_record
 from omh.wrapper_sessions import (
     WrapperSessionError,
@@ -437,6 +437,68 @@ class WrapperSessionTests(unittest.TestCase):
             self.assertEqual(status["claim_boundary"], "Execution claims come from the linked runtime run ledger, not the wrapper session.")
             self.assertEqual(len(status["runtime_status"]["runtime_validation"]["wrapper_sessions"]), 1)
             self.assertTrue(status["runtime_status"]["runtime_validation"]["wrapper_sessions"][0]["ok"])
+
+    def test_non_runtime_session_reports_runtime_observation_not_applicable(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
+            session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "claude-code")
+            prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
+
+            status = build_wrapper_session_status(paths, session_id)
+
+            self.assertEqual(status["runtime_observation"]["applicable"], False)
+            self.assertEqual(status["runtime_observation"]["next_action"], "not_applicable")
+
+            write_runtime_observation(
+                paths.runtime_wrapper_sessions_dir / session_id,
+                {
+                    "target_type": "wrapper_session",
+                    "target_id": session_id,
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "runtime_start",
+                    "status": "observed",
+                    "summary": "incorrectly attached runtime observation",
+                },
+            )
+
+            validation = validate_runtime(paths)
+            self.assertFalse(validation["ok"])
+            errors = "\n".join(error for session in validation["wrapper_sessions"] for error in session["errors"])
+            self.assertIn("runtime observations require a runtime_handoff_prepared wrapper session", errors)
+
+    def test_runtime_session_rejects_and_ignores_misattached_observations(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            started = create_or_resume_wrapper_session(paths, "risky refactor", source="discord")
+            session_id = str(started["session"]["session_id"])
+            record_plan_decision(paths, session_id, "accept")
+            select_wrapper_session_executor(paths, session_id, "omx-runtime")
+            prepare_wrapper_session_handoff(paths, session_id, "risky refactor")
+
+            write_runtime_observation(
+                paths.runtime_wrapper_sessions_dir / session_id,
+                {
+                    "target_type": "run",
+                    "target_id": "not-this-session",
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "runtime_start",
+                    "status": "observed",
+                    "summary": "misattached runtime observation",
+                },
+            )
+
+            status = build_wrapper_session_status(paths, session_id)
+            self.assertEqual(status["runtime_observation"]["observed_events"], [])
+            self.assertEqual(status["runtime_observation"]["next_action"], "record_runtime_observation:runtime_start")
+
+            validation = validate_runtime(paths)
+            self.assertFalse(validation["ok"])
+            errors = "\n".join(error for session in validation["wrapper_sessions"] for error in session["errors"])
+            self.assertIn("target_type must match containing target 'wrapper_session'", errors)
+            self.assertIn(f"target_id must match containing target '{session_id}'", errors)
 
     def test_export_runtime_includes_wrapper_sessions_without_raw_prompt(self) -> None:
         with TemporaryDirectory() as tmp:

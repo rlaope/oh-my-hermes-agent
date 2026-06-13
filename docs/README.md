@@ -17,7 +17,7 @@ repo-local contract for Codex agents working here.
 | Review stale local context and executor handoff packs | [Memory Context Review](MEMORY_CONTEXT.md) |
 | Operate a Hermes-agent wrapper safely | [Hermes Agent Integration Runbook](HERMES_AGENT_INTEGRATION_RUNBOOK.md) |
 | Install from an AI-agent protocol | [Agent Install Protocol](../INSTALL_FOR_AGENTS.md) |
-| Understand responsibility roles | [Role Surface](ROLES.md) |
+| Understand responsibility roles and operating models | [Role Surface](ROLES.md) |
 | Choose a situation-level pipeline | [Playbooks](PLAYBOOKS.md) |
 | See Discord-style wrapper responses | [Chat Wrapper Examples](CHAT_WRAPPER_EXAMPLES.md) |
 | Render workflow quality gates in wrappers | [Harness Quality Contract](HARNESS_QUALITY.md) |
@@ -45,6 +45,14 @@ records.
 The most important boundary is prepared versus observed evidence. A prepared
 handoff is useful, but it is not execution, review, CI, merge readiness, or a
 merge.
+
+Runtime handoffs for Hermes/OMX/OMO/OMC use `runtime_observation/v1` records
+when wrappers or operators later observe runtime start, worktree, worker,
+verification, review, CI, or merge ladder events.
+
+Operating models are setup defaults for Hermes collaboration posture. They
+should not be described as installed agents unless a separate profile pack is
+selected.
 
 ## Flagship Command Set Families
 
@@ -80,6 +88,8 @@ merge.
 - Role docs should describe responsibility lanes, not runtime agents. A role can
   explain the next action, but it cannot prove execution without matching
   observed evidence.
+- Operating model docs should stay lighter than team profile pack docs. They
+  record routing and narration defaults only.
 - Coding-heavy requests should be described as delegated work unless there is
   observed evidence that a coding executor actually ran.
 - Generated workflow docs should come from `src/skills/catalog.py`; update the

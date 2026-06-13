@@ -12,7 +12,20 @@ from ..executors import CODING_EXECUTOR_TARGETS, executor_selection_for_target
 from .lifecycle import report_codex_delegation_lifecycle, start_codex_delegation_lifecycle
 from ..local_store import atomic_write_json, ensure_dir, ensure_file, read_json_object, read_jsonl_objects, utc_now
 from ..paths import OmhPaths
-from ..runtime.records import build_event_record, build_wrapper_session_record, validate_event_record, validate_wrapper_session_record
+from ..runtime.records import (
+    build_event_record,
+    build_wrapper_session_record,
+    validate_event_record,
+    validate_runtime_observation_record,
+    validate_wrapper_session_record,
+)
+from ..runtime.artifacts import (
+    read_runtime_observations_result,
+    runtime_observations_for_target,
+    runtime_observation_not_applicable,
+    summarize_runtime_observation_status,
+    validate_runtime_observations_for_wrapper_session,
+)
 from .contract import build_chat_interaction_payload, build_chat_status_interaction
 from ..coding_delegation import build_coding_delegation_payload
 
@@ -453,6 +466,14 @@ def build_wrapper_session_status(paths: OmhPaths, session_id: str) -> dict[str, 
             "chat_response": interaction["chat_response"],
             "claim_boundary": "Execution claims come from the linked runtime run ledger, not the wrapper session.",
         }
+    if session["status"] == "runtime_handoff_prepared":
+        observations, observation_errors = read_runtime_observations_result(_session_dir(paths, session_id))
+        runtime_observation = summarize_runtime_observation_status(
+            runtime_observations_for_target(observations, "wrapper_session", session_id)
+        )
+    else:
+        observation_errors = []
+        runtime_observation = runtime_observation_not_applicable("session is not a prepared runtime handoff")
     return {
         "schema_version": WRAPPER_SESSION_RESULT_SCHEMA_VERSION,
         "session_id": session_id,
@@ -464,6 +485,8 @@ def build_wrapper_session_status(paths: OmhPaths, session_id: str) -> dict[str, 
         "dispatch_policy": session.get("dispatch_policy", "ask_before_dispatch"),
         "prompt_handoff": session.get("prompt_handoff", {}) if session["status"] == "prompt_handoff_prepared" else {},
         "runtime_handoff": session.get("runtime_handoff", {}) if session["status"] == "runtime_handoff_prepared" else {},
+        "runtime_observation": runtime_observation,
+        "runtime_observation_errors": observation_errors,
         "next_action": _next_action_for_session(session),
         "chat_response": _session_chat_response(session),
         "claim_boundary": "Wrapper session state is not execution evidence.",
@@ -487,12 +510,16 @@ def show_wrapper_session(paths: OmhPaths, session_id: str) -> dict[str, Any]:
     if not session:
         raise FileNotFoundError(session_id)
     events, event_errors = read_wrapper_session_events_result(session_dir)
+    observations, observation_errors = read_runtime_observations_result(session_dir)
     result = {
         "session": session,
         "events": events,
+        "runtime_observations": observations,
     }
     if event_errors:
         result["event_errors"] = event_errors
+    if observation_errors:
+        result["runtime_observation_errors"] = observation_errors
     return result
 
 
@@ -695,6 +722,17 @@ def _validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
             errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
+    observations_path = session_dir / "runtime_observations.jsonl"
+    if observations_path.exists():
+        observations, observation_errors = read_runtime_observations_result(session_dir)
+        errors.extend(observation_errors)
+        for index, observation in enumerate(observations, start=1):
+            errors.extend(
+                f"{observations_path}:{index}: {error}"
+                for error in validate_runtime_observation_record(observation)
+            )
+        if session:
+            errors.extend(validate_runtime_observations_for_wrapper_session(observations_path, session, observations))
     return {"session_id": session_id, "ok": not errors, "errors": errors}
 
 

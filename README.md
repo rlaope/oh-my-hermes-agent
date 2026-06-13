@@ -149,8 +149,14 @@ so OMH can display and record `main@old -> main@new` instead of only `main`.
   for the selected path: Codex lifecycle, Claude Code or generic prompt
   handoff, or Hermes/OMX/OMO/OMC runtime handoff with team/swarm,
   worker-protocol, and worktree guidance.
+- **Operating model defaults** - a solo operator, small team, research ops, or
+  coding runtime team can be recorded during setup so Hermes starts from the
+  right collaboration posture without forcing visible role files.
 - **Evidence-aware status** - prepared, dispatched, executed, reviewed,
   verified, CI, and merge-ready states stay separate.
+- **Observed runtime ledger** - runtime starts, worktree creation, worker
+  dispatch/results, verification, review, CI, merge-readiness, and merge claims
+  are separate `runtime_observation/v1` records instead of prose guesses.
 - **Durable goal mode contracts** - long work can stay tied to `.omh/goals`
   ledgers, completion gates, and explicit "continue/checkpoint/block/complete"
   next actions instead of ending with a vague summary.
@@ -189,11 +195,13 @@ so OMH can display and record `main@old -> main@new` instead of only `main`.
 | Business workflows | Research briefs, strategy briefs, meeting briefs, feedback triage, and ops review for non-coding company work. |
 | Operations artifacts | `omh ops rhythm`, `omh ops report`, and `omh ops reliability` create schema-versioned local records under `.omh/operations`. `omh ops list` is summary-only and bounded by default; `omh ops export` returns Markdown or JSON outlines for wrapper/report use; binary PPTX export is intentionally a separate observed step. |
 | Coding handoffs | Executor/runtime-neutral handoff payloads with acceptance, review, verification, team/swarm, worker-protocol, and worktree expectations. |
+| Runtime observation ledger | `omh runtime observe` records what a wrapper or operator actually observed for Hermes/OMX/OMO/OMC runtime handoffs without upgrading missing steps into evidence. |
 | Memory context review | Review OMH-local and wrapper-supplied context, flag stale assumptions, and attach conflict-free summaries to executor handoffs. |
 | Strict goal progress | `.omh/goals` ledgers, `goal_completion_gate/v1`, `goal_status_card/v1`, and `goal_continuation/v1` keep long-running goals from being treated as done before evidence is ready. |
 | Hermes chat contracts | `chat_interaction/v1`, status cards, action ids, and local runtime artifacts for Hermes Agent chat surfaces. |
 | Hermes plugin bridge | `omh setup` installs `~/.hermes/plugins/omh` with metadata-only `omh_hud` and `omh_status` support. |
 | Optional MCP bridge preference | `omh setup --with-mcp` records MCP bridge intent without claiming a host loaded or called it. |
+| Operating models | `omh setup --operating-model <id>` records the default Hermes collaboration posture: solo operator, small team, research ops, or coding runtime team. |
 | Optional team profile packs | CTO/PM-style or delivery/research role files can be installed only when selected. |
 
 ## How It Feels In Hermes
@@ -226,9 +234,16 @@ Hermes environment benefits from them.
 
 ```sh
 omh profile list
+omh profile inspect coding-runtime-team
+omh setup --operating-model coding-runtime-team
 omh profile inspect cto-loop
 omh setup --profile-pack cto-loop
 ```
+
+Operating models are routing and narration defaults. They do not install role
+files by themselves. For example, `coding-runtime-team` makes runtime handoff
+templates and observed runtime status feel first-class, while `research-ops`
+keeps Hermes biased toward research, strategy, and meeting workflows.
 
 Profile packs write OMH-prefixed role files under `~/.hermes/agents`. The
 `cto-loop` pack exposes a CTO, PM, Dev, QA, Security, and Ops structure, but it
@@ -238,6 +253,22 @@ The plugin bridge installs `~/.hermes/plugins/omh` and registers metadata-only
 HUD/status support. `omh hud` prints the same compact line a Hermes TUI or
 status surface can render, for example
 `[omh] v1.0.0 | plugin:ready | target:single | coding-agent:idle(ask)`.
+
+For coding runtime handoffs, wrappers can record observed steps without claiming
+that missing steps happened:
+
+```sh
+omh coding delegate --executor omx-runtime "risky refactor"
+omh runtime observe --session <session-id> --runtime-profile omx-runtime --event runtime_start --summary "operator started runtime"
+```
+
+`--runtime-profile` must match the prepared runtime handoff on that wrapper
+session. Prompt-only and Codex lifecycle sessions report runtime observation as
+not applicable instead of asking for a fake runtime ladder.
+
+The status card will still show worktree creation, worker dispatch, worker
+result, verification, review, CI, and merge as missing until matching
+`runtime_observation/v1` records exist.
 When runtime evidence exists, the line can show states such as
 `coding-agent:prepared(codex)` and `evidence:prepared_not_observed`. HUD is
 intentionally small: version, plugin status, target topology, current or

@@ -23,6 +23,7 @@ from omh.runtime_artifacts import (
     new_run_id,
     show_run,
     summarize_delegated_coding_status,
+    summarize_runtime_observation_status,
     update_state,
     validate_coding_delegation_record,
     validate_ci_record,
@@ -31,6 +32,7 @@ from omh.runtime_artifacts import (
     validate_review_record,
     validate_routing_record,
     validate_runtime,
+    validate_runtime_observation_record,
     validate_run_record,
     validate_wrapper_record,
     write_ci_record,
@@ -39,9 +41,10 @@ from omh.runtime_artifacts import (
     write_merge_record,
     write_review_record,
     write_routing_decision,
+    write_runtime_observation,
     write_wrapper_contract,
 )
-from omh.runtime.records import validate_coding_runtime_handoff
+from omh.runtime.records import RUNTIME_OBSERVATION_EVENTS, validate_coding_runtime_handoff
 
 
 class RuntimeArtifactTests(unittest.TestCase):
@@ -278,6 +281,10 @@ class RuntimeArtifactTests(unittest.TestCase):
         handoff = build_coding_delegation_payload("risky refactor", executor_target="omx-runtime")["runtime_handoff"]
 
         self.assertEqual(validate_coding_runtime_handoff(handoff), [])
+        self.assertIn("runtime_templates", handoff)
+        self.assertIn("$ultragoal {message}", {template["command_template"] for template in handoff["runtime_templates"]})
+        self.assertEqual(handoff["observation_contract"]["record_schema"], "runtime_observation/v1")
+        self.assertIn("worker_result", handoff["observation_contract"]["status_ladder"])
 
         missing_key = deepcopy(handoff)
         del missing_key["evidence_contract"]["prepared_is_not"]
@@ -295,6 +302,75 @@ class RuntimeArtifactTests(unittest.TestCase):
         missing_required_boundary["evidence_contract"]["observed_required_for"].remove("worker_dispatch")
         self.assertIn("must include required boundaries", json.dumps(validate_coding_runtime_handoff(missing_required_boundary)))
 
+    def test_runtime_observation_records_status_ladder_without_claiming_missing_steps(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_run(paths, {"skill": "oh-my-hermes", "harness": "coding-handling", "status": "started"})
+            run_dir = paths.runtime_runs_dir / run["run_id"]
+
+            observation = write_runtime_observation(
+                run_dir,
+                {
+                    "target_type": "run",
+                    "target_id": run["run_id"],
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "runtime_start",
+                    "status": "observed",
+                    "participants": ["leader"],
+                    "summary": "operator started the selected runtime",
+                },
+            )
+
+            self.assertEqual(validate_runtime_observation_record(observation), [])
+            shown = show_run(paths, run["run_id"])
+            self.assertEqual(shown["runtime_observations"][0]["event_type"], "runtime_start")
+            summary = summarize_runtime_observation_status(shown["runtime_observations"])
+            self.assertEqual(summary["observed_events"], ["runtime_start"])
+            self.assertEqual(summary["next_action"], "record_runtime_observation:worktree_creation")
+            self.assertIn("worktree_creation", summary["missing_events"])
+
+            blocked_worktree = write_runtime_observation(
+                run_dir,
+                {
+                    "target_type": "run",
+                    "target_id": run["run_id"],
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "worktree_creation",
+                    "status": "blocked",
+                    "summary": "worktree creation blocked before allocation",
+                },
+            )
+            self.assertEqual(blocked_worktree["status"], "blocked")
+
+            with self.assertRaises(ValueError):
+                write_runtime_observation(
+                    run_dir,
+                    {
+                        "target_type": "run",
+                        "target_id": run["run_id"],
+                        "runtime_profile": "omx-runtime",
+                        "event_type": "worktree_creation",
+                        "status": "observed",
+                        "summary": "missing worktree ref",
+                    },
+                )
+
+            all_not_observed = [
+                {
+                    "target_type": "run",
+                    "target_id": run["run_id"],
+                    "runtime_profile": "omx-runtime",
+                    "event_type": event_type,
+                    "status": "not_observed",
+                    "summary": "",
+                }
+                for event_type in RUNTIME_OBSERVATION_EVENTS
+            ]
+            not_observed_summary = summarize_runtime_observation_status(all_not_observed)
+            self.assertEqual(not_observed_summary["observed_events"], [])
+            self.assertEqual(not_observed_summary["next_action"], "record_runtime_observation:runtime_start")
+            self.assertIn("runtime_start", not_observed_summary["unsatisfied_events"])
+
     def test_validate_runtime_requires_coding_delegation_for_prepared_runs(self) -> None:
         with TemporaryDirectory() as tmp:
             paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
@@ -307,6 +383,52 @@ class RuntimeArtifactTests(unittest.TestCase):
 
             self.assertFalse(result["ok"])
             self.assertTrue(any("missing coding_delegation.json" in error for error in result["runs"][0]["errors"]))
+
+    def test_validate_runtime_rejects_runtime_observations_on_plain_runs(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_run(paths, {"skill": "oh-my-hermes", "harness": "coding-handling", "status": "started"})
+            write_runtime_observation(
+                paths.runtime_runs_dir / run["run_id"],
+                {
+                    "target_type": "run",
+                    "target_id": run["run_id"],
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "runtime_start",
+                    "status": "observed",
+                    "summary": "manually injected observation",
+                },
+            )
+
+            result = validate_runtime(paths, run["run_id"])
+
+            self.assertFalse(result["ok"])
+            errors = "\n".join(result["runs"][0]["errors"])
+            self.assertIn("runtime observations are not valid for a non-runtime coding delegation run", errors)
+
+    def test_validate_runtime_rejects_run_observation_target_mismatch(self) -> None:
+        with TemporaryDirectory() as tmp:
+            paths = resolve_paths(Path(tmp) / ".omh", Path(tmp) / ".hermes")
+            run = create_run(paths, {"skill": "oh-my-hermes", "harness": "coding-handling", "status": "started"})
+            run_dir = paths.runtime_runs_dir / run["run_id"]
+            write_runtime_observation(
+                run_dir,
+                {
+                    "target_type": "wrapper_session",
+                    "target_id": "not-this-run",
+                    "runtime_profile": "omx-runtime",
+                    "event_type": "runtime_start",
+                    "status": "observed",
+                    "summary": "misattached observation",
+                },
+            )
+
+            result = validate_runtime(paths, run["run_id"])
+
+            self.assertFalse(result["ok"])
+            errors = "\n".join(result["runs"][0]["errors"])
+            self.assertIn("target_type must match containing target 'run'", errors)
+            self.assertIn(f"target_id must match containing target '{run['run_id']}'", errors)
 
     def test_validate_runtime_rejects_prompt_only_handoff_in_prepared_run(self) -> None:
         with TemporaryDirectory() as tmp:
