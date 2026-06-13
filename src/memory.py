@@ -343,6 +343,12 @@ def _setup_snapshot(setup: dict[str, Any]) -> dict[str, object]:
                 "value": str(setup.get("dispatch_policy", "")),
                 "summary": f"dispatch policy: {setup.get('dispatch_policy', '')}",
             },
+            {
+                "item_id": "setup-operating-model",
+                "key": "operating_model_id",
+                "value": str(setup.get("operating_model_id", "")),
+                "summary": f"operating model: {setup.get('operating_model_id', '')}",
+            },
         ],
     )
 

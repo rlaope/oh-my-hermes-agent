@@ -31,6 +31,38 @@ REVIEW_STATUSES = ("not_required", "pending", "passed", "failed", "blocked", "no
 CI_STATUSES = ("not_required", "pending", "passed", "failed", "blocked", "not_observed")
 CI_CHECK_STATUSES = ("passed", "failed", "blocked", "pending", "not_required")
 MERGE_STATUSES = ("not_ready", "ready", "merged", "blocked", "not_observed")
+RUNTIME_OBSERVATION_SCHEMA_VERSION = "runtime_observation/v1"
+RUNTIME_OBSERVATION_RECORD_TYPE = "runtime_observation"
+RUNTIME_OBSERVATION_TARGET_TYPES = ("run", "wrapper_session")
+RUNTIME_OBSERVATION_EVENTS = (
+    "runtime_start",
+    "worktree_creation",
+    "worker_dispatch",
+    "worker_result",
+    "verification",
+    "review",
+    "ci",
+    "merge_readiness",
+    "merge",
+)
+RUNTIME_OBSERVATION_STATUSES = ("observed", "blocked", "failed", "not_observed")
+RUNTIME_OBSERVATION_RECORD_KEYS = (
+    "schema_version",
+    "record_type",
+    "target_type",
+    "target_id",
+    "updated_at",
+    "runtime_profile",
+    "event_type",
+    "status",
+    "observed",
+    "participants",
+    "worktree_ref",
+    "worker_ref",
+    "evidence_refs",
+    "summary",
+    "claim_boundary",
+)
 ROUTE_ACTIONS = ("dispatch", "clarify", "fallback")
 ROUTE_CONFIDENCES = ("low", "medium", "high")
 ROUTING_RECOMMENDATION_KEYS = ("skill", "score", "confidence", "matched")
@@ -153,8 +185,10 @@ CODING_RUNTIME_HANDOFF_KEYS = (
     "dispatch_contract",
     "prompt_template",
     "runtime_brief",
+    "runtime_templates",
     "team_contract",
     "worktree_contract",
+    "observation_contract",
     "scope",
     "non_goals",
     "acceptance_criteria",
@@ -183,6 +217,14 @@ CODING_RUNTIME_PROFILE_KEYS = (
     "supports_worker_protocol",
     "supports_worktree_guidance",
     "requires_operator_runtime",
+)
+CODING_RUNTIME_TEMPLATE_KEYS = ("label", "syntax", "command_template", "when_to_use", "observed_event")
+CODING_RUNTIME_OBSERVATION_CONTRACT_KEYS = (
+    "record_schema",
+    "record_with",
+    "allowed_events",
+    "status_ladder",
+    "claim_boundary",
 )
 CODING_RUNTIME_EVIDENCE_CONTRACT_KEYS = ("prepared_is_not", "observed_required_for")
 CODING_RUNTIME_PREPARED_BOUNDARIES = (
@@ -438,6 +480,36 @@ def build_merge_record(merge: dict[str, Any]) -> dict[str, Any]:
         "summary": str(merge.get("summary", "")),
     }
     errors = validate_merge_record(record)
+    if errors:
+        raise ValueError(errors[0])
+    return record
+
+
+def build_runtime_observation_record(observation: dict[str, Any]) -> dict[str, Any]:
+    target_type = str(observation.get("target_type", "run"))
+    event_type = str(observation.get("event_type", "runtime_start"))
+    status = str(observation.get("status", "observed"))
+    record = {
+        "schema_version": RUNTIME_OBSERVATION_SCHEMA_VERSION,
+        "record_type": RUNTIME_OBSERVATION_RECORD_TYPE,
+        "target_type": target_type,
+        "target_id": str(observation.get("target_id", "")),
+        "updated_at": str(observation.get("updated_at") or utc_now()),
+        "runtime_profile": str(observation.get("runtime_profile", "")),
+        "event_type": event_type,
+        "status": status,
+        "observed": status != "not_observed",
+        "participants": _compact_string_list(observation.get("participants", [])),
+        "worktree_ref": str(observation.get("worktree_ref", "")),
+        "worker_ref": str(observation.get("worker_ref", "")),
+        "evidence_refs": _compact_string_list(observation.get("evidence_refs", [])),
+        "summary": str(observation.get("summary", "")),
+        "claim_boundary": (
+            "Runtime observation records only describe events the wrapper/operator reports. "
+            "They do not prove unrecorded work, review, CI, merge, worker, or worktree steps."
+        ),
+    }
+    errors = validate_runtime_observation_record(record)
     if errors:
         raise ValueError(errors[0])
     return record
@@ -794,8 +866,10 @@ def _compact_runtime_handoff(value: Any) -> dict[str, Any]:
         "dispatch_contract": str(value.get("dispatch_contract", "")),
         "prompt_template": str(value.get("prompt_template", "")),
         "runtime_brief": _compact_runtime_brief(value.get("runtime_brief", {})),
+        "runtime_templates": _compact_runtime_templates(value.get("runtime_templates", [])),
         "team_contract": _compact_team_contract(value.get("team_contract", {})),
         "worktree_contract": _compact_worktree_contract(value.get("worktree_contract", {})),
+        "observation_contract": _compact_runtime_observation_contract(value.get("observation_contract", {})),
         "scope": _compact_string_list(value.get("scope", [])),
         "non_goals": _compact_string_list(value.get("non_goals", [])),
         "acceptance_criteria": _compact_string_list(value.get("acceptance_criteria", [])),
@@ -866,6 +940,25 @@ def _compact_runtime_brief(value: Any) -> dict[str, Any]:
     }
 
 
+def _compact_runtime_templates(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    templates: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        templates.append(
+            {
+                "label": str(item.get("label", "")),
+                "syntax": str(item.get("syntax", "")),
+                "command_template": str(item.get("command_template", "")),
+                "when_to_use": str(item.get("when_to_use", "")),
+                "observed_event": str(item.get("observed_event", "")),
+            }
+        )
+    return templates
+
+
 def _compact_team_contract(value: Any) -> dict[str, list[str]]:
     if not isinstance(value, dict):
         return {}
@@ -875,6 +968,18 @@ def _compact_team_contract(value: Any) -> dict[str, list[str]]:
         "worker_protocol": _compact_string_list(value.get("worker_protocol", [])),
         "fanout_when": _compact_string_list(value.get("fanout_when", [])),
         "do_not_fanout_when": _compact_string_list(value.get("do_not_fanout_when", [])),
+    }
+
+
+def _compact_runtime_observation_contract(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "record_schema": str(value.get("record_schema", "")),
+        "record_with": str(value.get("record_with", "")),
+        "allowed_events": _compact_string_list(value.get("allowed_events", [])),
+        "status_ladder": _compact_string_list(value.get("status_ladder", [])),
+        "claim_boundary": str(value.get("claim_boundary", "")),
     }
 
 
@@ -1195,6 +1300,54 @@ def validate_merge_record(merge: dict[str, Any]) -> list[str]:
             errors,
             "merge merged status requires merge_commit or evidence_refs",
         )
+    return errors
+
+
+def validate_runtime_observation_record(observation: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    extra_keys = sorted(set(observation) - set(RUNTIME_OBSERVATION_RECORD_KEYS))
+    _require(not extra_keys, errors, f"runtime_observation has unsupported keys: {extra_keys}")
+    _require(
+        observation.get("schema_version") == RUNTIME_OBSERVATION_SCHEMA_VERSION,
+        errors,
+        "runtime_observation schema_version is invalid",
+    )
+    _require(observation.get("record_type") == RUNTIME_OBSERVATION_RECORD_TYPE, errors, "runtime_observation record_type is invalid")
+    for key in (
+        "target_type",
+        "target_id",
+        "updated_at",
+        "runtime_profile",
+        "event_type",
+        "status",
+        "worktree_ref",
+        "worker_ref",
+        "summary",
+        "claim_boundary",
+    ):
+        _require(isinstance(observation.get(key), str), errors, f"runtime_observation {key} must be a string")
+    _require(observation.get("target_type") in RUNTIME_OBSERVATION_TARGET_TYPES, errors, "runtime_observation target_type is invalid")
+    _require(bool(str(observation.get("target_id", "")).strip()), errors, "runtime_observation target_id is required")
+    _require(observation.get("runtime_profile") in CODING_RUNTIME_TARGETS, errors, "runtime_observation runtime_profile is invalid")
+    _require(observation.get("event_type") in RUNTIME_OBSERVATION_EVENTS, errors, "runtime_observation event_type is invalid")
+    _require(observation.get("status") in RUNTIME_OBSERVATION_STATUSES, errors, "runtime_observation status is invalid")
+    _require(isinstance(observation.get("observed"), bool), errors, "runtime_observation observed must be boolean")
+    _require(isinstance(observation.get("participants"), list), errors, "runtime_observation participants must be a list")
+    _require(isinstance(observation.get("evidence_refs"), list), errors, "runtime_observation evidence_refs must be a list")
+    for key in ("participants", "evidence_refs"):
+        values = observation.get(key, []) if isinstance(observation.get(key), list) else []
+        for index, value in enumerate(values):
+            _require(isinstance(value, str), errors, f"runtime_observation {key}[{index}] must be a string")
+    if observation.get("status") == "not_observed":
+        _require(observation.get("observed") is False, errors, "runtime_observation not_observed status requires observed=false")
+    else:
+        _require(observation.get("observed") is True, errors, "runtime_observation observed status requires observed=true")
+        has_evidence = bool(observation.get("evidence_refs")) or bool(str(observation.get("summary", "")).strip())
+        _require(has_evidence, errors, "runtime_observation observed/blocked/failed status requires summary or evidence_refs")
+    if observation.get("event_type") in {"worktree_creation"} and observation.get("status") == "observed":
+        _require(bool(str(observation.get("worktree_ref", "")).strip()), errors, "runtime_observation worktree_creation requires worktree_ref")
+    if observation.get("event_type") in {"worker_dispatch", "worker_result"} and observation.get("status") == "observed":
+        _require(bool(str(observation.get("worker_ref", "")).strip()), errors, "runtime_observation worker event requires worker_ref")
     return errors
 
 
@@ -1598,6 +1751,33 @@ def validate_coding_runtime_handoff(handoff: Any) -> list[str]:
                 for index, value in enumerate(brief[key]):
                     _require(isinstance(value, str), errors, f"coding_delegation runtime_handoff runtime_brief.{key}[{index}] must be a string")
 
+    templates = handoff.get("runtime_templates")
+    _require(isinstance(templates, list), errors, "coding_delegation runtime_handoff runtime_templates must be a list")
+    if isinstance(templates, list):
+        _require(bool(templates), errors, "coding_delegation runtime_handoff runtime_templates must not be empty")
+        for index, template in enumerate(templates):
+            _require(isinstance(template, dict), errors, f"coding_delegation runtime_handoff runtime_templates[{index}] must be an object")
+            if not isinstance(template, dict):
+                continue
+            extra_template_keys = sorted(set(template) - set(CODING_RUNTIME_TEMPLATE_KEYS))
+            _require(
+                not extra_template_keys,
+                errors,
+                f"coding_delegation runtime_handoff runtime_templates[{index}] has unsupported keys: {extra_template_keys}",
+            )
+            for key in CODING_RUNTIME_TEMPLATE_KEYS:
+                _require(isinstance(template.get(key), str), errors, f"coding_delegation runtime_handoff runtime_templates[{index}].{key} must be a string")
+            _require(
+                "{message}" in str(template.get("command_template", "")),
+                errors,
+                f"coding_delegation runtime_handoff runtime_templates[{index}].command_template must keep {{message}}",
+            )
+            _require(
+                template.get("observed_event") in RUNTIME_OBSERVATION_EVENTS,
+                errors,
+                f"coding_delegation runtime_handoff runtime_templates[{index}].observed_event is invalid",
+            )
+
     team_contract = handoff.get("team_contract")
     _require(isinstance(team_contract, dict), errors, "coding_delegation runtime_handoff team_contract must be an object")
     if isinstance(team_contract, dict):
@@ -1623,6 +1803,32 @@ def validate_coding_runtime_handoff(handoff: Any) -> list[str]:
             if isinstance(worktree_contract.get(key), list):
                 for index, value in enumerate(worktree_contract[key]):
                     _require(isinstance(value, str), errors, f"coding_delegation runtime_handoff worktree_contract.{key}[{index}] must be a string")
+
+    observation_contract = handoff.get("observation_contract")
+    _require(isinstance(observation_contract, dict), errors, "coding_delegation runtime_handoff observation_contract must be an object")
+    if isinstance(observation_contract, dict):
+        extra_observation_keys = sorted(set(observation_contract) - set(CODING_RUNTIME_OBSERVATION_CONTRACT_KEYS))
+        missing_observation_keys = sorted(set(CODING_RUNTIME_OBSERVATION_CONTRACT_KEYS) - set(observation_contract))
+        _require(not extra_observation_keys, errors, f"coding_delegation runtime_handoff observation_contract has unsupported keys: {extra_observation_keys}")
+        _require(not missing_observation_keys, errors, f"coding_delegation runtime_handoff observation_contract is missing keys: {missing_observation_keys}")
+        for key in ("record_schema", "record_with", "claim_boundary"):
+            _require(isinstance(observation_contract.get(key), str), errors, f"coding_delegation runtime_handoff observation_contract.{key} must be a string")
+        _require(
+            observation_contract.get("record_schema") == RUNTIME_OBSERVATION_SCHEMA_VERSION,
+            errors,
+            "coding_delegation runtime_handoff observation_contract.record_schema is invalid",
+        )
+        for key in ("allowed_events", "status_ladder"):
+            _require(isinstance(observation_contract.get(key), list), errors, f"coding_delegation runtime_handoff observation_contract.{key} must be a list")
+            values = observation_contract.get(key, []) if isinstance(observation_contract.get(key), list) else []
+            for index, value in enumerate(values):
+                _require(isinstance(value, str), errors, f"coding_delegation runtime_handoff observation_contract.{key}[{index}] must be a string")
+            missing_values = sorted(set(RUNTIME_OBSERVATION_EVENTS) - {value for value in values if isinstance(value, str)})
+            _require(
+                not missing_values,
+                errors,
+                f"coding_delegation runtime_handoff observation_contract.{key} must include required events: {missing_values}",
+            )
 
     for key in ("scope", "non_goals", "acceptance_criteria", "verification"):
         _require(isinstance(handoff.get(key), list), errors, f"coding_delegation runtime_handoff {key} must be a list")

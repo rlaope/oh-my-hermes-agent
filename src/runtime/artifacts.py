@@ -25,6 +25,9 @@ from .records import (
     OBSERVED_RESULTS,
     OPTIONAL_RECORD_VALIDATORS,
     PRIVACY_MODES,
+    RUNTIME_OBSERVATION_EVENTS,
+    RUNTIME_OBSERVATION_SCHEMA_VERSION,
+    RUNTIME_OBSERVATION_STATUSES,
     CI_STATUSES,
     MERGE_STATUSES,
     REVIEW_STATUSES,
@@ -40,6 +43,7 @@ from .records import (
     build_merge_record,
     build_review_record,
     build_run_record,
+    build_runtime_observation_record,
     build_wrapper_record,
     validate_delegation_record,
     validate_coding_delegation_record,
@@ -50,6 +54,7 @@ from .records import (
     validate_review_record,
     validate_routing_record,
     validate_run_record,
+    validate_runtime_observation_record,
     validate_wrapper_record,
     validate_wrapper_session_record,
 )
@@ -268,6 +273,32 @@ def write_merge_record(run_dir: Path, merge: dict[str, Any]) -> dict[str, Any]:
     return record
 
 
+def write_runtime_observation(target_dir: Path, observation: dict[str, Any]) -> dict[str, Any]:
+    record = build_runtime_observation_record(observation)
+    ensure_dir(target_dir, private=True)
+    path = target_dir / "runtime_observations.jsonl"
+    ensure_file(path, private=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
+    append_event(
+        target_dir,
+        {
+            "event": "runtime_observation_recorded",
+            "level": "info" if record["status"] == "observed" else "warning",
+            "message": f"runtime observation {record['event_type']} {record['status']}",
+            "data": {
+                "target_type": record["target_type"],
+                "target_id": record["target_id"],
+                "runtime_profile": record["runtime_profile"],
+                "event_type": record["event_type"],
+                "status": record["status"],
+                "observed": record["observed"],
+            },
+        },
+    )
+    return record
+
+
 def _apply_limit(records: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
     if limit is None:
         return records
@@ -296,6 +327,22 @@ def read_events_result(run_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return read_jsonl_objects(path)
 
 
+def read_runtime_observations(target_dir: Path) -> list[dict[str, Any]]:
+    return read_runtime_observations_result(target_dir)[0]
+
+
+def read_runtime_observations_result(target_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    return read_jsonl_objects(target_dir / "runtime_observations.jsonl")
+
+
+def runtime_observations_for_target(records: list[dict[str, Any]], target_type: str, target_id: str) -> list[dict[str, Any]]:
+    return [
+        record
+        for record in records
+        if record.get("target_type") == target_type and str(record.get("target_id", "")) == target_id
+    ]
+
+
 def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
     run_dir = paths.runtime_runs_dir / run_id
     run = read_json_object(run_dir / "run.json")
@@ -303,9 +350,11 @@ def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
         raise FileNotFoundError(run_id)
     evidence_dir = run_dir / "evidence"
     events, event_errors = read_events_result(run_dir)
+    observations, observation_errors = read_runtime_observations_result(run_dir)
     result = {
         "run": run,
         "events": events,
+        "runtime_observations": observations,
         "routing": read_json_object(run_dir / "routing.json"),
         "coding_delegation": read_json_object(run_dir / "coding_delegation.json"),
         "delegation": read_json_object(run_dir / "delegation.json"),
@@ -317,6 +366,8 @@ def show_run(paths: OmhPaths, run_id: str) -> dict[str, Any]:
     }
     if event_errors:
         result["event_errors"] = event_errors
+    if observation_errors:
+        result["runtime_observation_errors"] = observation_errors
     return result
 
 
@@ -337,12 +388,16 @@ def show_wrapper_session_record(paths: OmhPaths, session_id: str) -> dict[str, A
     if not session:
         raise FileNotFoundError(session_id)
     events, event_errors = _read_jsonl_events_result(session_dir / "events.jsonl")
+    observations, observation_errors = read_runtime_observations_result(session_dir)
     result = {
         "session": session,
         "events": events,
+        "runtime_observations": observations,
     }
     if event_errors:
         result["event_errors"] = event_errors
+    if observation_errors:
+        result["runtime_observation_errors"] = observation_errors
     return result
 
 
@@ -355,6 +410,7 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
     review_record = _object_or_empty(shown.get("review"))
     ci_record = _object_or_empty(shown.get("ci"))
     merge_record = _object_or_empty(shown.get("merge"))
+    runtime_observations = runtime_observations_for_target(_list_or_empty(shown.get("runtime_observations")), "run", run_id)
     handoff = _object_or_empty(coding.get("executor_handoff"))
     review = _object_or_empty(handoff.get("review"))
 
@@ -456,6 +512,7 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
             "summary": merge_status["summary"],
         },
         "merge": merge_status,
+        "runtime_observation": summarize_runtime_observation_status(runtime_observations),
         "next_action": next_action,
         "safe_summary": _delegated_status_summary(
             prepared=prepared,
@@ -479,6 +536,179 @@ def summarize_delegated_coding_status(paths: OmhPaths, run_id: str) -> dict[str,
             "Review, verification, CI, and merge status require separate observed evidence.",
         ],
     }
+
+
+def summarize_runtime_observation_status(records: list[dict[str, Any]]) -> dict[str, Any]:
+    latest_by_event: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        event_type = str(record.get("event_type", ""))
+        if event_type in RUNTIME_OBSERVATION_EVENTS:
+            latest_by_event[event_type] = record
+
+    observed_events: list[str] = []
+    blocked_events: list[str] = []
+    failed_events: list[str] = []
+    not_observed_events: list[str] = []
+    for event_type in RUNTIME_OBSERVATION_EVENTS:
+        record = latest_by_event.get(event_type)
+        if not record:
+            continue
+        status = str(record.get("status", "not_observed"))
+        if status == "observed":
+            observed_events.append(event_type)
+        elif status == "blocked":
+            blocked_events.append(event_type)
+        elif status == "failed":
+            failed_events.append(event_type)
+        elif status == "not_observed":
+            not_observed_events.append(event_type)
+
+    missing_events = [event_type for event_type in RUNTIME_OBSERVATION_EVENTS if event_type not in latest_by_event]
+    unsatisfied_events = [*not_observed_events, *missing_events]
+    if failed_events:
+        next_action = f"surface_runtime_failure:{failed_events[-1]}"
+    elif blocked_events:
+        next_action = f"surface_runtime_blocker:{blocked_events[-1]}"
+    elif unsatisfied_events:
+        next_action = f"record_runtime_observation:{unsatisfied_events[0]}"
+    else:
+        next_action = "report_runtime_observed"
+
+    return {
+        "schema_version": "runtime_observation_status/v1",
+        "record_schema": RUNTIME_OBSERVATION_SCHEMA_VERSION,
+        "applicable": True,
+        "observed_events": observed_events,
+        "blocked_events": blocked_events,
+        "failed_events": failed_events,
+        "not_observed_events": not_observed_events,
+        "missing_events": missing_events,
+        "unsatisfied_events": unsatisfied_events,
+        "latest": latest_by_event,
+        "next_action": next_action,
+        "claim_boundary": (
+            "Runtime observation status is computed only from runtime_observation/v1 records. "
+            "Missing ladder steps remain unobserved."
+        ),
+    }
+
+
+def runtime_observation_not_applicable(reason: str) -> dict[str, Any]:
+    return {
+        "schema_version": "runtime_observation_status/v1",
+        "record_schema": RUNTIME_OBSERVATION_SCHEMA_VERSION,
+        "applicable": False,
+        "observed_events": [],
+        "blocked_events": [],
+        "failed_events": [],
+        "not_observed_events": [],
+        "missing_events": [],
+        "unsatisfied_events": [],
+        "latest": {},
+        "next_action": "not_applicable",
+        "reason": reason,
+        "claim_boundary": "Runtime observation status applies only to prepared runtime handoff sessions or explicit runtime records.",
+    }
+
+
+def validate_runtime_observations_for_wrapper_session(
+    observations_path: Path,
+    session: dict[str, Any],
+    observations: list[dict[str, Any]],
+) -> list[str]:
+    expected_profile = _expected_runtime_profile_for_session(session)
+    return _validate_runtime_observations_against_expected(
+        observations_path,
+        observations,
+        expected_profile,
+        expected_target_type="wrapper_session",
+        expected_target_id=observations_path.parent.name,
+        missing_message="runtime observations require a runtime_handoff_prepared wrapper session",
+    )
+
+
+def _validate_runtime_observations_for_run(
+    observations_path: Path,
+    run: dict[str, Any],
+    coding: dict[str, Any] | None,
+    observations: list[dict[str, Any]],
+) -> list[str]:
+    expected_profile = _expected_runtime_profile_for_run(run, coding)
+    return _validate_runtime_observations_against_expected(
+        observations_path,
+        observations,
+        expected_profile,
+        expected_target_type="run",
+        expected_target_id=observations_path.parent.name,
+        missing_message="runtime observations are not valid for a non-runtime coding delegation run",
+    )
+
+
+def _validate_runtime_observations_against_expected(
+    observations_path: Path,
+    observations: list[dict[str, Any]],
+    expected_profile: str | None,
+    *,
+    expected_target_type: str,
+    expected_target_id: str,
+    missing_message: str,
+) -> list[str]:
+    if not observations:
+        return []
+    errors: list[str] = []
+    for index, observation in enumerate(observations, start=1):
+        target_type = str(observation.get("target_type", ""))
+        if target_type != expected_target_type:
+            errors.append(
+                f"{observations_path}:{index}: target_type must match containing target "
+                f"{expected_target_type!r}, got {target_type!r}"
+            )
+        target_id = str(observation.get("target_id", ""))
+        if target_id != expected_target_id:
+            errors.append(
+                f"{observations_path}:{index}: target_id must match containing target "
+                f"{expected_target_id!r}, got {target_id!r}"
+            )
+    if expected_profile is None:
+        return [*errors, f"{observations_path}: {missing_message}"]
+    if not expected_profile:
+        return [*errors, f"{observations_path}: {missing_message}"]
+    for index, observation in enumerate(observations, start=1):
+        runtime_profile = str(observation.get("runtime_profile", ""))
+        if runtime_profile != expected_profile:
+            errors.append(
+                f"{observations_path}:{index}: runtime_profile must match prepared runtime handoff "
+                f"{expected_profile!r}, got {runtime_profile!r}"
+            )
+    return errors
+
+
+def _expected_runtime_profile_for_session(session: dict[str, Any]) -> str:
+    if session.get("status") != "runtime_handoff_prepared" or session.get("work_owner_mode") != "runtime_handoff":
+        return ""
+    return _runtime_profile_from_handoff(session.get("runtime_handoff")) or str(session.get("selected_executor_profile") or "")
+
+
+def _expected_runtime_profile_for_run(run: dict[str, Any], coding: dict[str, Any] | None) -> str | None:
+    if not isinstance(coding, dict):
+        return None
+    if coding.get("work_owner_mode") == "runtime_handoff":
+        return _runtime_profile_from_handoff(coding.get("runtime_handoff")) or str(coding.get("selected_executor_profile") or "")
+    if run.get("artifact_kind") == "prepared_coding_delegation":
+        return ""
+    return None
+
+
+def _runtime_profile_from_handoff(handoff: object) -> str:
+    if not isinstance(handoff, dict):
+        return ""
+    selected = str(handoff.get("selected_executor_profile") or "")
+    runtime_profile = handoff.get("runtime_profile")
+    if isinstance(runtime_profile, dict):
+        return str(runtime_profile.get("profile") or selected)
+    return selected
 
 
 def _delegated_harness_progress(
@@ -531,6 +761,12 @@ def _downstream_gate_progress_state(
 
 def _object_or_empty(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _list_or_empty(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
 
 
 def _review_status_summary(
@@ -760,6 +996,7 @@ def _delegated_status_integrity_warnings(
 
 def validate_run_dir(run_dir: Path) -> dict[str, Any]:
     errors: list[str] = []
+    coding_for_observation: dict[str, Any] | None = None
     run_path = run_dir / "run.json"
     try:
         run = read_json_object(run_path)
@@ -780,6 +1017,7 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
                 coding = None
                 errors.append(f"{coding_delegation_path}: {exc}")
             if isinstance(coding, dict):
+                coding_for_observation = coding
                 selection = coding.get("executor_selection")
                 choice_required = isinstance(selection, dict) and selection.get("choice_required") is True
                 if choice_required:
@@ -802,6 +1040,31 @@ def validate_run_dir(run_dir: Path) -> dict[str, Any]:
             errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
+    observations_path = run_dir / "runtime_observations.jsonl"
+    if observations_path.exists():
+        observations, observation_errors = read_runtime_observations_result(run_dir)
+        errors.extend(observation_errors)
+        for index, observation in enumerate(observations, start=1):
+            errors.extend(
+                f"{observations_path}:{index}: {error}"
+                for error in validate_runtime_observation_record(observation)
+            )
+        if isinstance(run, dict):
+            if coding_for_observation is None and (run_dir / "coding_delegation.json").exists():
+                try:
+                    coding = read_json_object(run_dir / "coding_delegation.json")
+                except (OSError, JSONDecodeError, ValueError):
+                    coding = None
+                if isinstance(coding, dict):
+                    coding_for_observation = coding
+            errors.extend(
+                _validate_runtime_observations_for_run(
+                    observations_path,
+                    run,
+                    coding_for_observation,
+                    observations,
+                )
+            )
     for name, validator in OPTIONAL_RECORD_VALIDATORS:
         path = run_dir / name
         if not path.exists():
@@ -1015,6 +1278,17 @@ def validate_wrapper_session_dir(session_dir: Path) -> dict[str, Any]:
             errors.extend(f"{events_path}:{index}: {error}" for error in validate_event_record(event))
     else:
         errors.append(f"{events_path}: missing events.jsonl")
+    observations_path = session_dir / "runtime_observations.jsonl"
+    if observations_path.exists():
+        observations, observation_errors = read_runtime_observations_result(session_dir)
+        errors.extend(observation_errors)
+        for index, observation in enumerate(observations, start=1):
+            errors.extend(
+                f"{observations_path}:{index}: {error}"
+                for error in validate_runtime_observation_record(observation)
+            )
+        if session:
+            errors.extend(validate_runtime_observations_for_wrapper_session(observations_path, session, observations))
     if session:
         errors.extend(_validate_wrapper_session_run_link(session_dir, session, events))
     return {"session_id": session_dir.name, "ok": not errors, "errors": errors}

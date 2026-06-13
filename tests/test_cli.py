@@ -108,6 +108,8 @@ class CliTests(unittest.TestCase):
             self.assertEqual(setup_payload["operator_summary"]["install_mode"], "managed_skills")
             self.assertEqual(setup_payload["operator_summary"]["mcp_mode"], "none")
             self.assertEqual(setup_payload["operator_summary"]["state_log"]["entry"], "last_setup")
+            self.assertEqual(setup_payload["steps"]["profile"]["operating_model_id"], "solo-operator")
+            self.assertEqual(setup_payload["operator_summary"]["operating_model_id"], "solo-operator")
 
             status, stdout, stderr = run_cli(base + ["doctor", "--json"], output_json=False)
 
@@ -131,6 +133,7 @@ class CliTests(unittest.TestCase):
             (["playbook", "inspect", "safe-feature-change"], "OMH playbook:", "playbook"),
             (["profile", "list"], "OMH profile packs", "packs"),
             (["profile", "inspect", "cto-loop"], "OMH profile pack:", "pack"),
+            (["profile", "inspect", "coding-runtime-team"], "OMH operating model:", "model"),
         )
 
         for args, human_marker, json_key in cases:
@@ -2055,6 +2058,9 @@ class CliTests(unittest.TestCase):
             self.assertIn("swarm", payload["runtime_handoff"]["team_contract"]["modes"])
             self.assertTrue(any("tmux" in value for value in payload["runtime_handoff"]["team_contract"]["worker_protocol"]))
             self.assertIn("worktree_creation", payload["runtime_handoff"]["evidence_contract"]["prepared_is_not"])
+            self.assertEqual(payload["runtime_handoff"]["observation_contract"]["record_schema"], "runtime_observation/v1")
+            self.assertIn("worker_result", payload["runtime_handoff"]["observation_contract"]["allowed_events"])
+            self.assertIn("$ultragoal {message}", {item["command_template"] for item in payload["runtime_handoff"]["runtime_templates"]})
             self.assertNotIn("prompt_handoff", payload)
             self.assertNotIn("executor_handoff", payload)
 
@@ -2062,6 +2068,164 @@ class CliTests(unittest.TestCase):
             self.assertEqual(stderr, "")
             self.assertEqual(status, 0)
             self.assertTrue(json.loads(stdout)["ok"])
+
+    def test_runtime_observe_records_wrapper_session_runtime_events(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home_args = ["--omh-home", str(root / ".omh"), "--hermes-home", str(root / ".hermes")]
+            message = "risky refactor"
+
+            status, stdout, stderr = run_cli(
+                home_args
+                + [
+                    "chat",
+                    "session",
+                    "start",
+                    "--source",
+                    "discord",
+                    "--source-event-id",
+                    "m1",
+                    "--channel-ref",
+                    "c1",
+                    message,
+                ]
+            )
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            session_id = json.loads(stdout)["session"]["session_id"]
+            self.assertEqual(run_cli(home_args + ["chat", "session", "accept-plan", session_id])[0], 0)
+            self.assertEqual(run_cli(home_args + ["chat", "session", "select-executor", session_id, "omx-runtime"])[0], 0)
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "prepare-handoff", session_id, message])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            prepared = json.loads(stdout)
+            self.assertEqual(prepared["session"]["status"], "runtime_handoff_prepared")
+            self.assertEqual(prepared["status"]["runtime_observation"]["next_action"], "record_runtime_observation:runtime_start")
+
+            status, _, stderr = run_cli(
+                home_args
+                + [
+                    "runtime",
+                    "observe",
+                    "--session",
+                    session_id,
+                    "--runtime-profile",
+                    "hermes",
+                    "--event",
+                    "runtime_start",
+                    "--summary",
+                    "wrong runtime profile",
+                ]
+            )
+            self.assertEqual(status, 2)
+            self.assertIn("runtime observation profile mismatch", stderr)
+
+            status, stdout, stderr = run_cli(
+                home_args
+                + [
+                    "runtime",
+                    "observe",
+                    "--session",
+                    session_id,
+                    "--runtime-profile",
+                    "omx-runtime",
+                    "--event",
+                    "runtime_start",
+                    "--summary",
+                    "operator started OMX",
+                ]
+            )
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            observed = json.loads(stdout)
+            self.assertEqual(observed["observation"]["schema_version"], "runtime_observation/v1")
+            self.assertEqual(observed["observation"]["target_type"], "wrapper_session")
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "status", session_id])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            session_status = json.loads(stdout)
+            self.assertEqual(session_status["runtime_observation"]["observed_events"], ["runtime_start"])
+            self.assertEqual(session_status["runtime_observation"]["next_action"], "record_runtime_observation:worktree_creation")
+
+            status, stdout, stderr = run_cli(
+                home_args
+                + [
+                    "runtime",
+                    "observe",
+                    "--session",
+                    session_id,
+                    "--runtime-profile",
+                    "omx-runtime",
+                    "--event",
+                    "worker_dispatch",
+                    "--status",
+                    "blocked",
+                    "--summary",
+                    "worker dispatch blocked before allocation",
+                ]
+            )
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            blocked = json.loads(stdout)
+            self.assertEqual(blocked["observation"]["status"], "blocked")
+            self.assertEqual(blocked["observation"]["worker_ref"], "")
+
+            status, stdout, stderr = run_cli(home_args + ["chat", "session", "status", session_id])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            session_status = json.loads(stdout)
+            self.assertIn("worker_dispatch", session_status["runtime_observation"]["blocked_events"])
+            self.assertEqual(session_status["runtime_observation"]["next_action"], "surface_runtime_blocker:worker_dispatch")
+
+            status, stdout, stderr = run_cli(home_args + ["runtime", "validate"])
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            self.assertTrue(json.loads(stdout)["ok"])
+
+    def test_runtime_observe_rejects_plain_workflow_run_without_runtime_handoff(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home_args = ["--omh-home", str(root / ".omh"), "--hermes-home", str(root / ".hermes")]
+
+            status, stdout, stderr = run_cli(
+                home_args
+                + [
+                    "runtime",
+                    "record",
+                    "--skill",
+                    "oh-my-hermes",
+                    "--harness",
+                    "coding-handling",
+                    "--status",
+                    "started",
+                    "--trigger",
+                    "plain workflow",
+                ]
+            )
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            run_id = json.loads(stdout)["run"]["run_id"]
+
+            status, _, stderr = run_cli(
+                home_args
+                + [
+                    "runtime",
+                    "observe",
+                    "--run",
+                    run_id,
+                    "--runtime-profile",
+                    "omx-runtime",
+                    "--event",
+                    "runtime_start",
+                    "--summary",
+                    "should not attach to plain workflow run",
+                ]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("runtime observe cannot record runtime events for this non-runtime handoff run", stderr)
 
     def test_coding_delegate_record_after_default_setup_does_not_create_choice_run(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -3251,6 +3415,28 @@ class CliTests(unittest.TestCase):
             self.assertIn("team", payload["delegation"]["runtime_handoff"]["team_contract"]["modes"])
             self.assertNotIn("executor_handoff", payload["delegation"])
             self.assertNotIn("prompt_handoff", payload["delegation"])
+
+    def test_setup_records_operating_model_without_installing_profile_packs(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            omh_home = root / ".omh"
+            hermes_home = root / ".hermes"
+            base = ["--omh-home", str(omh_home), "--hermes-home", str(hermes_home)]
+
+            status, stdout, stderr = run_cli(base + ["setup", "--operating-model", "coding-runtime-team"])
+
+            self.assertEqual(stderr, "")
+            self.assertEqual(status, 0)
+            setup = json.loads(stdout)
+            profile = setup["steps"]["profile"]
+            self.assertEqual(profile["operating_model_id"], "coding-runtime-team")
+            self.assertEqual(profile["selected_categories"], ["plugin-runtime"])
+            self.assertEqual(profile["default_executor"], "omx-runtime")
+            self.assertEqual(setup["operator_summary"]["operating_model_id"], "coding-runtime-team")
+            written_profile = json.loads((omh_home / "setup-profile.json").read_text(encoding="utf-8"))
+            self.assertEqual(written_profile["operating_model_id"], "coding-runtime-team")
+            self.assertNotIn("operating_model", written_profile)
+            self.assertFalse((hermes_home / "agents" / "omh-engineering-delivery-planning-lead.md").exists())
 
     def test_setup_default_executor_records_human_executor_choice(self) -> None:
         with TemporaryDirectory() as tmp:

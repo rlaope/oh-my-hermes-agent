@@ -5,6 +5,7 @@ from typing import Any
 from ..executors import CODING_EXECUTOR_TARGETS
 from ..local_store import atomic_write_json, read_json_object, utc_now
 from ..paths import OmhPaths
+from .team import inspect_operating_model, operating_model_ids
 
 
 SETUP_PROFILE_SCHEMA_VERSION = "setup_profile/v1"
@@ -69,13 +70,20 @@ def build_setup_profile(
     values: list[str] | tuple[str, ...] | None = None,
     *,
     default_executor: str | None = None,
+    operating_model: str | None = None,
 ) -> dict[str, Any]:
-    selected = _selected_categories(values, default_executor=default_executor)
-    resolved_executor = _default_executor_for_categories(selected, default_executor=default_executor)
+    model_id = _normalize_operating_model(operating_model)
+    model = inspect_operating_model(model_id)["model"]
+    model_default_executor = str(model.get("default_executor", "choose")) if operating_model else None
+    executor_hint = default_executor or model_default_executor
+    selected = _selected_categories(values, default_executor=executor_hint)
+    resolved_executor = _default_executor_for_categories(selected, default_executor=executor_hint)
     return {
         "schema_version": SETUP_PROFILE_SCHEMA_VERSION,
         "updated_at": utc_now(),
         "selected_categories": [str(item["id"]) for item in selected],
+        "operating_model_schema_version": "operating_model/v1",
+        "operating_model_id": model_id,
         "default_executor": resolved_executor,
         "dispatch_policy": "ask_before_dispatch" if resolved_executor in {"codex", "choose"} else "prepare_only",
         "normal_user_surface": "Hermes Agent chat and installed Hermes skills",
@@ -92,8 +100,9 @@ def write_setup_profile(
     values: list[str] | tuple[str, ...] | None = None,
     *,
     default_executor: str | None = None,
+    operating_model: str | None = None,
 ) -> dict[str, Any]:
-    profile = build_setup_profile(values, default_executor=default_executor)
+    profile = build_setup_profile(values, default_executor=default_executor, operating_model=operating_model)
     atomic_write_json(paths.setup_profile_path, profile, private=True)
     return profile
 
@@ -152,3 +161,11 @@ def _normalize_executor(value: str) -> str:
         valid = ", ".join(CODING_EXECUTOR_TARGETS)
         raise ValueError(f"unsupported setup default executor: {executor}; expected one of {valid}")
     return executor
+
+
+def _normalize_operating_model(value: str | None) -> str:
+    model = str(value or "solo-operator").strip()
+    valid = operating_model_ids()
+    if model not in valid:
+        raise ValueError(f"unsupported operating model: {model}; expected one of {', '.join(valid)}")
+    return model

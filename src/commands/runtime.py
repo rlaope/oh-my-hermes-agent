@@ -10,6 +10,8 @@ from ..runtime.artifacts import (
     PRIVACY_MODES,
     REVIEW_STATUSES,
     RUN_STATUSES,
+    RUNTIME_OBSERVATION_EVENTS,
+    RUNTIME_OBSERVATION_STATUSES,
     create_run,
     export_runtime,
     list_runs,
@@ -21,8 +23,11 @@ from ..runtime.artifacts import (
     write_delegation,
     write_merge_record,
     write_review_record,
+    write_runtime_observation,
     write_wrapper_contract,
 )
+from ..executors import CODING_RUNTIME_HANDOFF_TARGETS
+from ..local_store import read_json_object
 from ..skill_pack import builtin_definitions, builtin_harnesses
 from .common import _paths, _print_json
 
@@ -259,6 +264,84 @@ def cmd_runtime_merge(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_runtime_observe(args: argparse.Namespace) -> int:
+    paths = _paths(args)
+    target_type = "run" if args.run_id else "wrapper_session"
+    target_id = args.run_id or args.session_id
+    if not target_id:
+        raise OmhError("runtime observe requires --run or --session")
+    target_dir = (
+        paths.runtime_runs_dir / target_id
+        if target_type == "run"
+        else paths.runtime_wrapper_sessions_dir / target_id
+    )
+    required_file = target_dir / ("run.json" if target_type == "run" else "session.json")
+    if not required_file.exists():
+        raise OmhError(f"runtime {target_type} not found: {target_id}")
+    _validate_runtime_observation_target(target_dir, target_type, args.runtime_profile)
+    participants = [item.strip() for item in (args.participants or "").split(",") if item.strip()]
+    try:
+        observation = write_runtime_observation(
+            target_dir,
+            {
+                "target_type": target_type,
+                "target_id": target_id,
+                "runtime_profile": args.runtime_profile,
+                "event_type": args.event,
+                "status": args.status,
+                "participants": participants,
+                "worktree_ref": args.worktree_ref or "",
+                "worker_ref": args.worker_ref or "",
+                "evidence_refs": args.evidence_ref or [],
+                "summary": args.summary or "",
+            },
+        )
+    except ValueError as exc:
+        raise OmhError(str(exc)) from exc
+    payload: dict[str, object] = {"observation": observation}
+    if target_type == "run":
+        payload["status"] = summarize_delegated_coding_status(paths, target_id)
+    _print_json(payload)
+    return 0
+
+
+def _validate_runtime_observation_target(target_dir, target_type: str, runtime_profile: str) -> None:
+    expected_profile = _expected_runtime_profile_for_target(target_dir, target_type)
+    if expected_profile is None:
+        return
+    if not expected_profile:
+        if target_type == "wrapper_session":
+            raise OmhError("runtime observe requires a runtime_handoff_prepared wrapper session")
+        raise OmhError("runtime observe cannot record runtime events for this non-runtime handoff run")
+    if runtime_profile != expected_profile:
+        raise OmhError(f"runtime observation profile mismatch: expected {expected_profile}, got {runtime_profile}")
+
+
+def _expected_runtime_profile_for_target(target_dir, target_type: str) -> str | None:
+    if target_type == "wrapper_session":
+        session = read_json_object(target_dir / "session.json")
+        if not isinstance(session, dict) or session.get("status") != "runtime_handoff_prepared":
+            return ""
+        return _runtime_profile_from_handoff(session.get("runtime_handoff")) or str(session.get("selected_executor_profile") or "")
+    run = read_json_object(target_dir / "run.json")
+    coding = read_json_object(target_dir / "coding_delegation.json")
+    if isinstance(coding, dict):
+        if coding.get("work_owner_mode") == "runtime_handoff":
+            return _runtime_profile_from_handoff(coding.get("runtime_handoff")) or str(coding.get("selected_executor_profile") or "")
+        return "" if isinstance(run, dict) and run.get("artifact_kind") == "prepared_coding_delegation" else None
+    return "" if isinstance(run, dict) else None
+
+
+def _runtime_profile_from_handoff(handoff: object) -> str:
+    if not isinstance(handoff, dict):
+        return ""
+    selected = str(handoff.get("selected_executor_profile") or "")
+    runtime_profile = handoff.get("runtime_profile")
+    if isinstance(runtime_profile, dict):
+        return str(runtime_profile.get("profile") or selected)
+    return selected
+
+
 def cmd_runtime_validate(args: argparse.Namespace) -> int:
     result = validate_runtime(_paths(args), args.run_id)
     _print_json(result)
@@ -361,6 +444,20 @@ def _add_runtime_commands(sub) -> None:
     runtime_merge.add_argument("--evidence-ref", action="append")
     runtime_merge.add_argument("--summary", default="")
     runtime_merge.set_defaults(func=cmd_runtime_merge)
+
+    runtime_observe = runtime_sub.add_parser("observe")
+    target = runtime_observe.add_mutually_exclusive_group(required=True)
+    target.add_argument("--run", dest="run_id", default=None)
+    target.add_argument("--session", dest="session_id", default=None)
+    runtime_observe.add_argument("--runtime-profile", choices=CODING_RUNTIME_HANDOFF_TARGETS, required=True)
+    runtime_observe.add_argument("--event", choices=RUNTIME_OBSERVATION_EVENTS, required=True)
+    runtime_observe.add_argument("--status", choices=RUNTIME_OBSERVATION_STATUSES, default="observed")
+    runtime_observe.add_argument("--participants", default="")
+    runtime_observe.add_argument("--worktree-ref", default="")
+    runtime_observe.add_argument("--worker-ref", default="")
+    runtime_observe.add_argument("--evidence-ref", action="append")
+    runtime_observe.add_argument("--summary", default="")
+    runtime_observe.set_defaults(func=cmd_runtime_observe)
 
     runtime_validate = runtime_sub.add_parser("validate")
     runtime_validate.add_argument("--run", dest="run_id", default=None)

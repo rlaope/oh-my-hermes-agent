@@ -26,6 +26,22 @@ RUNTIME_PROFILE_DETAILS = {
         "invocation_mode": "hermes_skill",
         "dispatch_text_template": "Use the selected OMH coding skill for: {message}",
         "recommended_for": "Hermes-owned coding using OMH skills, team/swarm guidance, tmux-style workers, worker protocol, and worktree discipline",
+        "templates": (
+            {
+                "label": "Hermes retained coding skill",
+                "syntax": "Hermes skill",
+                "command_template": "Use OMH ultrawork for: {message}",
+                "when_to_use": "Use when the operator wants Hermes itself to own a bounded coding task with OMH guardrails.",
+                "observed_event": "runtime_start",
+            },
+            {
+                "label": "Hermes review gate",
+                "syntax": "Hermes skill",
+                "command_template": "Use OMH code-review for: {message}",
+                "when_to_use": "Use after implementation evidence exists and Hermes should frame or run a review workflow.",
+                "observed_event": "review",
+            },
+        ),
     },
     "omx-runtime": {
         "label": "OMX runtime",
@@ -35,6 +51,36 @@ RUNTIME_PROFILE_DETAILS = {
         "invocation_mode": "oh_my_runtime",
         "dispatch_text_template": "Run the selected OMX coding workflow with this task:\n{message}",
         "recommended_for": "Codex-backed oh-my runtime workflows with skills, team/swarm workers, tmux-style coordination, and worktree-aware delivery",
+        "templates": (
+            {
+                "label": "OMX durable goal",
+                "syntax": "$skill",
+                "command_template": "$ultragoal {message}",
+                "when_to_use": "Use for one ambitious implementation goal that needs durable state, verification, review, and a PR.",
+                "observed_event": "runtime_start",
+            },
+            {
+                "label": "OMX parallel team",
+                "syntax": "$skill",
+                "command_template": "$team {message}",
+                "when_to_use": "Use only when lanes are independent and worktree/file ownership can be made explicit.",
+                "observed_event": "worker_dispatch",
+            },
+            {
+                "label": "OMX throughput work",
+                "syntax": "$skill",
+                "command_template": "$ultrawork {message}",
+                "when_to_use": "Use for a prepared implementation batch where parallel execution is justified.",
+                "observed_event": "worker_dispatch",
+            },
+            {
+                "label": "OMX review gate",
+                "syntax": "$skill",
+                "command_template": "$code-review {message}",
+                "when_to_use": "Use after implementation evidence exists and review should be independently checked.",
+                "observed_event": "review",
+            },
+        ),
     },
     "omo-runtime": {
         "label": "OMO runtime",
@@ -44,6 +90,22 @@ RUNTIME_PROFILE_DETAILS = {
         "invocation_mode": "oh_my_runtime",
         "dispatch_text_template": "Run the selected OMO workflow with this task:\n{message}",
         "recommended_for": "OpenAgent-style runtime workflows when the operator has OMO installed",
+        "templates": (
+            {
+                "label": "OMO goal handoff",
+                "syntax": "$skill",
+                "command_template": "$ultragoal {message}",
+                "when_to_use": "Use when OpenAgent-backed runtime has an equivalent durable goal workflow.",
+                "observed_event": "runtime_start",
+            },
+            {
+                "label": "OMO team handoff",
+                "syntax": "$skill",
+                "command_template": "$team {message}",
+                "when_to_use": "Use when the OMO runtime exposes independent worker lanes and evidence reporting.",
+                "observed_event": "worker_dispatch",
+            },
+        ),
     },
     "omc-runtime": {
         "label": "OMC runtime",
@@ -53,6 +115,22 @@ RUNTIME_PROFILE_DETAILS = {
         "invocation_mode": "oh_my_runtime",
         "dispatch_text_template": "Run the selected OMC workflow with this task:\n{message}",
         "recommended_for": "Claude Code-backed oh-my runtime workflows when the operator has OMC installed",
+        "templates": (
+            {
+                "label": "OMC durable goal",
+                "syntax": "$skill",
+                "command_template": "$ultragoal {message}",
+                "when_to_use": "Use when Claude Code-backed runtime has an equivalent durable goal workflow.",
+                "observed_event": "runtime_start",
+            },
+            {
+                "label": "OMC review gate",
+                "syntax": "$skill",
+                "command_template": "$code-review {message}",
+                "when_to_use": "Use after implementation evidence exists and review should be checked separately.",
+                "observed_event": "review",
+            },
+        ),
     },
 }
 
@@ -236,3 +314,10 @@ def runtime_profile_contract(profile: str) -> dict[str, object]:
         "supports_worktree_guidance": True,
         "requires_operator_runtime": profile != "hermes",
     }
+
+
+def runtime_templates_for_profile(profile: str) -> list[dict[str, str]]:
+    if profile not in CODING_RUNTIME_HANDOFF_TARGETS:
+        raise ValueError(f"unsupported runtime executor profile: {profile}")
+    templates = RUNTIME_PROFILE_DETAILS[profile].get("templates", ())
+    return [{key: str(value) for key, value in template.items()} for template in templates]

@@ -17,6 +17,7 @@ from .executors import (
     public_executor_options,
     runtime_invocation_for_profile,
     runtime_profile_contract,
+    runtime_templates_for_profile,
 )
 from .harness_quality import with_wrapper_actions
 from .ingress import CHAT_SOURCES, extract_message_text, extract_source_metadata
@@ -524,6 +525,7 @@ def _runtime_handoff(profile: str, delegation: CodingDelegation) -> dict[str, ob
                 "status narration from observed runtime artifacts",
             ],
         },
+        "runtime_templates": runtime_templates_for_profile(profile),
         "team_contract": {
             "modes": ["solo", "team", "swarm"],
             "leader_owns": [
@@ -566,6 +568,40 @@ def _runtime_handoff(profile: str, delegation: CodingDelegation) -> dict[str, ob
                 "worker process launch",
                 "merge back to main worktree",
             ],
+        },
+        "observation_contract": {
+            "record_schema": "runtime_observation/v1",
+            "record_with": (
+                "omh runtime observe --session <wrapper-session-id> --runtime-profile "
+                f"{profile} --event <runtime_start|worktree_creation|worker_dispatch|worker_result|verification|review|ci|merge_readiness|merge> "
+                "--status <observed|blocked|failed|not_observed> --summary <observed metadata>"
+            ),
+            "allowed_events": [
+                "runtime_start",
+                "worktree_creation",
+                "worker_dispatch",
+                "worker_result",
+                "verification",
+                "review",
+                "ci",
+                "merge_readiness",
+                "merge",
+            ],
+            "status_ladder": [
+                "runtime_start",
+                "worktree_creation",
+                "worker_dispatch",
+                "worker_result",
+                "verification",
+                "review",
+                "ci",
+                "merge_readiness",
+                "merge",
+            ],
+            "claim_boundary": (
+                "Runtime templates are prepared guidance. Runtime status changes only when a wrapper or operator records "
+                "runtime_observation/v1 evidence."
+            ),
         },
         "scope": [
             "Use the original task message as the runtime request.",

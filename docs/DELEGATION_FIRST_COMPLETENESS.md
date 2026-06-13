@@ -35,6 +35,7 @@ evidence exists.
 | `omh coding lifecycle` | Tracks Codex-selected handoff dispatch, executor result, verification, and reportable status from existing runtime evidence. | `src/wrapper/lifecycle.py`, `tests/test_coding_lifecycle.py`, `tests/test_cli.py` |
 | `omh memory inspect/pack/apply` | Reviews OMH-local and wrapper-supplied context, creates `memory_review_card/v1`, and attaches only conflict-free `handoff_context_pack/v1` summaries to executor handoffs. | `src/memory.py`, `tests/test_memory.py` |
 | `omh runtime wrapper` | Lets wrappers record what they actually observed after dispatch. | `src/runtime/artifacts.py`, `README.md` |
+| `omh runtime observe` | Records metadata-only `runtime_observation/v1` events for Hermes/OMX/OMO/OMC runtime handoffs: runtime start, worktree creation, worker dispatch/result, verification, review, CI, merge-readiness, and merge. | `src/runtime/artifacts.py`, `src/runtime/records.py`, `tests/test_cli.py`, `tests/test_runtime_artifacts.py` |
 | `omh runtime review`, `omh runtime ci`, `omh runtime merge` | Records observed review, CI, merge-readiness, and merge evidence under the run ledger. | `src/runtime/artifacts.py`, `src/runtime/records.py`, `tests/test_cli.py` |
 | `omh runtime validate/export` | Validates and exports local evidence without storing prompt bodies by default. | `src/runtime/artifacts.py`, `tests/test_runtime_artifacts.py` |
 | `examples/wrapper-golden/` | Provides platform-neutral golden chat responses for wrapper button/thread/status UX. | `examples/wrapper-golden/status-ladder.json`, `tests/test_wrapper_golden_examples.py` |
@@ -52,7 +53,9 @@ The strongest existing path is:
    runtime selection. Codex selection prepares a lifecycle handoff and links
    the session to the runtime run id; Claude Code and generic agents prepare a
    prompt-only handoff; Hermes/OMX/OMO/OMC prepare a runtime handoff without a
-   lifecycle run.
+   lifecycle run. Runtime handoffs now include runtime-specific templates and a
+   `runtime_observation/v1` contract so wrappers know exactly which events must
+   be observed later.
 6. Separate wrapper/runtime evidence is required before OMH can say execution,
    review, verification, CI, merge, or merge-readiness was observed.
 
@@ -62,7 +65,7 @@ The strongest existing path is:
 | --- | --- | --- | --- |
 | P0 | Hermes Agent consumes OMH contracts. | OMH should read as a Hermes-native capability layer, not as a separate bot product. | Keep OMH focused on fixture-backed chat contracts and local status artifacts. |
 | P1 | Hermes-facing examples should stay concrete. | Golden JSON locks the wrapper contract, but operators still need examples for rendering replies, actions, status cards, and thread keys. | Add fixture-backed examples that show chat UX without implying missing platform code. |
-| P2 | Run-backed lifecycle reporting is Codex-only until another runtime provides observed dispatch/result contracts. | Other targets are still supported without overclaiming: prompt-only for Claude Code/generic agents and runtime handoff contracts for Hermes/OMX/OMO/OMC. | Generalize lifecycle reporting only after another executor or runtime can provide observed dispatch/result contracts. |
+| P2 | Run-backed Codex lifecycle reporting remains Codex-only, but runtime observation is available for Hermes/OMX/OMO/OMC handoffs. | Other targets are supported without overclaiming: prompt-only for Claude Code/generic agents, runtime handoff templates for Hermes/OMX/OMO/OMC, and `runtime_observation/v1` records for observed runtime ladder steps. | Keep lifecycle dispatch/result semantics separate from runtime observation until another executor exposes an equivalent lifecycle contract. |
 
 ## First Implementation Contract
 
@@ -82,9 +85,22 @@ Expected behavior:
   `--executor omo-runtime`, or `--executor omc-runtime` returns a runtime
   handoff contract with team/swarm, worker-protocol, and worktree guidance, but
   still does not create a lifecycle run.
+- Runtime handoff contracts include safe invocation templates such as
+  `$ultragoal {message}`, `$team {message}`, `$ultrawork {message}`, or
+  Hermes retained coding-skill prompts, plus an observation contract explaining
+  how to record what actually happened later.
+- `omh runtime observe --run <id>` or `omh runtime observe --session <id>`
+  appends one observed, blocked, failed, or not-observed runtime ladder event
+  without upgrading missing events into evidence.
+- For wrapper sessions, the observed `--runtime-profile` must match the
+  prepared `coding_runtime_handoff/v1` profile. Prompt-only handoffs and Codex
+  lifecycle runs do not become runtime ladders just because an observation file
+  exists.
 - The payload names the selected executor/runtime target and includes:
   - executor target and handoff mode
   - a prompt template, instruction payload, or runtime contract for the selected coding owner
+  - runtime-specific templates when an oh-my or Hermes runtime is selected
+  - a runtime observation contract for runtime handoffs
   - scope and non-goals
   - acceptance criteria
   - verification expectations
@@ -116,11 +132,13 @@ Wrappers should be able to express the chain in human terms:
 2. OMH either asks the user to choose an executor/runtime, prepares a
    prompt-only handoff, prepares a Hermes/OMX/OMO/OMC runtime handoff, or
    prepares a Codex lifecycle handoff.
-3. Executor execution is pending, running, blocked, completed, or not observed
+3. Runtime handoff templates show the selected runtime what to run, but the
+   runtime observation ladder still starts empty.
+4. Executor execution is pending, running, blocked, completed, or not observed
    according to wrapper evidence.
-4. Review, verification, CI, and merge status stay separate from prepared
+5. Review, verification, CI, and merge status stay separate from prepared
    delegation until observed.
-5. Status readers evaluate the full run ledger conservatively. A later
+6. Status readers evaluate the full run ledger conservatively. A later
    `merge.json` cannot make a run look merge-ready if verification, review, or
    CI is missing, failed, blocked, or contradictory.
 

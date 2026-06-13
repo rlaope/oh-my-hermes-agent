@@ -57,6 +57,33 @@ class TeamProfilePack:
         }
 
 
+@dataclass(frozen=True)
+class OperatingModel:
+    id: str
+    title: str
+    summary: str
+    use_when: str
+    default_executor: str
+    recommended_profile_packs: tuple[str, ...]
+    runtime_guidance: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "summary": self.summary,
+            "use_when": self.use_when,
+            "default_executor": self.default_executor,
+            "recommended_profile_packs": list(self.recommended_profile_packs),
+            "runtime_guidance": list(self.runtime_guidance),
+            "setup_command": f"omh setup --operating-model {self.id}",
+            "claim_boundary": (
+                "An operating model records OMH routing and narration defaults only. It does not install role files "
+                "unless a separate profile pack is selected, and it does not prove runtime execution."
+            ),
+        }
+
+
 _CLAIM_BOUNDARY = (
     "Installing a team profile pack creates Hermes agent role files only. It does not prove "
     "Hermes activated those profiles, spawned agents, executed code, reviewed a PR, passed CI, "
@@ -261,12 +288,70 @@ TEAM_PROFILE_PACKS: tuple[TeamProfilePack, ...] = (
 
 _PACKS_BY_ID = {pack.id: pack for pack in TEAM_PROFILE_PACKS}
 
+OPERATING_MODELS: tuple[OperatingModel, ...] = (
+    OperatingModel(
+        id="solo-operator",
+        title="Solo Operator",
+        summary="One Hermes surface routes, plans, prepares handoffs, and narrates status without pretending extra agents exist.",
+        use_when="Use for personal or first-time OMH installs where clarity and low setup friction matter most.",
+        default_executor="choose",
+        recommended_profile_packs=(),
+        runtime_guidance=(
+            "Ask before choosing a coding owner.",
+            "Prefer retained Hermes workflows for research, planning, triage, and status.",
+            "Prepare executor/runtime handoffs only after scope is accepted.",
+        ),
+    ),
+    OperatingModel(
+        id="small-team",
+        title="Small Team",
+        summary="A product delivery model for small teams that want clear PM, technical, QA, and release responsibility.",
+        use_when="Use when Discord/Slack/Hermes traffic mixes customer feedback, bugs, feature ideas, and release checks.",
+        default_executor="choose",
+        recommended_profile_packs=("startup-delivery", "engineering-delivery"),
+        runtime_guidance=(
+            "Use role labels to clarify ownership, not to claim spawned agents.",
+            "Keep coding handoff owner explicit: Codex, Claude Code, Hermes, OMX, OMO, OMC, or generic.",
+            "Record review, CI, and merge only from observed evidence.",
+        ),
+    ),
+    OperatingModel(
+        id="research-ops",
+        title="Research Ops",
+        summary="A non-coding operating model for research, meeting preparation, strategy briefs, and decision records.",
+        use_when="Use when Hermes should primarily synthesize evidence and prepare decisions rather than implement code.",
+        default_executor="hermes",
+        recommended_profile_packs=("research-strategy",),
+        runtime_guidance=(
+            "Keep source boundaries, confidence, and unknowns visible.",
+            "Escalate to coding handoff only after an accepted plan requires repository changes.",
+            "Avoid treating meeting prep or strategy drafts as observed external outcomes.",
+        ),
+    ),
+    OperatingModel(
+        id="coding-runtime-team",
+        title="Coding Runtime Team",
+        summary="A runtime-heavy model for teams that want Hermes to prepare OMX/OMO/OMC/Hermes coding lanes with worker and worktree discipline.",
+        use_when="Use when the operator has an oh-my runtime or Hermes coding workflow and wants team/swarm-ready handoffs.",
+        default_executor="omx-runtime",
+        recommended_profile_packs=("engineering-delivery", "cto-loop"),
+        runtime_guidance=(
+            "Use runtime templates such as $ultragoal, $team, $ultrawork, and $code-review when the selected runtime supports them.",
+            "Require worktree or file ownership before parallel coding.",
+            "Record runtime_start, worktree_creation, worker_dispatch, worker_result, verification, review, CI, and merge observations separately.",
+        ),
+    ),
+)
+
+_OPERATING_MODELS_BY_ID = {model.id: model for model in OPERATING_MODELS}
+
 
 def list_team_profile_packs() -> dict[str, object]:
     return {
         "schema_version": "team_profile_catalog/v1",
         "default_install": "none",
         "claim_boundary": _CLAIM_BOUNDARY,
+        "operating_models": [model.to_dict() for model in OPERATING_MODELS],
         "packs": [pack.to_dict() for pack in TEAM_PROFILE_PACKS],
     }
 
@@ -274,6 +359,23 @@ def list_team_profile_packs() -> dict[str, object]:
 def inspect_team_profile_pack(pack_id: str) -> dict[str, object]:
     pack = _pack(pack_id)
     return {"schema_version": TEAM_PROFILE_SCHEMA_VERSION, "pack": pack.to_dict()}
+
+
+def list_operating_models() -> list[dict[str, object]]:
+    return [model.to_dict() for model in OPERATING_MODELS]
+
+
+def inspect_operating_model(model_id: str) -> dict[str, object]:
+    try:
+        model = _OPERATING_MODELS_BY_ID[model_id]
+    except KeyError as exc:
+        valid = ", ".join(sorted(_OPERATING_MODELS_BY_ID))
+        raise TeamProfileError(f"unknown operating model: {model_id}; expected one of {valid}") from exc
+    return {"schema_version": "operating_model/v1", "model": model.to_dict()}
+
+
+def operating_model_ids() -> tuple[str, ...]:
+    return tuple(sorted(_OPERATING_MODELS_BY_ID))
 
 
 def install_team_profile_pack(paths: OmhPaths, pack_id: str, *, force: bool = False, dry_run: bool = False) -> dict[str, object]:

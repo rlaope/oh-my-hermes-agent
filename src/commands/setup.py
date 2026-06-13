@@ -33,7 +33,14 @@ from ..setup_profiles import (
 )
 from ..snippet import WORKSPACE_SNIPPET
 from ..targets import record_target_observation
-from ..team_profiles import TeamProfileError, inspect_team_profile_pack, install_team_profile_pack, list_team_profile_packs
+from ..team_profiles import (
+    TeamProfileError,
+    inspect_operating_model,
+    inspect_team_profile_pack,
+    install_team_profile_pack,
+    list_team_profile_packs,
+    operating_model_ids,
+)
 from .common import _paths, _print_json, _wants_json
 from .language import LANGUAGE_CODES, language_from_env, language_options, normalize_language, tr
 
@@ -340,6 +347,8 @@ def _setup_operator_summary(
     team_status = "profile_pack" if getattr(args, "profile_pack", []) else "available"
     mcp = steps.get("mcp", {})
     mcp_mode = str(mcp.get("mode", "none")) if isinstance(mcp, dict) else "none"
+    profile = steps.get("profile", {})
+    operating_model_id = str(profile.get("operating_model_id", "")) if isinstance(profile, dict) else ""
     summary = {
         "schema_version": SETUP_OPERATOR_SUMMARY_SCHEMA_VERSION,
         "scope": _setup_scope(args),
@@ -347,6 +356,7 @@ def _setup_operator_summary(
         "mcp_mode": mcp_mode,
         "plugin_mode": plugin_status,
         "team_mode": team_status,
+        "operating_model_id": operating_model_id,
         "status": status,
         "requires_hermes_reload": bool(hermes_native.get("requires_hermes_reload", False)),
         "paths": {
@@ -689,6 +699,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
             "profile_packs": list(args.profile_pack),
             "setup_profiles": list(args.profile),
             "default_executor": str(getattr(args, "default_executor", "") or ""),
+            "operating_model": str(getattr(args, "operating_model", "") or ""),
         },
     )
     target_topology = steps["targets"].get("topology", {}) if isinstance(steps["targets"], dict) else {}
@@ -1274,10 +1285,13 @@ def _print_setup_summary(payload: dict[str, object], *, language: str = "en") ->
     if isinstance(profile, dict):
         selected = ", ".join(str(item) for item in profile.get("selected_categories", []) or [])
         executor = str(profile.get("default_executor", ""))
+        model = _resolved_operating_model(profile)
         if selected or executor:
             print(f"  {tr(language, 'default_handoff', summary=_executor_summary(executor))}")
             if selected:
                 print(f"  {tr(language, 'setup_profile', selected=selected)}")
+        if isinstance(model, dict) and model.get("id"):
+            print(f"  Operating model: {model.get('title', model.get('id'))} ({model.get('id')})")
 
     if isinstance(topology, dict):
         print(
@@ -1563,9 +1577,22 @@ def _print_profile_list_summary(payload: dict[str, object]) -> None:
     packs = payload.get("packs", [])
     if not isinstance(packs, list):
         packs = []
+    models = payload.get("operating_models", [])
+    if not isinstance(models, list):
+        models = []
     print(_color("OMH profile packs", "1;36", use_color))
     print(_color("Summary", "1;32", use_color))
     print(f"  Default install: {payload.get('default_install', 'none')}")
+    print(f"  Operating models: {len(models)}")
+    for model in models:
+        if not isinstance(model, dict):
+            continue
+        model_id = str(model.get("id", "unknown"))
+        title = str(model.get("title", model_id))
+        summary = _short_summary(str(model.get("summary", "")), limit=110)
+        print(f"  - {model_id}: {title}")
+        if summary:
+            print(f"    {summary}")
     print(f"  Available packs: {len(packs)}")
     for pack in packs:
         if not isinstance(pack, dict):
@@ -1577,13 +1604,44 @@ def _print_profile_list_summary(payload: dict[str, object]) -> None:
         if summary:
             print(f"    {summary}")
     print(_color("Next", "1;32", use_color))
-    print("  Inspect a pack with `omh profile inspect <id>`.")
+    print("  Inspect a model or pack with `omh profile inspect <id>`.")
     print("  Install one with `omh setup --profile-pack <id>`.")
     print(f"  {tr('en', 'machine_readable')}")
 
 
 def _print_profile_inspect_summary(payload: dict[str, object]) -> None:
     use_color = _use_color()
+    if "model" in payload:
+        model = payload.get("model", {})
+        if not isinstance(model, dict):
+            model = {}
+        model_id = str(model.get("id", "unknown"))
+        print(_color(f"OMH operating model: {model.get('title', model_id)}", "1;36", use_color))
+        print(_color("Summary", "1;32", use_color))
+        print(f"  ID: {model_id}")
+        summary = str(model.get("summary", "")).strip()
+        use_when = str(model.get("use_when", "")).strip()
+        if summary:
+            print(f"  Summary: {summary}")
+        if use_when:
+            print(f"  Use when: {use_when}")
+        print(f"  Default executor: {model.get('default_executor', 'choose')}")
+        packs = model.get("recommended_profile_packs", [])
+        if isinstance(packs, list) and packs:
+            print(f"  Recommended profile packs: {', '.join(str(item) for item in packs)}")
+        guidance = model.get("runtime_guidance", [])
+        if isinstance(guidance, list) and guidance:
+            print(_color("Runtime guidance", "1;32", use_color))
+            for item in guidance:
+                print(f"  - {item}")
+        print(_color("Next", "1;32", use_color))
+        print(f"  {model.get('setup_command', f'omh setup --operating-model {model_id}')}")
+        boundary = str(model.get("claim_boundary", "")).strip()
+        if boundary:
+            print(_color("Boundary", "1;32", use_color))
+            print(f"  {boundary}")
+        print(f"  {tr('en', 'machine_readable')}")
+        return
     pack = payload.get("pack", {})
     if not isinstance(pack, dict):
         pack = {}
@@ -1738,11 +1796,23 @@ def _mcp_setup_result(args: argparse.Namespace, paths) -> dict[str, object]:
 
 def _setup_profile_result(args: argparse.Namespace, paths) -> dict[str, object]:
     default_executor = str(getattr(args, "default_executor", "") or "") or None
+    operating_model = str(getattr(args, "operating_model", "") or "") or None
     if args.dry_run:
-        profile = build_setup_profile(args.profile, default_executor=default_executor)
+        profile = build_setup_profile(args.profile, default_executor=default_executor, operating_model=operating_model)
         return {**profile, "dry_run": True, "written": False, "path": str(paths.setup_profile_path)}
-    profile = write_setup_profile(paths, args.profile, default_executor=default_executor)
+    profile = write_setup_profile(paths, args.profile, default_executor=default_executor, operating_model=operating_model)
     return {**profile, "dry_run": False, "written": True, "path": str(paths.setup_profile_path)}
+
+
+def _resolved_operating_model(profile: dict[str, object]) -> dict[str, object]:
+    model_id = str(profile.get("operating_model_id", ""))
+    if not model_id:
+        return {}
+    try:
+        model = inspect_operating_model(model_id).get("model", {})
+    except TeamProfileError:
+        return {"id": model_id, "title": model_id}
+    return model if isinstance(model, dict) else {}
 
 
 def _team_profile_setup_result(args: argparse.Namespace, paths) -> list[dict[str, object]]:
@@ -1771,7 +1841,10 @@ def cmd_profile_inspect(args: argparse.Namespace) -> int:
     try:
         payload = inspect_team_profile_pack(args.id)
     except TeamProfileError as exc:
-        raise OmhError(str(exc)) from exc
+        try:
+            payload = inspect_operating_model(args.id)
+        except TeamProfileError:
+            raise OmhError(str(exc)) from exc
     if _wants_json(args):
         _print_json(payload)
     else:
@@ -1855,6 +1928,12 @@ def _add_top_level_commands(sub) -> None:
         choices=CODING_EXECUTOR_TARGETS,
         default=None,
         help="Default executor preference for coding-shaped handoffs. Use 'choose' to ask each time.",
+    )
+    setup.add_argument(
+        "--operating-model",
+        choices=operating_model_ids(),
+        default=None,
+        help="Record the Hermes-facing operating model, such as solo-operator, small-team, research-ops, or coding-runtime-team.",
     )
     setup.add_argument(
         "--with-plugin",

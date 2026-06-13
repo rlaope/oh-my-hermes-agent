@@ -598,6 +598,35 @@ Supported values are `choose`, `hermes`, `codex`, `claude-code`, `generic`,
 to setup profile categories for automation that already uses it, but new scripts
 should prefer `OMH_DEFAULT_EXECUTOR`.
 
+Record a Hermes-facing operating model during setup:
+
+```sh
+omh setup --operating-model coding-runtime-team
+```
+
+Operating models are setup defaults, not installed workers. They tell Hermes
+how to bias routing and status narration:
+
+| ID | Use when |
+| --- | --- |
+| `solo-operator` | One operator wants safe defaults and explicit executor choice. |
+| `small-team` | A small team wants product, technical, QA, and release ownership to be visible in chat. |
+| `research-ops` | Hermes should favor research, strategy, and meeting preparation instead of coding. |
+| `coding-runtime-team` | Hermes should prepare Hermes/OMX/OMO/OMC runtime handoffs with runtime templates and observed ladder status. |
+
+Inspect the available models with:
+
+```sh
+omh profile list
+omh profile inspect coding-runtime-team
+```
+
+Use a profile pack only when you also want visible role files installed under
+Hermes. The setup profile persists the stable `operating_model_id` and resolves
+the catalog entry when rendering summaries, so catalog copy can evolve without
+rewriting user state. Operating models alone do not install role files and do
+not prove any runtime execution.
+
 Choose installer/setup output language during bootstrap:
 
 ```sh
