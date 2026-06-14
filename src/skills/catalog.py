@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 from ..harness_quality import build_harness_quality_contract, unknown_harness_quality_contract
 
@@ -2248,18 +2249,30 @@ _PRIMARY_HARNESSES = {
 
 
 def builtin_definitions() -> list[SkillDefinition]:
-    return list(_DEFINITIONS)
+    return list(_builtin_definitions_cached())
 
 
 def builtin_harnesses() -> list[HarnessDefinition]:
-    return list(_HARNESSES)
+    return list(_builtin_harnesses_cached())
+
+
+@lru_cache(maxsize=1)
+def _builtin_definitions_cached() -> tuple[SkillDefinition, ...]:
+    return tuple(_DEFINITIONS)
+
+
+@lru_cache(maxsize=1)
+def _builtin_harnesses_cached() -> tuple[HarnessDefinition, ...]:
+    return tuple(_HARNESSES)
+
+
+@lru_cache(maxsize=1)
+def _harnesses_by_name() -> dict[str, HarnessDefinition]:
+    return {harness.name: harness for harness in _builtin_harnesses_cached()}
 
 
 def harness_definition(name: str) -> HarnessDefinition:
-    for harness in _HARNESSES:
-        if harness.name == name:
-            return harness
-    raise KeyError(name)
+    return _harnesses_by_name()[name]
 
 
 def harness_quality_contract(name: str) -> dict[str, object]:
@@ -2286,7 +2299,19 @@ def coding_intent_for_skill(name: str) -> str:
 
 
 def coding_skills_for_intent(intent: str) -> tuple[str, ...]:
-    return tuple(name for name, mapped_intent in _CODING_INTENT_BY_SKILL.items() if mapped_intent == intent)
+    return _coding_skills_by_intent().get(intent, ())
+
+
+@lru_cache(maxsize=1)
+def _coding_skills_by_intent() -> dict[str, tuple[str, ...]]:
+    return {
+        intent: tuple(
+            name
+            for name, mapped_intent in _CODING_INTENT_BY_SKILL.items()
+            if mapped_intent == intent
+        )
+        for intent in CODING_INTENTS
+    }
 
 
 def coding_terms_for_intent(intent: str) -> tuple[str, ...]:
@@ -2294,17 +2319,27 @@ def coding_terms_for_intent(intent: str) -> tuple[str, ...]:
 
 
 def retained_delegation_skill_names() -> tuple[str, ...]:
+    return _retained_delegation_skill_names_cached()
+
+
+@lru_cache(maxsize=1)
+def _retained_delegation_skill_names_cached() -> tuple[str, ...]:
     return tuple(
         definition.name
-        for definition in _DEFINITIONS
+        for definition in _builtin_definitions_cached()
         if definition.delegation_boundary in {"retained", "retained-catalog-intent"}
     )
 
 
 def catalog_intent_delegation_skill_names() -> tuple[str, ...]:
+    return _catalog_intent_delegation_skill_names_cached()
+
+
+@lru_cache(maxsize=1)
+def _catalog_intent_delegation_skill_names_cached() -> tuple[str, ...]:
     return tuple(
         definition.name
-        for definition in _DEFINITIONS
+        for definition in _builtin_definitions_cached()
         if definition.delegation_boundary == "retained-catalog-intent"
     )
 

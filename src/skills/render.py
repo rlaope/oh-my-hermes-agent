@@ -431,6 +431,11 @@ def builtin_skill_templates() -> list[SkillTemplate]:
 
 
 def workflow_reference_markdown() -> str:
+    return _workflow_reference_markdown_cached()
+
+
+@lru_cache(maxsize=1)
+def _workflow_reference_markdown_cached() -> str:
     definitions = builtin_definitions()
     harnesses = builtin_harnesses()
     lines = [
@@ -526,6 +531,11 @@ def workflow_reference_markdown() -> str:
 
 
 def workflow_reference_payload() -> dict[str, object]:
+    return _copy_workflow_reference_payload(_workflow_reference_payload_cached())
+
+
+@lru_cache(maxsize=1)
+def _workflow_reference_payload_cached() -> dict[str, object]:
     return {
         "schema_version": "workflow_catalog/v1",
         "description": (
@@ -535,6 +545,57 @@ def workflow_reference_payload() -> dict[str, object]:
         "skills": [_skill_payload(definition) for definition in builtin_definitions()],
         "harnesses": [_harness_payload(harness) for harness in builtin_harnesses()],
     }
+
+
+def _copy_workflow_reference_payload(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "schema_version": payload["schema_version"],
+        "description": payload["description"],
+        "skills": [_copy_skill_payload(skill) for skill in payload["skills"]],
+        "harnesses": [_copy_harness_payload(harness) for harness in payload["harnesses"]],
+    }
+
+
+def _copy_skill_payload(payload: dict[str, object]) -> dict[str, object]:
+    copied = dict(payload)
+    for key in (
+        "triggers",
+        "do_not_use_when",
+        "quality_bar",
+        "required_inputs",
+        "expected_outputs",
+        "artifact_expectations",
+        "safety_rules",
+    ):
+        copied[key] = list(payload[key])
+    copied["good_example"] = dict(payload["good_example"])
+    copied["bad_example"] = dict(payload["bad_example"])
+    return copied
+
+
+def _copy_harness_payload(payload: dict[str, object]) -> dict[str, object]:
+    copied = dict(payload)
+    for key in (
+        "quality_bar",
+        "required_inputs",
+        "expected_outputs",
+        "stop_conditions",
+        "verification",
+        "evidence_ladder",
+        "wrapper_actions",
+        "artifact_events",
+        "overclaim_guards",
+    ):
+        copied[key] = list(payload[key])
+    copied["harness_quality"] = _copy_harness_quality_payload(payload["harness_quality"])
+    return copied
+
+
+def _copy_harness_quality_payload(payload: dict[str, object]) -> dict[str, object]:
+    copied = dict(payload)
+    for key in ("quality_bar", "evidence_ladder", "wrapper_actions", "overclaim_guards"):
+        copied[key] = list(payload[key])
+    return copied
 
 
 def _skill_payload(definition: SkillDefinition) -> dict[str, object]:
