@@ -1832,7 +1832,7 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(status, 0)
                 recommendation = json.loads(stdout)["recommendations"][0]
                 self.assertEqual(recommendation["id"], playbook_id)
-                self.assertNotEqual(recommendation["confidence"], "low")
+                self.assertEqual(recommendation["confidence"], "high")
 
     def test_chat_route_can_emit_complete_prompt_for_non_logging_wrappers(self) -> None:
         status, stdout, stderr = run_cli(["chat", "route", "--include-message", "--source", "discord", "risky", "refactor"])
@@ -2033,6 +2033,27 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status_card["next_action"], "dispatch_to_executor")
         self.assertIn("executor_result", payload["not_observed"])
         self.assertNotIn(message, json.dumps(payload))
+
+    def test_demo_grounded_score_keeps_representative_cases_at_10(self) -> None:
+        status, stdout, stderr = run_cli(["demo", "grounded-score"])
+
+        self.assertEqual(stderr, "")
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout)
+        self.assertEqual(payload["schema_version"], "grounded_score_evaluation/v1")
+        self.assertEqual(payload["summary"]["scenario_count"], 19)
+        self.assertTrue(payload["summary"]["all_10"])
+        self.assertEqual(payload["summary"]["minimum_score"], 10)
+        self.assertEqual(payload["summary"]["maximum_score"], 10)
+        self.assertEqual(payload["summary"]["average_score"], 10.0)
+        self.assertIn("not live Hermes chat", payload["claim_boundary"])
+        failed = [scenario["id"] for scenario in payload["scenarios"] if scenario["score"] != 10]
+        self.assertEqual(failed, [])
+        direct = {scenario["id"]: scenario for scenario in payload["scenarios"]}
+        self.assertIsNone(direct["direct-goal-loop"]["expected"]["playbook"])
+        self.assertIsNone(direct["direct-ultraprocess-cycle"]["expected"]["playbook"])
+        self.assertEqual(direct["direct-goal-loop"]["expected"]["invocation_mode"], "direct_skill")
+        self.assertEqual(direct["direct-ultraprocess-cycle"]["expected"]["invocation_mode"], "direct_skill")
 
     def test_coding_delegate_include_message_expands_prompt_for_non_logging_wrappers(self) -> None:
         status, stdout, stderr = run_cli(["coding", "delegate", "--include-message", "risky", "refactor"])

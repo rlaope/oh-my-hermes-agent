@@ -396,26 +396,39 @@ with:
 omh chat interact --source discord "<message>"
 omh playbook recommend "<message>" --limit 1
 omh coding delegate --executor codex --source discord "<message>"
+omh demo grounded-score
 ```
 
 The purpose of the matrix is to keep Hermes users command-agnostic while giving
 wrapper operators a concrete contract result to render.
 
-| Scenario | User message tested | Chat route | Playbook | Coding handoff behavior |
-| --- | --- | --- | --- | --- |
-| Startup SaaS product triage | `결제 실패 피드백을 모아서 회의 주제와 다음 전략을 정리해줘` | `feedback-triage` / `triage_feedback` | `feedback-triage` | No coding handoff is emitted by default; Hermes classifies feedback and recommends the next workflow. |
-| OSS issue-to-PR preparation | `이 이슈 PR로 만들 수 있게 정리해줘` | `ralplan` / `present_plan` | `safe-feature-change` | Handoff includes reviewed-plan expectations and verification criteria. |
-| AI agent product QA | `쿠버네티스 장애 상황에서 Cloudy가 적절히 진단하나?` | `ultraqa` / `dispatch_to_workflow` | `release-readiness-review` | No dispatchable executor handoff is emitted from `coding delegate`; QA stays Hermes-retained until code work is accepted. |
-| Discord dev-team routing | `이거 위험한 리팩터링 같아` | `ralplan` / `present_plan` | `safe-feature-change` | Hermes presents a reviewed safety plan first; cleanup or executor handoff follows only after the safe plan is accepted. |
-| AI coding safety audit | `AI가 했다고 했는데 실제로 뭐 했는지 모르겠다` | `code-review` / `prepare_review_or_followup_handoff` | `release-readiness-review` | Review/fix handoff is separate from observed execution, verification, CI, and merge evidence. |
-| Product feature shaping | `온보딩을 더 부드럽게 만들고 싶어` | `deep-interview` / `answer_clarification` | `deep-interview-to-plan` | No coding handoff is emitted; Hermes asks one blocking question before planning. |
-| Release gate review | `릴리즈 전에 README claim이 실제 코드와 맞는가, doctor/harness가 통과하는가 봐줘` | `code-review` / `prepare_review_or_followup_handoff` | `release-readiness-review` | Fixes remain executor work; review and validation evidence must be observed separately. |
-| Repeated refactor workflow | `레거시 서비스를 위험 분석, 변경 범위 제한, 테스트 전략, Codex 구현, 리뷰, 회귀 테스트 순서로 리팩터링하고 싶어` | `ai-slop-cleaner` / `present_plan` | `safe-feature-change` | Prepared cleanup handoff names scope, tests, review, and regression expectations. |
-| Personal multi-agent work hub | `지금은 Hermes가 답할 차례인지, coding handoff를 준비할 차례인지, review gate를 열 차례인지 정리해줘` | `plan` / `present_plan` | `local-pipeline-buildout` | The wrapper can plan the hub contract before any coding executor is needed. |
-| Consulting/agency operating template | `고객사 프로젝트별 요구사항 정리, 조사, 구현 handoff, QA, 리뷰, 릴리즈 보고 운영 템플릿이 필요해` | `plan` / `present_plan` | `local-pipeline-buildout` | Handoff is available only after the operator accepts the recurring workflow plan. |
-| Operating rhythm history | `회의록 히스토리 관리하고 스크럼 스프린트 회고 운영 리듬 정리해줘` | `operating-rhythm` / `clarify` | `operating-rhythm-history` | Hermes prepares or records cadence artifacts; meeting outcomes and action completion need observed notes. |
-| Leadership report package | `create a PPT report package for a monthly leadership status deck` | `report-package` / `clarify` | `report-package` | Hermes prepares a report outline; binary deck export and stakeholder approval remain separate evidence. |
-| Reliability incident review | `run an incident postmortem SLO error budget service reliability review` | `reliability-review` / `clarify` | `reliability-incident-review` | Reliability claims require metric, incident, source, and remediation evidence before status advances. |
+`omh demo grounded-score` is a deterministic contract-compliance demo over 19
+representative messages. The score is 10/10 only when the expected chat route,
+response kind, next action, playbook confidence, and coding-delegation evidence
+boundary all match. It does not award points for unobserved execution, review,
+CI, or merge work.
+
+| Scenario | User message tested | Chat route | Playbook | Coding handoff behavior | Score |
+| --- | --- | --- | --- | --- | --- |
+| Startup SaaS product triage | `결제 실패 이슈가 자주 나와` | `feedback-triage` / `triage_feedback` | `feedback-triage` | No coding handoff is emitted by default; Hermes classifies feedback and recommends the next workflow. | `10/10` |
+| Startup SaaS product triage with strategy follow-up | `결제 실패 피드백을 모아서 회의 주제와 다음 전략을 정리해줘` | `feedback-triage` / `triage_feedback` | `feedback-triage` | No coding handoff is emitted by default; Hermes classifies feedback and recommends the next workflow. | `10/10` |
+| OSS issue-to-PR preparation | `이 이슈 PR로 만들 수 있게 정리해줘` | `ralplan` / `present_plan` | `safe-feature-change` | Handoff includes reviewed-plan expectations and verification criteria. | `10/10` |
+| AI agent product QA | `쿠버네티스 장애 상황에서 Cloudy가 적절히 진단하나?` | `ultraqa` / `dispatch_to_workflow` | `release-readiness-review` | No dispatchable executor handoff is emitted from `coding delegate`; QA stays Hermes-retained until code work is accepted. | `10/10` |
+| Discord dev-team routing | `이거 위험한 리팩터링 같아` | `ralplan` / `present_plan` | `safe-feature-change` | Hermes presents a reviewed safety plan first; cleanup or executor handoff follows only after the safe plan is accepted. | `10/10` |
+| AI coding safety audit | `AI가 했다고 했는데 실제로 뭐 했는지 모르겠다` | `code-review` / `prepare_review_or_followup_handoff` | `release-readiness-review` | Review/fix handoff is separate from observed execution, verification, CI, and merge evidence. | `10/10` |
+| Product feature shaping | `온보딩을 더 부드럽게 만들고 싶어` | `deep-interview` / `answer_clarification` | `deep-interview-to-plan` | No coding handoff is emitted; Hermes asks one blocking question before planning. | `10/10` |
+| Release gate review | `릴리즈 전에 README claim이 실제 코드와 맞는가, doctor/harness가 통과하는가 봐줘` | `code-review` / `prepare_review_or_followup_handoff` | `release-readiness-review` | Fixes remain executor work; review and validation evidence must be observed separately. | `10/10` |
+| Repeated refactor workflow | `레거시 서비스를 위험 분석, 변경 범위 제한, 테스트 전략, Codex 구현, 리뷰, 회귀 테스트 순서로 리팩터링하고 싶어` | `ai-slop-cleaner` / `present_plan` | `safe-feature-change` | Prepared cleanup handoff names scope, tests, review, and regression expectations. | `10/10` |
+| Personal multi-agent work hub | `지금은 Hermes가 답할 차례인지, coding handoff를 준비할 차례인지, review gate를 열 차례인지 정리해줘` | `plan` / `present_plan` | `local-pipeline-buildout` | The wrapper can plan the hub contract before any coding executor is needed. | `10/10` |
+| Consulting/agency operating template | `고객사 프로젝트별 요구사항 정리, 조사, 구현 handoff, QA, 리뷰, 릴리즈 보고 운영 템플릿이 필요해` | `plan` / `present_plan` | `local-pipeline-buildout` | Handoff is available only after the operator accepts the recurring workflow plan. | `10/10` |
+| Operating rhythm history | `회의록 히스토리 관리하고 스크럼 스프린트 회고 운영 리듬 정리해줘` | `operating-rhythm` / `prepare_operating_record` | `operating-rhythm-history` | Hermes prepares or records cadence artifacts; meeting outcomes and action completion need observed notes. | `10/10` |
+| Leadership report package | `create a PPT report package for a monthly leadership status deck` | `report-package` / `prepare_report_package` | `report-package` | Hermes prepares a report outline; binary deck export and stakeholder approval remain separate evidence. | `10/10` |
+| Reliability incident review | `run an incident postmortem SLO error budget service reliability review` | `reliability-review` / `prepare_reliability_review` | `reliability-incident-review` | Reliability claims require metric, incident, source, and remediation evidence before status advances. | `10/10` |
+| Idea-to-deploy product loop | `take this product idea from plan to deploy and monitor safely` | `idea-to-deploy` / `present_app_delivery_loop` | `idea-to-deploy` | Hermes presents the product loop without claiming implementation, deploy, or monitoring. | `10/10` |
+| CTO loop | `run a CTO loop for roadmap architecture tradeoffs delivery risk and release readiness` | `cto-loop` / `run_cto_loop` | `cto-loop` | Hermes keeps leadership decisions separate from accepted implementation follow-ups. | `10/10` |
+| Deploy and monitor | `deploy and monitor this release with rollback and health checks` | `deploy-and-monitor` / `prepare_deploy_monitor_plan` | `deploy-and-monitor` | Hermes prepares release operation gates without claiming infrastructure execution. | `10/10` |
+| Direct ambitious goal loop | `./loop make this project a 10k star OSS` | `loop` / `start_goal_loop` | Direct skill invocation | Loop state is orchestration only until linked evidence exists. | `10/10` |
+| Direct one-cycle ultraprocess | `$ultraprocess research the repo, plan, implement, code-review, sync docs, and prepare a PR` | `ultraprocess` / `start_ultraprocess` | Direct skill invocation | One cycle is prepared without claiming implementation, review, docs sync, CI, PR, or merge evidence. | `10/10` |
 
 User-facing effect:
 

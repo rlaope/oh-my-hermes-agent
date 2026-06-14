@@ -831,6 +831,9 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("omh playbook recommend", text)
         self.assertIn("safe-feature-change", text)
         self.assertIn("결제 실패 피드백을 모아서 회의 주제와 다음 전략을 정리해줘", text)
+        self.assertIn("omh demo grounded-score", text)
+        self.assertIn("10/10", text)
+        self.assertIn("$ultraprocess research the repo", text)
         self.assertIn("feedback-triage", text)
         self.assertIn("prepare weekly ops review from customer feedback and release risks", text)
         self.assertIn("쿠버네티스 장애 상황에서 Cloudy가 적절히 진단하나?", text)
@@ -884,6 +887,8 @@ class RouterContentTests(unittest.TestCase):
         self.assertIn("No plan or execution has started.", text)
         self.assertIn('id="operator-cases"', site_docs)
         self.assertIn("Grounded operator cases", site_docs)
+        self.assertIn("omh demo grounded-score", site_docs)
+        self.assertIn("10/10", site_docs)
 
     def test_architecture_docs_include_visual_system_view(self) -> None:
         architecture = Path("docs/ARCHITECTURE.md").read_text(encoding="utf-8")
